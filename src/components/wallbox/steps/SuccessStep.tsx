@@ -121,27 +121,38 @@ const SuccessStep = ({ data }: SuccessStepProps) => {
         </CardContent>
       </Card>
 
-      {/* PDF Download */}
+      {/* PDF Display and Download */}
       {data.pdfUrl && (
-        <Card className="max-w-2xl mx-auto bg-wallbox-success/5 border-wallbox-success/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-wallbox-success/10 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-wallbox-success" />
+        <div className="space-y-4">
+          <Card className="max-w-4xl mx-auto bg-wallbox-success/5 border-wallbox-success/20">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-wallbox-success/10 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-wallbox-success" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Dein Angebot ist fertig!</h4>
+                    <p className="text-sm text-muted-foreground">{data.pdfName || 'Wallbox-Angebot.pdf'}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold">Dein Angebot ist fertig!</h4>
-                  <p className="text-sm text-muted-foreground">{data.pdfName || 'Wallbox-Angebot.pdf'}</p>
-                </div>
+                <Button onClick={handleDownload} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Herunterladen
+                </Button>
               </div>
-              <Button onClick={handleDownload} className="gap-2">
-                <Download className="w-4 h-4" />
-                Herunterladen
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full h-96 border rounded-lg overflow-hidden bg-background">
+                <iframe
+                  src={data.pdfUrl}
+                  className="w-full h-full border-0"
+                  title="Wallbox Angebot PDF"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Next Steps */}
