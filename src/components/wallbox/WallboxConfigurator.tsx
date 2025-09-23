@@ -174,16 +174,59 @@ const WallboxConfigurator = () => {
         features: config.features
       });
 
-      // Send to webhook via GET (wie ursprünglich)
+      // Send to webhook via GET mit ALLER Konfigurationsdaten
+      const prices = calculatePrices();
       const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
-      webhookUrl.searchParams.append('name', config.kunde.name);
-      webhookUrl.searchParams.append('email', config.kunde.email);
-      webhookUrl.searchParams.append('plz', config.kunde.plz);
-      webhookUrl.searchParams.append('adresse', config.kunde.adresse);
-      webhookUrl.searchParams.append('wallbox_typ', config.wallbox.artikelnummer);
-      webhookUrl.searchParams.append('installation', 'konfigurator');
-      webhookUrl.searchParams.append('foerderung', String(config.foerderung));
+      
+      // Kundendaten
+      webhookUrl.searchParams.append('kunde_name', config.kunde.name);
+      webhookUrl.searchParams.append('kunde_email', config.kunde.email);
+      webhookUrl.searchParams.append('kunde_plz', config.kunde.plz);
+      webhookUrl.searchParams.append('kunde_adresse', config.kunde.adresse);
+      
+      // Wallbox Details
+      webhookUrl.searchParams.append('wallbox_id', config.wallbox.id);
+      webhookUrl.searchParams.append('wallbox_name', config.wallbox.name);
+      webhookUrl.searchParams.append('wallbox_artikelnummer', config.wallbox.artikelnummer);
+      webhookUrl.searchParams.append('wallbox_preis', config.wallbox.price.toString());
+      
+      // Konfiguration Details
+      webhookUrl.searchParams.append('kabel_laenge_m', config.kabel_laenge_m.toString());
+      webhookUrl.searchParams.append('leitung', config.leitung);
+      webhookUrl.searchParams.append('absicherung', config.absicherung);
+      webhookUrl.searchParams.append('durchbrueche', config.durchbrueche.toString());
+      webhookUrl.searchParams.append('arbeitsstunden', config.arbeitsstunden.toString());
+      webhookUrl.searchParams.append('anfahrt_zone', config.anfahrt_zone);
+      webhookUrl.searchParams.append('hauptsicherung_anpassung', config.hauptsicherung_anpassung.toString());
+      webhookUrl.searchParams.append('foerderung', config.foerderung.toString());
       webhookUrl.searchParams.append('features', JSON.stringify(config.features));
+      
+      // Preisberechnung Details
+      webhookUrl.searchParams.append('preis_material', prices.material.toString());
+      webhookUrl.searchParams.append('preis_arbeit', prices.arbeit.toString());
+      webhookUrl.searchParams.append('preis_zwischensumme', prices.zwischensumme.toString());
+      webhookUrl.searchParams.append('preis_foerderungsabzug', prices.foerderungsabzug.toString());
+      webhookUrl.searchParams.append('preis_gesamt', prices.gesamt.toString());
+      
+      // Zusätzliche Metadaten
+      webhookUrl.searchParams.append('installation_typ', 'konfigurator');
+      webhookUrl.searchParams.append('datum', new Date().toISOString());
+      webhookUrl.searchParams.append('vollstaendige_konfiguration', JSON.stringify({
+        wallbox: config.wallbox,
+        konfiguration: {
+          kabel_laenge_m: config.kabel_laenge_m,
+          leitung: config.leitung,
+          absicherung: config.absicherung,
+          durchbrueche: config.durchbrueche,
+          arbeitsstunden: config.arbeitsstunden,
+          anfahrt_zone: config.anfahrt_zone,
+          hauptsicherung_anpassung: config.hauptsicherung_anpassung,
+          foerderung: config.foerderung,
+          features: config.features
+        },
+        preise: prices,
+        kunde: config.kunde
+      }));
       const response = await fetch(webhookUrl.toString());
       if (response.ok) {
         const contentType = response.headers.get('content-type');
