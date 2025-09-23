@@ -103,17 +103,49 @@ const WallboxFunnel = () => {
 
       const response = await fetch(webhookUrl.toString());
       if (response.ok) {
-        const webhookData = await response.json();
-        console.log('Webhook response:', webhookData);
+        const contentType = response.headers.get('content-type');
+        console.log('Webhook response content-type:', contentType);
         
-        // Extract PDF URL from webhook response
-        if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
-          const pdfData = webhookData[0];
-          if (pdfData.url && pdfData.name) {
-            updateData({
-              pdfUrl: pdfData.url,
-              pdfName: pdfData.name
-            });
+        if (contentType && contentType.includes('application/pdf')) {
+          // Handle binary PDF response
+          const blob = await response.blob();
+          const pdfUrl = URL.createObjectURL(blob);
+          
+          updateData({
+            pdfUrl: pdfUrl,
+            pdfName: 'Wallbox-Angebot.pdf'
+          });
+        } else if (contentType && contentType.includes('application/json')) {
+          // Handle JSON response with PDF URL
+          const webhookData = await response.json();
+          console.log('Webhook response:', webhookData);
+          
+          if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+            const pdfData = webhookData[0];
+            if (pdfData.url && pdfData.name) {
+              updateData({
+                pdfUrl: pdfData.url,
+                pdfName: pdfData.name
+              });
+            }
+          }
+        } else {
+          // Try to parse as text/JSON anyway as fallback
+          try {
+            const webhookData = await response.json();
+            console.log('Webhook response (fallback):', webhookData);
+            
+            if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+              const pdfData = webhookData[0];
+              if (pdfData.url && pdfData.name) {
+                updateData({
+                  pdfUrl: pdfData.url,
+                  pdfName: pdfData.name
+                });
+              }
+            }
+          } catch (parseError) {
+            console.error('Could not parse response as JSON:', parseError);
           }
         }
         webhookSuccess = true;
