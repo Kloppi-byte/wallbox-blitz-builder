@@ -96,9 +96,10 @@ const Zaehler = () => {
   useEffect(() => {
     const fetchZaehlerOptions = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('zählerschränke')
-          .select('*');
+          .select('Name, "VK VK30", "Artikelnummer", Beschreibung, Kategorie')
+          .order('"Artikelnummer"');
 
         if (error) {
           toast({
