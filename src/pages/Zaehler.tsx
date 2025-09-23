@@ -75,6 +75,7 @@ const Zaehler = () => {
   });
 
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
 
   function calculateZaehlerPrices(cfg: ZaehlerConfig): CalculationResult {
     const PREISE = {
@@ -153,22 +154,6 @@ const Zaehler = () => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
 
-  const exportJSON = () => {
-    if (calculation) {
-      const dataStr = JSON.stringify(calculation, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const exportFileDefaultName = 'zaehler-kalkulation.json';
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-    }
-  };
-
-  const [cartOpen, setCartOpen] = useState(false);
-
   const addToCart = () => {
     if (calculation) {
       addItem({
@@ -187,166 +172,191 @@ const Zaehler = () => {
     }
   };
 
+  const exportJSON = () => {
+    if (calculation) {
+      const dataStr = JSON.stringify(calculation, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = 'zaehler-kalkulation.json';
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Zurück
-          </Button>
-          
+          <h1 className="text-xl font-semibold">Zählerschrank Konfigurator</h1>
           <div className="flex-1" />
-          
           <CartIcon onClick={() => setCartOpen(true)} />
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left Column - Summary */}
-          <div className="space-y-6">
-            {calculation && (
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5" />
-                    Paket-Übersicht
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">{config.schrank.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Zählerschrank mit {config.zaehlerplaetze} Zählerplatz{config.zaehlerplaetze > 1 ? 'en' : ''}
-                    </p>
-                  </div>
+        {/* Main Package Card */}
+        {calculation && (
+          <Card className="mb-8 text-center">
+            <CardContent className="py-12">
+              <h2 className="text-2xl font-bold mb-4">Zählerschrank Standardpaket</h2>
+              <div className="text-4xl font-bold text-primary mb-6">
+                € {calculation.summe.brutto.toFixed(2)}
+              </div>
+              <Button onClick={exportJSON} className="bg-primary hover:bg-primary/90" size="lg">
+                <Download className="w-4 h-4 mr-2" />
+                Sofort-Angebot als PDF
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-                  <div className="space-y-2 text-sm">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left Column - Package Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Paketübersicht</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Ihr zusammengestelltes Zählerschrank-Paket
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {calculation && (
+                <>
+                  <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span>Material:</span>
-                      <span>{calculation.details.materialkosten.toFixed(2)} €</span>
+                      <span className="font-medium">Schrank-Modell:</span>
+                      <span>{config.schrank.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Arbeitskosten ({calculation.details.arbeitsstunden}h):</span>
-                      <span>{calculation.details.arbeitskosten.toFixed(2)} €</span>
+                      <span className="font-medium">Zählerplätze:</span>
+                      <span>{config.zaehlerplaetze}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Anfahrt:</span>
-                      <span>{calculation.details.anfahrtkosten.toFixed(2)} €</span>
+                      <span className="font-medium">Reiheneinbaugeräte:</span>
+                      <span>{config.reiheneinbaugeraete}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Organisation:</span>
-                      <span>{calculation.details.orga.toFixed(2)} €</span>
+                      <span className="font-medium">Leitungsanpassungen:</span>
+                      <span>{config.leitungsanpassungen_m}m</span>
                     </div>
-                    {calculation.details.rabatt > 0 && (
-                      <div className="flex justify-between text-red-600">
-                        <span>Rabatt:</span>
-                        <span>-{calculation.details.rabatt.toFixed(2)} €</span>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Arbeitsaufwand:</span>
+                      <span>{calculation.details.arbeitsstunden} Std</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Anfahrt:</span>
+                      <span>Zone {config.anfahrt_zone}</span>
+                    </div>
+                    {config.altbau && (
+                      <div className="flex justify-between">
+                        <span className="font-medium">Altbau:</span>
+                        <span>Ja</span>
                       </div>
                     )}
                   </div>
 
+                  <div className="border-t pt-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Material:</span>
+                      <span>{calculation.details.materialkosten.toFixed(2)}€</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Arbeit + Anfahrt:</span>
+                      <span>{(calculation.details.arbeitskosten + calculation.details.anfahrtkosten).toFixed(2)}€</span>
+                    </div>
+                  </div>
+
                   <div className="border-t pt-4">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Gesamtpreis:</span>
-                      <span>{calculation.summe.brutto.toFixed(2)} €</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      inkl. {calculation.summe.mwst_satz_prozent}% MwSt.
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Zwischensumme:</span>
+                      <span>{calculation.summe.brutto.toFixed(2)}€</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Button onClick={addToCart} className="w-full" size="lg">
-                      In den Warenkorb
-                    </Button>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            JSON anzeigen
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-96 overflow-auto">
-                          <DialogHeader>
-                            <DialogTitle>Kalkulation JSON</DialogTitle>
-                          </DialogHeader>
-                          <pre className="text-xs bg-muted p-4 rounded overflow-auto">
-                            {JSON.stringify(calculation, null, 2)}
-                          </pre>
-                        </DialogContent>
-                      </Dialog>
+                  <Button onClick={addToCart} className="w-full mt-4" size="lg">
+                    In den Warenkorb
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-                      <Button onClick={exportJSON} variant="outline" size="sm" className="flex items-center gap-1">
-                        <Download className="w-3 h-3" />
-                        Export
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
           {/* Right Column - Configuration */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Zählerschrank Konfiguration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Schrank */}
-                <div className="space-y-2">
-                  <Label htmlFor="schrank">Schrank</Label>
-                  <Select 
-                    value={config.schrank.name} 
-                    onValueChange={(value) => updateConfig('schrank', { name: value, price: 520 })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Zählerschrank 3-reihig TAB-konform">
-                        Zählerschrank 3-reihig TAB-konform (520 €)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+          <Card>
+            <CardHeader>
+              <CardTitle>Schrank-Modell</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Schrank Selection */}
+              <div className="border rounded-lg p-4 bg-primary/5 border-primary/20">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-semibold">Zählerschrank 3-reihig TAB-konform</h3>
+                    <p className="text-sm text-muted-foreground">Art.-Nr.: ZS-3R-TAB</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold">520€</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configuration Options */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="zaehlerplaetze">Zählerplätze</Label>
+                    <Input
+                      id="zaehlerplaetze"
+                      type="number"
+                      min={1}
+                      max={3}
+                      value={config.zaehlerplaetze}
+                      onChange={(e) => updateConfig('zaehlerplaetze', parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="reiheneinbaugeraete">Reiheneinbaugeräte</Label>
+                    <Input
+                      id="reiheneinbaugeraete"
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={config.reiheneinbaugeraete}
+                      onChange={(e) => updateConfig('reiheneinbaugeraete', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
                 </div>
 
-                {/* Zählerplätze */}
-                <div className="space-y-2">
-                  <Label htmlFor="zaehlerplaetze">Zählerplätze</Label>
-                  <Input
-                    id="zaehlerplaetze"
-                    type="number"
-                    min={1}
-                    max={3}
-                    value={config.zaehlerplaetze}
-                    onChange={(e) => updateConfig('zaehlerplaetze', parseInt(e.target.value) || 1)}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="feldnachruestung">Feldnachrüstung</Label>
+                    <Input
+                      id="feldnachruestung"
+                      type="number"
+                      min={0}
+                      max={3}
+                      value={config.feldnachruestung}
+                      onChange={(e) => updateConfig('feldnachruestung', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="leitungsanpassungen_m">Leitungsanpassungen (m)</Label>
+                    <Input
+                      id="leitungsanpassungen_m"
+                      type="number"
+                      min={0}
+                      max={50}
+                      value={config.leitungsanpassungen_m}
+                      onChange={(e) => updateConfig('leitungsanpassungen_m', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
                 </div>
 
-                {/* Reiheneinbaugeräte */}
-                <div className="space-y-2">
-                  <Label htmlFor="reiheneinbaugeraete">Reiheneinbaugeräte</Label>
-                  <Input
-                    id="reiheneinbaugeraete"
-                    type="number"
-                    min={0}
-                    max={24}
-                    value={config.reiheneinbaugeraete}
-                    onChange={(e) => updateConfig('reiheneinbaugeraete', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-
-                {/* Checkboxen */}
+                {/* Checkboxes */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -354,7 +364,7 @@ const Zaehler = () => {
                       checked={config.rcd_typA}
                       onCheckedChange={(checked) => updateConfig('rcd_typA', checked)}
                     />
-                    <Label htmlFor="rcd_typA">RCD Typ A (95 €)</Label>
+                    <Label htmlFor="rcd_typA">RCD Typ A (+95€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -363,7 +373,7 @@ const Zaehler = () => {
                       checked={config.ueberspannungsschutz}
                       onCheckedChange={(checked) => updateConfig('ueberspannungsschutz', checked)}
                     />
-                    <Label htmlFor="ueberspannungsschutz">Überspannungsschutz (110 €)</Label>
+                    <Label htmlFor="ueberspannungsschutz">Überspannungsschutz (+110€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -372,7 +382,7 @@ const Zaehler = () => {
                       checked={config.hauptschalter}
                       onCheckedChange={(checked) => updateConfig('hauptschalter', checked)}
                     />
-                    <Label htmlFor="hauptschalter">Hauptschalter (65 €)</Label>
+                    <Label htmlFor="hauptschalter">Hauptschalter (+65€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -381,7 +391,7 @@ const Zaehler = () => {
                       checked={config.sammelschiene_zubehoer}
                       onCheckedChange={(checked) => updateConfig('sammelschiene_zubehoer', checked)}
                     />
-                    <Label htmlFor="sammelschiene_zubehoer">Sammelschiene Zubehör (35 €)</Label>
+                    <Label htmlFor="sammelschiene_zubehoer">Sammelschiene Zubehör (+35€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -394,34 +404,6 @@ const Zaehler = () => {
                   </div>
                 </div>
 
-                {/* Feldnachrüstung */}
-                <div className="space-y-2">
-                  <Label htmlFor="feldnachruestung">Feldnachrüstung</Label>
-                  <Input
-                    id="feldnachruestung"
-                    type="number"
-                    min={0}
-                    max={3}
-                    value={config.feldnachruestung}
-                    onChange={(e) => updateConfig('feldnachruestung', parseInt(e.target.value) || 0)}
-                  />
-                  <div className="text-sm text-muted-foreground">120 € pro Feld</div>
-                </div>
-
-                {/* Leitungsanpassungen */}
-                <div className="space-y-2">
-                  <Label htmlFor="leitungsanpassungen_m">Leitungsanpassungen (m)</Label>
-                  <Input
-                    id="leitungsanpassungen_m"
-                    type="number"
-                    min={0}
-                    max={50}
-                    value={config.leitungsanpassungen_m}
-                    onChange={(e) => updateConfig('leitungsanpassungen_m', parseInt(e.target.value) || 0)}
-                  />
-                  <div className="text-sm text-muted-foreground">8 € pro Meter</div>
-                </div>
-
                 {/* Anfahrt Zone */}
                 <div className="space-y-3">
                   <Label>Anfahrt Zone</Label>
@@ -431,20 +413,20 @@ const Zaehler = () => {
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="A" id="zone-a" />
-                      <Label htmlFor="zone-a">Zone A (50 €)</Label>
+                      <Label htmlFor="zone-a">Zone A (50€)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="B" id="zone-b" />
-                      <Label htmlFor="zone-b">Zone B (75 €)</Label>
+                      <Label htmlFor="zone-b">Zone B (75€)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="C" id="zone-c" />
-                      <Label htmlFor="zone-c">Zone C (100 €)</Label>
+                      <Label htmlFor="zone-c">Zone C (100€)</Label>
                     </div>
                   </RadioGroup>
                 </div>
 
-                {/* Orga Checkboxen */}
+                {/* Orga Checkboxes */}
                 <div className="space-y-3">
                   <Label>Organisation</Label>
                   <div className="space-y-3">
@@ -454,7 +436,7 @@ const Zaehler = () => {
                         checked={config.inbetriebsetzung_vnb}
                         onCheckedChange={(checked) => updateConfig('inbetriebsetzung_vnb', checked)}
                       />
-                      <Label htmlFor="inbetriebsetzung_vnb">Inbetriebsetzung VNB (120 €)</Label>
+                      <Label htmlFor="inbetriebsetzung_vnb">Inbetriebsetzung VNB (+120€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -463,7 +445,7 @@ const Zaehler = () => {
                         checked={config.plombierung_noetig}
                         onCheckedChange={(checked) => updateConfig('plombierung_noetig', checked)}
                       />
-                      <Label htmlFor="plombierung_noetig">Plombierung nötig (45 €)</Label>
+                      <Label htmlFor="plombierung_noetig">Plombierung nötig (+45€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -472,7 +454,7 @@ const Zaehler = () => {
                         checked={config.dokumentation_protokolle}
                         onCheckedChange={(checked) => updateConfig('dokumentation_protokolle', checked)}
                       />
-                      <Label htmlFor="dokumentation_protokolle">Dokumentation/Protokolle (60 €)</Label>
+                      <Label htmlFor="dokumentation_protokolle">Dokumentation/Protokolle (+60€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -481,7 +463,7 @@ const Zaehler = () => {
                         checked={config.entsorgung_altmaterial}
                         onCheckedChange={(checked) => updateConfig('entsorgung_altmaterial', checked)}
                       />
-                      <Label htmlFor="entsorgung_altmaterial">Entsorgung Altmaterial (25 €)</Label>
+                      <Label htmlFor="entsorgung_altmaterial">Entsorgung Altmaterial (+25€)</Label>
                     </div>
                   </div>
                 </div>
@@ -505,15 +487,15 @@ const Zaehler = () => {
                   <Input
                     id="arbeitsstunden_manuell"
                     type="number"
-                    step={0.1}
+                    step={1}
                     value={config.arbeitsstunden_manuell || ''}
-                    onChange={(e) => updateConfig('arbeitsstunden_manuell', e.target.value ? parseFloat(e.target.value) : undefined)}
+                    onChange={(e) => updateConfig('arbeitsstunden_manuell', e.target.value ? parseInt(e.target.value) : undefined)}
                     placeholder="Auto-Berechnung"
                   />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
       
