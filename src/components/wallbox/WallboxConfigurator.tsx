@@ -172,58 +172,55 @@ const WallboxConfigurator = () => {
         features: config.features
       });
 
-      // Send to webhook (POST JSON first, fallback to GET for endpoints not registered for POST)
-      const payload = { ...config, preise: prices };
-      const webhookBase = 'https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06';
+      // Send to webhook via GET (wie ursprünglich)
+      const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
+      webhookUrl.searchParams.append('name', config.kunde.name);
+      webhookUrl.searchParams.append('email', config.kunde.email);
+      webhookUrl.searchParams.append('plz', config.kunde.plz);
+      webhookUrl.searchParams.append('adresse', config.kunde.adresse);
+      webhookUrl.searchParams.append('wallbox_typ', config.wallbox.artikelnummer);
+      webhookUrl.searchParams.append('installation', 'konfigurator');
+      webhookUrl.searchParams.append('foerderung', String(config.foerderung));
+      webhookUrl.searchParams.append('features', JSON.stringify(config.features));
 
-      let gotPdf = false;
-
-      // Try POST JSON
-      const response = await fetch(webhookBase, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/pdf,application/json;q=0.9,*/*;q=0.8'
-        },
-        body: JSON.stringify(payload)
-      });
-
+      const response = await fetch(webhookUrl.toString());
       if (response.ok) {
         const contentType = response.headers.get('content-type');
+        console.log('Webhook response content-type:', contentType);
+        
         if (contentType && contentType.includes('application/pdf')) {
+          // Handle binary PDF response
           const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
-          gotPdf = true;
-        }
-      } else if (response.status === 404) {
-        // Fallback to GET with query params (n8n webhook not registered for POST)
-        const url = new URL(webhookBase);
-        url.searchParams.set('name', config.kunde.name);
-        url.searchParams.set('email', config.kunde.email);
-        url.searchParams.set('plz', config.kunde.plz);
-        url.searchParams.set('adresse', config.kunde.adresse);
-        url.searchParams.set('wallbox_typ', config.wallbox.artikelnummer);
-        url.searchParams.set('installation', 'konfigurator');
-        url.searchParams.set('foerderung', String(config.foerderung));
-        url.searchParams.set('features', JSON.stringify(config.features));
-        url.searchParams.set('state', encodeURIComponent(JSON.stringify(payload)));
-
-        const getResp = await fetch(url.toString(), {
-          headers: { 'Accept': 'application/pdf,application/json;q=0.9,*/*;q=0.8' }
-        });
-        if (getResp.ok) {
-          const ct = getResp.headers.get('content-type');
-          if (ct && ct.includes('application/pdf')) {
-            const blob = await getResp.blob();
-            const urlObj = URL.createObjectURL(blob);
-            window.open(urlObj, '_blank');
-            gotPdf = true;
+          const pdfUrl = URL.createObjectURL(blob);
+          window.open(pdfUrl, '_blank');
+        } else if (contentType && contentType.includes('application/json')) {
+          // Handle JSON response with PDF URL
+          const webhookData = await response.json();
+          console.log('Webhook response:', webhookData);
+          
+          if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+            const pdfData = webhookData[0];
+            if (pdfData.url && pdfData.name) {
+              window.open(pdfData.url, '_blank');
+            }
+          }
+        } else {
+          // Try to parse as text/JSON anyway as fallback
+          try {
+            const webhookData = await response.json();
+            console.log('Webhook response (fallback):', webhookData);
+            
+            if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+              const pdfData = webhookData[0];
+              if (pdfData.url && pdfData.name) {
+                window.open(pdfData.url, '_blank');
+              }
+            }
+          } catch (parseError) {
+            console.error('Could not parse response as JSON:', parseError);
           }
         }
-      }
 
-      if (gotPdf) {
         toast({
           title: "Angebot erstellt!",
           description: "Ihr PDF-Angebot wurde erfolgreich generiert."
