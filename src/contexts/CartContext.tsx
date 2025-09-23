@@ -193,22 +193,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         customerData: cart.customerData,
         items: cart.items,
         totalPrice: cart.totalPrice,
+        subtotalPrice: cart.subtotalPrice,
+        discountPercent: cart.discountPercent,
+        discountAmount: cart.discountAmount,
         totalItems: cart.totalItems,
         generatedAt: new Date().toISOString(),
       };
 
       const webhookUrl = "https://dxhfmmrywxhfwulnkqgk.supabase.co/functions/v1/wallbox-webhook";
-      const queryParams = new URLSearchParams();
-      
-      Object.entries(webhookData).forEach(([key, value]) => {
-        queryParams.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-      });
 
-      const response = await fetch(`${webhookUrl}?${queryParams.toString()}`, {
-        method: 'GET',
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(webhookData),
       });
 
       if (!response.ok) {
