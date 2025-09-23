@@ -200,14 +200,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         generatedAt: new Date().toISOString(),
       };
 
-      const webhookUrl = "https://dxhfmmrywxhfwulnkqgk.supabase.co/functions/v1/wallbox-webhook";
+      const webhookUrl = "https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06";
+      const queryParams = new URLSearchParams();
+      
+      Object.entries(webhookData).forEach(([key, value]) => {
+        queryParams.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
+      const response = await fetch(`${webhookUrl}?${queryParams.toString()}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(webhookData),
       });
 
       if (!response.ok) {
