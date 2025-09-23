@@ -24,6 +24,9 @@ export interface Cart {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
+  subtotalPrice: number;
+  discountPercent: number;
+  discountAmount: number;
   customerData: {
     name: string;
     email: string;
@@ -39,5 +42,6 @@ export interface CartContextType {
   updateItem: (itemId: string, updates: Partial<CartItem>) => void;
   clearCart: () => void;
   setCustomerData: (data: Cart['customerData']) => void;
+  setDiscount: (percent: number) => void;
   generateQuote: () => Promise<void>;
 }

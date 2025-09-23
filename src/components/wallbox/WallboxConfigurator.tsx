@@ -281,16 +281,6 @@ const WallboxConfigurator = () => {
 
   const addToCart = () => {
     const prices = calculatePrices();
-    
-    // Update cart with customer data
-    if (config.kunde.name && config.kunde.email && config.kunde.plz && config.kunde.adresse) {
-      setCustomerData({
-        name: config.kunde.name,
-        email: config.kunde.email,
-        plz: config.kunde.plz,
-        adresse: config.kunde.adresse,
-      });
-    }
 
     const cartItem = {
       productType: 'wallbox' as const,
@@ -315,12 +305,6 @@ const WallboxConfigurator = () => {
         subsidy: prices.foerderungsabzug,
         total: prices.gesamt,
       },
-      customerData: config.kunde.name ? {
-        name: config.kunde.name,
-        email: config.kunde.email,
-        plz: config.kunde.plz,
-        adresse: config.kunde.adresse,
-      } : undefined,
     };
 
     addItem(cartItem);
@@ -611,34 +595,6 @@ const WallboxConfigurator = () => {
               </CardContent>
             </Card>
 
-            {/* Customer Data */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Kundendaten</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Name *</Label>
-                    <Input id="name" value={config.kunde.name} onChange={e => updateKunde('name', e.target.value)} placeholder="Ihr Name" />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">E-Mail *</Label>
-                    <Input id="email" type="email" value={config.kunde.email} onChange={e => updateKunde('email', e.target.value)} placeholder="ihre@email.de" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="plz">PLZ *</Label>
-                    <Input id="plz" value={config.kunde.plz} onChange={e => updateKunde('plz', e.target.value)} placeholder="12345" maxLength={5} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="adresse">Adresse *</Label>
-                    <Input id="adresse" value={config.kunde.adresse} onChange={e => updateKunde('adresse', e.target.value)} placeholder="Straße und Hausnummer" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

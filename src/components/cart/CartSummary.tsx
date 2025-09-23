@@ -1,13 +1,40 @@
-import React from 'react';
-import { Trash2, Euro } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Euro, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 
 export function CartSummary() {
-  const { cart, removeItem, generateQuote, clearCart } = useCart();
+  const { cart, removeItem, generateQuote, clearCart, setCustomerData, setDiscount } = useCart();
+  const [customerForm, setCustomerForm] = useState({
+    name: cart.customerData?.name || '',
+    email: cart.customerData?.email || '',
+    plz: cart.customerData?.plz || '',
+    adresse: cart.customerData?.adresse || ''
+  });
+  const [discountInput, setDiscountInput] = useState(cart.discountPercent.toString());
+
+  const handleCustomerDataChange = (field: string, value: string) => {
+    const newForm = { ...customerForm, [field]: value };
+    setCustomerForm(newForm);
+    
+    // Update cart with complete customer data
+    if (newForm.name && newForm.email && newForm.plz && newForm.adresse) {
+      setCustomerData(newForm);
+    } else {
+      setCustomerData(null);
+    }
+  };
+
+  const handleDiscountChange = (value: string) => {
+    setDiscountInput(value);
+    const percent = Math.max(0, Math.min(30, parseFloat(value) || 0));
+    setDiscount(percent);
+  };
 
   if (cart.items.length === 0) {
     return (
@@ -29,6 +56,8 @@ export function CartSummary() {
     };
     return labels[type as keyof typeof labels] || type;
   };
+
+  const isFormValid = customerForm.name && customerForm.email && customerForm.plz && customerForm.adresse;
 
   return (
     <div className="space-y-4">
@@ -85,29 +114,120 @@ export function CartSummary() {
           
           <Separator />
           
-          <div className="flex items-center justify-between text-lg font-semibold">
-            <span>Gesamtsumme:</span>
-            <div className="flex items-center gap-1">
-              <Euro className="h-5 w-5" />
-              <span>{cart.totalPrice.toFixed(2)}€</span>
+          {/* Discount Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Label htmlFor="discount">Rabatt (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="discount"
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={discountInput}
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  placeholder="0"
+                  className="max-w-20"
+                />
+                <Percent className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Price Summary */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span>Zwischensumme:</span>
+              <span>{cart.subtotalPrice.toFixed(2)}€</span>
+            </div>
+            
+            {cart.discountPercent > 0 && (
+              <div className="flex items-center justify-between text-green-600">
+                <span>Rabatt ({cart.discountPercent}%):</span>
+                <span>-{cart.discountAmount.toFixed(2)}€</span>
+              </div>
+            )}
+            
+            <Separator />
+            
+            <div className="flex items-center justify-between text-lg font-semibold">
+              <span>Gesamtsumme:</span>
+              <div className="flex items-center gap-1">
+                <Euro className="h-5 w-5" />
+                <span>{cart.totalPrice.toFixed(2)}€</span>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Customer Data Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Kontaktdaten</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Name *</Label>
+              <Input 
+                id="name" 
+                value={customerForm.name} 
+                onChange={(e) => handleCustomerDataChange('name', e.target.value)} 
+                placeholder="Ihr Name" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">E-Mail *</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={customerForm.email} 
+                onChange={(e) => handleCustomerDataChange('email', e.target.value)} 
+                placeholder="ihre@email.de" 
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="plz">PLZ *</Label>
+              <Input 
+                id="plz" 
+                value={customerForm.plz} 
+                onChange={(e) => handleCustomerDataChange('plz', e.target.value)} 
+                placeholder="12345" 
+                maxLength={5} 
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="adresse">Adresse *</Label>
+              <Input 
+                id="adresse" 
+                value={customerForm.adresse} 
+                onChange={(e) => handleCustomerDataChange('adresse', e.target.value)} 
+                placeholder="Straße und Hausnummer" 
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Generate Quote Button */}
       <Card>
         <CardContent className="pt-6">
           <Button 
             onClick={generateQuote} 
             className="w-full" 
             size="lg"
-            disabled={!cart.customerData}
+            disabled={!isFormValid}
           >
             Gesamtangebot als PDF erstellen
           </Button>
-          {!cart.customerData && (
+          {!isFormValid && (
             <p className="text-sm text-muted-foreground mt-2 text-center">
-              Bitte geben Sie Ihre Kontaktdaten in einem Konfigurator ein
+              Bitte füllen Sie alle Kontaktdaten aus
             </p>
           )}
         </CardContent>

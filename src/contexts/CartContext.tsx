@@ -10,12 +10,16 @@ type CartAction =
   | { type: 'UPDATE_ITEM'; payload: { id: string; updates: Partial<CartItem> } }
   | { type: 'CLEAR_CART' }
   | { type: 'SET_CUSTOMER_DATA'; payload: Cart['customerData'] }
+  | { type: 'SET_DISCOUNT'; payload: number }
   | { type: 'LOAD_CART'; payload: Cart };
 
 const initialCart: Cart = {
   items: [],
   totalItems: 0,
   totalPrice: 0,
+  subtotalPrice: 0,
+  discountPercent: 0,
+  discountAmount: 0,
   customerData: null,
 };
 
@@ -29,21 +33,33 @@ function cartReducer(state: Cart, action: CartAction): Cart {
       };
       
       const items = [...state.items, newItem];
+      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const discountAmount = subtotalPrice * (state.discountPercent / 100);
+      const totalPrice = subtotalPrice - discountAmount;
+      
       return {
         ...state,
         items,
         totalItems: items.length,
-        totalPrice: items.reduce((sum, item) => sum + item.pricing.total, 0),
+        subtotalPrice,
+        discountAmount,
+        totalPrice,
       };
     }
     
     case 'REMOVE_ITEM': {
       const items = state.items.filter(item => item.id !== action.payload);
+      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const discountAmount = subtotalPrice * (state.discountPercent / 100);
+      const totalPrice = subtotalPrice - discountAmount;
+      
       return {
         ...state,
         items,
         totalItems: items.length,
-        totalPrice: items.reduce((sum, item) => sum + item.pricing.total, 0),
+        subtotalPrice,
+        discountAmount,
+        totalPrice,
       };
     }
     
@@ -53,10 +69,16 @@ function cartReducer(state: Cart, action: CartAction): Cart {
           ? { ...item, ...action.payload.updates }
           : item
       );
+      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const discountAmount = subtotalPrice * (state.discountPercent / 100);
+      const totalPrice = subtotalPrice - discountAmount;
+      
       return {
         ...state,
         items,
-        totalPrice: items.reduce((sum, item) => sum + item.pricing.total, 0),
+        subtotalPrice,
+        discountAmount,
+        totalPrice,
       };
     }
     
@@ -68,6 +90,19 @@ function cartReducer(state: Cart, action: CartAction): Cart {
         ...state,
         customerData: action.payload,
       };
+    
+    case 'SET_DISCOUNT': {
+      const subtotalPrice = state.items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const discountAmount = subtotalPrice * (action.payload / 100);
+      const totalPrice = subtotalPrice - discountAmount;
+      
+      return {
+        ...state,
+        discountPercent: action.payload,
+        discountAmount,
+        totalPrice,
+      };
+    }
     
     case 'LOAD_CART':
       return action.payload;
@@ -128,6 +163,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const setCustomerData = (data: Cart['customerData']) => {
     dispatch({ type: 'SET_CUSTOMER_DATA', payload: data });
+  };
+
+  const setDiscount = (percent: number) => {
+    dispatch({ type: 'SET_DISCOUNT', payload: percent });
   };
 
   const generateQuote = async () => {
@@ -204,6 +243,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       updateItem,
       clearCart,
       setCustomerData,
+      setDiscount,
       generateQuote,
     }}>
       {children}
