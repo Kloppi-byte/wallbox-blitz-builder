@@ -88,16 +88,16 @@ export function CartSummary() {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                    <div>Material: {item.pricing.materialCosts.toFixed(2)}€</div>
-                    <div>Arbeitszeit: {item.pricing.laborCosts.toFixed(2)}€</div>
-                    <div>Anfahrt: {item.pricing.travelCosts.toFixed(2)}€</div>
-                    <div>Förderung: -{item.pricing.subsidy.toFixed(2)}€</div>
+                    <div>Material: {(item.pricing?.materialCosts || 0).toFixed(2)}€</div>
+                    <div>Arbeitszeit: {(item.pricing?.laborCosts || 0).toFixed(2)}€</div>
+                    <div>Anfahrt: {(item.pricing?.travelCosts || 0).toFixed(2)}€</div>
+                    <div>Förderung: -{(item.pricing?.subsidy || 0).toFixed(2)}€</div>
                   </div>
                 </div>
                 
                 <div className="text-right">
                   <div className="font-semibold text-lg">
-                    {item.pricing.total.toFixed(2)}€
+                    {(item.pricing?.total || 0).toFixed(2)}€
                   </div>
                   <Button 
                     variant="ghost" 
@@ -140,13 +140,13 @@ export function CartSummary() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span>Zwischensumme:</span>
-              <span>{cart.subtotalPrice.toFixed(2)}€</span>
+              <span>{(cart.subtotalPrice || 0).toFixed(2)}€</span>
             </div>
             
             {cart.discountPercent > 0 && (
               <div className="flex items-center justify-between text-green-600">
                 <span>Rabatt ({cart.discountPercent}%):</span>
-                <span>-{cart.discountAmount.toFixed(2)}€</span>
+                <span>-{(cart.discountAmount || 0).toFixed(2)}€</span>
               </div>
             )}
             
@@ -156,7 +156,7 @@ export function CartSummary() {
               <span>Gesamtsumme:</span>
               <div className="flex items-center gap-1">
                 <Euro className="h-5 w-5" />
-                <span>{cart.totalPrice.toFixed(2)}€</span>
+                <span>{(cart.totalPrice || 0).toFixed(2)}€</span>
               </div>
             </div>
           </div>
