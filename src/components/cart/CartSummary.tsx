@@ -16,7 +16,7 @@ export function CartSummary() {
     plz: cart.customerData?.plz || '',
     adresse: cart.customerData?.adresse || ''
   });
-  const [discountInput, setDiscountInput] = useState(cart.discountPercent.toString());
+  const [discountInput, setDiscountInput] = useState((cart.discountPercent || 0).toString());
 
   const handleCustomerDataChange = (field: string, value: string) => {
     const newForm = { ...customerForm, [field]: value };
