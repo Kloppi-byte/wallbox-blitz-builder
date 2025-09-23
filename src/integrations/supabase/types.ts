@@ -370,6 +370,41 @@ export type Database = {
         }
         Relationships: []
       }
+      hero_nutzer: {
+        Row: {
+          created_at: string
+          id: string
+          nutzer_typ: string
+          partner_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nutzer_typ: string
+          partner_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nutzer_typ?: string
+          partner_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hero_nutzer_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partnerbetriebe"
+            referencedColumns: ["partner_id"]
+          },
+        ]
+      }
       "Hilti Werkzeugübersicht": {
         Row: {
           Abrechnungshäufigkeit: string | null
@@ -525,6 +560,7 @@ export type Database = {
           partner_id: string
           partner_type: string | null
           status: string
+          uid: string
         }
         Insert: {
           besprechungstermin?: string | null
@@ -536,6 +572,7 @@ export type Database = {
           partner_id: string
           partner_type?: string | null
           status?: string
+          uid?: string
         }
         Update: {
           besprechungstermin?: string | null
@@ -547,6 +584,7 @@ export type Database = {
           partner_id?: string
           partner_type?: string | null
           status?: string
+          uid?: string
         }
         Relationships: [
           {
@@ -1045,6 +1083,33 @@ export type Database = {
           plz?: string
           updated_at?: string
           wallbox_typ?: string
+        }
+        Relationships: []
+      }
+      wallboxen: {
+        Row: {
+          Artikelnummer: number
+          Beschreibung: string | null
+          Kategorie: string | null
+          "Lieferanten Nr.": string | null
+          Name: string | null
+          "VK VK30": string | null
+        }
+        Insert: {
+          Artikelnummer?: number
+          Beschreibung?: string | null
+          Kategorie?: string | null
+          "Lieferanten Nr."?: string | null
+          Name?: string | null
+          "VK VK30"?: string | null
+        }
+        Update: {
+          Artikelnummer?: number
+          Beschreibung?: string | null
+          Kategorie?: string | null
+          "Lieferanten Nr."?: string | null
+          Name?: string | null
+          "VK VK30"?: string | null
         }
         Relationships: []
       }
