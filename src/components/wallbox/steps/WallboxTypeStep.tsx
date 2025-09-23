@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Zap, Smartphone, ChevronLeft } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { WallboxData } from '../WallboxFunnel';
 
@@ -16,9 +16,6 @@ interface WallboxTypeStepProps {
 interface WallboxOption {
   id: string;
   title: string;
-  description: string;
-  icon: any;
-  recommended: boolean;
   price?: string;
 }
 
@@ -33,31 +30,24 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
           .from('wallboxen')
           .select('Name, "VK VK30", "Artikelnummer"')
           .order('"Artikelnummer"');
-          
+
         if (error) {
           console.error('Error fetching wallboxen:', error);
           return;
         }
 
-        if (wallboxen && wallboxen.length > 0) {
-          const mappedOptions: WallboxOption[] = wallboxen.map((wallbox: any, index: number) => ({
-            id: wallbox.Artikelnummer?.toString() || index.toString(),
-            title: wallbox.Name || 'Wallbox',
-            description: wallbox.Beschreibung ? wallbox.Beschreibung.substring(0, 100) + '...' : '',
-            price: wallbox['VK VK30'] ? `€${wallbox['VK VK30']}` : '',
-            icon: wallbox.Name?.toLowerCase().includes('smart') ? Smartphone : Zap,
-            recommended: index === 0, // First one is recommended
-          }));
+        const mapped: WallboxOption[] = (wallboxen || []).map((row: any, index: number) => ({
+          id: row.Artikelnummer?.toString() || String(index),
+          title: row.Name,
+          price: row['VK VK30'] ? `€${row['VK VK30']}` : undefined,
+        }));
 
-          setOptions(mappedOptions);
-          
-          // Set first option as default if no selection exists
-          if (!data.wallbox_typ && mappedOptions.length > 0) {
-            updateData({ wallbox_typ: mappedOptions[0].id });
-          }
+        setOptions(mapped);
+        if (!data.wallbox_typ && mapped.length > 0) {
+          updateData({ wallbox_typ: mapped[0].id });
         }
-      } catch (error) {
-        console.error('Unexpected error fetching wallboxen:', error);
+      } catch (e) {
+        console.error('Unexpected error fetching wallboxen:', e);
       } finally {
         setLoading(false);
       }
@@ -66,21 +56,17 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
     fetchWallboxen();
   }, [data.wallbox_typ, updateData]);
 
-  const handleSelect = (option: string) => {
-    updateData({ wallbox_typ: option });
-    setTimeout(nextStep, 200); // Small delay for better UX
+  const handleSelect = (optionId: string) => {
+    updateData({ wallbox_typ: optionId });
+    setTimeout(nextStep, 150);
   };
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold text-foreground">
-          Welche Wallbox bevorzugst du?
-        </h2>
-        <p className="text-lg text-muted-foreground">
-          Wähle die Wallbox, die am besten zu deinen Bedürfnissen passt
-        </p>
+        <h2 className="text-3xl font-bold text-foreground">Welche Wallbox bevorzugst du?</h2>
+        <p className="text-lg text-muted-foreground">Wähle eine Option – Name links, Preis rechts</p>
       </div>
 
       {/* Options Grid */}
@@ -89,73 +75,53 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
           <div className="col-span-2 text-center py-8">
             <p className="text-muted-foreground">Wallboxen werden geladen...</p>
           </div>
-        ) : options.map((option) => {
-          const Icon = option.icon;
-          const isSelected = data.wallbox_typ === option.id;
-          
-          return (
-            <Card
-              key={option.id}
-              className={`relative cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-105 border-2 ${
-                isSelected 
-                  ? 'border-primary bg-primary/5 shadow-elevated' 
-                  : 'border-border hover:border-primary/50'
-              }`}
-              onClick={() => handleSelect(option.id)}
-            >
-              {option.recommended && (
-                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                  <span className="px-3 py-1 text-xs font-medium bg-gradient-hero text-white rounded-full shadow-button">
-                    Empfohlen
-                  </span>
-                </div>
-              )}
-              
-              <CardHeader className="text-center pb-3">
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3 ${
-                  isSelected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-                }`}>
-                  <Icon className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-semibold">{option.title}</h3>
-              </CardHeader>
-              
-              <CardContent className="text-center">
-                {option.price && (
-                  <p className="text-lg font-semibold text-primary">{option.price}</p>
-                )}
-              </CardContent>
-              
-              {isSelected && (
-                <div className="absolute top-4 right-4">
-                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full" />
+        ) : options.length === 0 ? (
+          <div className="col-span-2 text-center py-8">
+            <p className="text-muted-foreground">Keine Wallboxen gefunden.</p>
+          </div>
+        ) : (
+          options.map((option) => {
+            const isSelected = data.wallbox_typ === option.id;
+            return (
+              <Card
+                key={option.id}
+                className={`relative cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-105 border-2 ${
+                  isSelected ? 'border-primary bg-primary/5 shadow-elevated' : 'border-border hover:border-primary/50'
+                }`}
+                onClick={() => handleSelect(option.id)}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-medium">{option.title}</span>
+                    <span className="text-lg font-semibold text-primary">{option.price || ''}</span>
                   </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+                </CardContent>
+
+                {isSelected && (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })
+        )}
       </div>
 
       {/* Navigation */}
       <div className="flex justify-between items-center max-w-4xl mx-auto">
         {canGoBack ? (
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            className="flex items-center gap-2"
-          >
+          <Button variant="outline" onClick={prevStep} className="flex items-center gap-2">
             <ChevronLeft className="w-4 h-4" />
             Zurück
           </Button>
         ) : (
           <div />
         )}
-        
-        <p className="text-sm text-muted-foreground">
-          Klicke auf eine Option zum Fortfahren
-        </p>
+
+        <p className="text-sm text-muted-foreground">Klicke auf eine Option zum Fortfahren</p>
       </div>
     </div>
   );
