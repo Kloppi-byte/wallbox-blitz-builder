@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Trash2, Euro, Percent } from 'lucide-react';
+import { Trash2, Euro, Percent, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,14 +46,22 @@ export function CartSummary() {
     );
   }
 
-  const getProductTypeLabel = (type: string) => {
-    const labels = {
-      wallbox: 'Wallbox',
-      solar: 'Solar',
-      heating: 'Heizung',
-      other: 'Sonstiges'
-    };
-    return labels[type as keyof typeof labels] || type;
+  const getSimpleProductName = (item: any) => {
+    // Simplify the product name based on type or specific configurations
+    if (item.productType === 'wallbox' || item.name.toLowerCase().includes('wallbox')) {
+      return 'Wallbox';
+    }
+    if (item.name.toLowerCase().includes('zählerschrank') || item.name.toLowerCase().includes('zaehler')) {
+      return 'Zählerschrank';
+    }
+    return item.name;
+  };
+
+  const handleEditItem = (item: any) => {
+    // Navigate back to the configurator with the item's data
+    // This could be implemented by storing the item data and navigating
+    console.log('Edit item:', item);
+    // For now, we'll just log - the actual navigation would depend on your routing setup
   };
 
   const isFormValid = customerForm.name && customerForm.email && customerForm.plz && customerForm.adresse;
@@ -77,14 +84,11 @@ export function CartSummary() {
         </CardHeader>
         <CardContent className="space-y-4">
           {cart.items.map((item) => (
-            <div key={item.id} className="border rounded-lg p-4 space-y-3">
+            <div key={item.id} className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleEditItem(item)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <h4 className="font-medium">{item.name}</h4>
-                    <Badge variant="secondary">
-                      {getProductTypeLabel(item.productType)}
-                    </Badge>
+                    <h4 className="font-medium">{getSimpleProductName(item)}</h4>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
@@ -95,18 +99,34 @@ export function CartSummary() {
                   </div>
                 </div>
                 
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-2">
                   <div className="font-semibold text-lg">
                     {(item.pricing?.total || 0).toFixed(2)}€
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => removeItem(item.id)}
-                    className="text-destructive hover:text-destructive p-1"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditItem(item);
+                      }}
+                      className="text-muted-foreground hover:text-primary p-1"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeItem(item.id);
+                      }}
+                      className="text-destructive hover:text-destructive p-1"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
