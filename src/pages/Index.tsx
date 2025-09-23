@@ -1,7 +1,7 @@
-import WallboxFunnel from '@/components/wallbox/WallboxFunnel';
+import WallboxConfigurator from '@/components/wallbox/WallboxConfigurator';
 
 const Index = () => {
-  return <WallboxFunnel />;
+  return <WallboxConfigurator />;
 };
 
 export default Index;
