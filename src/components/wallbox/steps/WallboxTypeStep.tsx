@@ -31,7 +31,7 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
       try {
         const { data: wallboxen, error } = await (supabase as any)
           .from('wallboxen')
-          .select('*')
+          .select('Name, "VK VK30", "Artikelnummer"')
           .order('"Artikelnummer"');
           
         if (error) {
@@ -120,8 +120,7 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
                 <h3 className="text-xl font-semibold">{option.title}</h3>
               </CardHeader>
               
-              <CardContent className="text-center space-y-2">
-                <p className="text-muted-foreground">{option.description}</p>
+              <CardContent className="text-center">
                 {option.price && (
                   <p className="text-lg font-semibold text-primary">{option.price}</p>
                 )}
