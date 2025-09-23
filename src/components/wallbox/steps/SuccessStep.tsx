@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { CheckCircle, Mail, Clock, Download, FileText } from 'lucide-react';
+import { CheckCircle, Mail, Clock, Download, FileText, ExternalLink } from 'lucide-react';
 import { WallboxData } from '../WallboxFunnel';
 
 interface SuccessStepProps {
@@ -26,6 +26,12 @@ const SuccessStep = ({ data }: SuccessStepProps) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+  };
+
+  const handleViewPdf = () => {
+    if (data.pdfUrl) {
+      window.open(data.pdfUrl, '_blank');
     }
   };
 
@@ -136,21 +142,18 @@ const SuccessStep = ({ data }: SuccessStepProps) => {
                     <p className="text-sm text-muted-foreground">{data.pdfName || 'Wallbox-Angebot.pdf'}</p>
                   </div>
                 </div>
-                <Button onClick={handleDownload} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Herunterladen
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleViewPdf} variant="outline" className="gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Ansehen
+                  </Button>
+                  <Button onClick={handleDownload} className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Herunterladen
+                  </Button>
+                </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="w-full h-96 border rounded-lg overflow-hidden bg-background">
-                <iframe
-                  src={data.pdfUrl}
-                  className="w-full h-full border-0"
-                  title="Wallbox Angebot PDF"
-                />
-              </div>
-            </CardContent>
           </Card>
         </div>
       )}
