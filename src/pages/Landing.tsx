@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Calculator, Zap } from "lucide-react";
+import { CartIcon } from "@/components/cart/CartIcon";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -9,6 +10,9 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
+        <div className="flex justify-end mb-8">
+          <CartIcon onClick={() => navigate('/checkout')} />
+        </div>
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-foreground mb-4">
             Konfigurator
