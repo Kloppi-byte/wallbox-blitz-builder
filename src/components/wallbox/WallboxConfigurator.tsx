@@ -339,7 +339,16 @@ const WallboxConfigurator = () => {
         
         {/* Header with Cart */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Wallbox Konfigurator</h1>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => window.location.href = '/'}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              ← Zurück zur Hauptseite
+            </Button>
+            <h1 className="text-3xl font-bold text-gray-800">Wallbox Konfigurator</h1>
+          </div>
           <CartIcon onClick={() => setIsCartOpen(true)} />
         </div>
         {/* Header Card */}

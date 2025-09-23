@@ -271,6 +271,13 @@ const Zaehler = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+            className="mr-4"
+          >
+            ← Zurück zur Hauptseite
+          </Button>
           <h1 className="text-xl font-semibold">Zählerschrank Konfigurator</h1>
           <div className="flex-1" />
           <CartIcon onClick={() => setCartOpen(true)} />
