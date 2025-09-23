@@ -8,7 +8,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, ShoppingCart } from "lucide-react";
+import { useCart } from '@/contexts/CartContext';
+import { CartIcon } from '@/components/cart/CartIcon';
+import { CartSheet } from '@/components/cart/CartSheet';
 
 interface ZaehlerConfig {
   schrank: { name: string; price: number };
@@ -50,6 +53,7 @@ interface CalculationResult {
 
 const Zaehler = () => {
   const navigate = useNavigate();
+  const { addItem } = useCart();
 
   const [config, setConfig] = useState<ZaehlerConfig>({
     schrank: { name: "Zählerschrank 3-reihig TAB-konform", price: 520 },
@@ -100,7 +104,7 @@ const Zaehler = () => {
                    + (cfg.feldnachruestung * 0.7)
                    + (cfg.leitungsanpassungen_m * 0.1);
     const altbauFaktor = cfg.altbau ? 1.25 : 1.0;
-    const arbeitsstunden_auto = +(basisStd * altbauFaktor).toFixed(1);
+    const arbeitsstunden_auto = Math.round(basisStd * altbauFaktor);
     const arbeitsstunden = (cfg.arbeitsstunden_manuell ?? arbeitsstunden_auto);
     const arbeitskosten  = arbeitsstunden * STUNDENSATZ;
 
@@ -125,7 +129,7 @@ const Zaehler = () => {
       input: cfg,
       details: {
         materialkosten: +materialkosten.toFixed(2),
-        arbeitsstunden: +arbeitsstunden.toFixed(1),
+        arbeitsstunden: Math.round(arbeitsstunden),
         arbeitskosten: +arbeitskosten.toFixed(2),
         anfahrtkosten: +anfahrtkosten.toFixed(2),
         orga: +orga.toFixed(2),
@@ -163,35 +167,135 @@ const Zaehler = () => {
     }
   };
 
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const addToCart = () => {
+    if (calculation) {
+      addItem({
+        productType: 'other',
+        name: `Zählerschrank - ${config.schrank.name}`,
+        configuration: config,
+        pricing: {
+          materialCosts: calculation.details.materialkosten,
+          laborCosts: calculation.details.arbeitskosten,
+          travelCosts: calculation.details.anfahrtkosten,
+          subtotal: calculation.summe.netto,
+          subsidy: 0,
+          total: calculation.summe.brutto
+        }
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center">
           <Button 
-            variant="outline" 
+            variant="ghost" 
+            size="sm"
             onClick={() => navigate('/')}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Zurück zur Auswahl
+            Zurück
           </Button>
           
-          {calculation && (
-            <div className="text-right">
-              <div className="text-3xl font-bold text-foreground">
-                {calculation.summe.brutto.toFixed(2)} €
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Netto: {calculation.summe.netto.toFixed(2)} € | 
-                MwSt: {calculation.summe.mwst_betrag.toFixed(2)} €
-              </div>
-            </div>
-          )}
+          <div className="flex-1" />
+          
+          <CartIcon onClick={() => setCartOpen(true)} />
         </div>
+      </header>
 
+      <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left Column - Form */}
+          {/* Left Column - Summary */}
+          <div className="space-y-6">
+            {calculation && (
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    Paket-Übersicht
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">{config.schrank.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Zählerschrank mit {config.zaehlerplaetze} Zählerplatz{config.zaehlerplaetze > 1 ? 'en' : ''}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Material:</span>
+                      <span>{calculation.details.materialkosten.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Arbeitskosten ({calculation.details.arbeitsstunden}h):</span>
+                      <span>{calculation.details.arbeitskosten.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Anfahrt:</span>
+                      <span>{calculation.details.anfahrtkosten.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Organisation:</span>
+                      <span>{calculation.details.orga.toFixed(2)} €</span>
+                    </div>
+                    {calculation.details.rabatt > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Rabatt:</span>
+                        <span>-{calculation.details.rabatt.toFixed(2)} €</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Gesamtpreis:</span>
+                      <span>{calculation.summe.brutto.toFixed(2)} €</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      inkl. {calculation.summe.mwst_satz_prozent}% MwSt.
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button onClick={addToCart} className="w-full" size="lg">
+                      In den Warenkorb
+                    </Button>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            JSON anzeigen
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-96 overflow-auto">
+                          <DialogHeader>
+                            <DialogTitle>Kalkulation JSON</DialogTitle>
+                          </DialogHeader>
+                          <pre className="text-xs bg-muted p-4 rounded overflow-auto">
+                            {JSON.stringify(calculation, null, 2)}
+                          </pre>
+                        </DialogContent>
+                      </Dialog>
+
+                      <Button onClick={exportJSON} variant="outline" size="sm" className="flex items-center gap-1">
+                        <Download className="w-3 h-3" />
+                        Export
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          {/* Right Column - Configuration */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -410,83 +514,10 @@ const Zaehler = () => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Column - Calculation */}
-          <div className="space-y-6">
-            {calculation && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Kostenaufschlüsselung</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span>Material:</span>
-                      <span>{calculation.details.materialkosten.toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Arbeitskosten ({calculation.details.arbeitsstunden}h):</span>
-                      <span>{calculation.details.arbeitskosten.toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Anfahrt:</span>
-                      <span>{calculation.details.anfahrtkosten.toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Organisation:</span>
-                      <span>{calculation.details.orga.toFixed(2)} €</span>
-                    </div>
-                    {calculation.details.rabatt > 0 && (
-                      <div className="flex justify-between text-red-600">
-                        <span>Rabatt:</span>
-                        <span>-{calculation.details.rabatt.toFixed(2)} €</span>
-                      </div>
-                    )}
-                    <hr />
-                    <div className="flex justify-between font-semibold">
-                      <span>Netto:</span>
-                      <span>{calculation.summe.netto.toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>MwSt ({calculation.summe.mwst_satz_prozent}%):</span>
-                      <span>{calculation.summe.mwst_betrag.toFixed(2)} €</span>
-                    </div>
-                    <hr />
-                    <div className="flex justify-between text-xl font-bold">
-                      <span>Brutto:</span>
-                      <span>{calculation.summe.brutto.toFixed(2)} €</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Actions */}
-            <div className="space-y-4">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full">
-                    JSON anzeigen
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-96 overflow-auto">
-                  <DialogHeader>
-                    <DialogTitle>Kalkulation JSON</DialogTitle>
-                  </DialogHeader>
-                  <pre className="text-xs bg-muted p-4 rounded overflow-auto">
-                    {JSON.stringify(calculation, null, 2)}
-                  </pre>
-                </DialogContent>
-              </Dialog>
-
-              <Button onClick={exportJSON} className="w-full flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                JSON exportieren
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
+      
+      <CartSheet open={cartOpen} onOpenChange={setCartOpen} />
     </div>
   );
 };
