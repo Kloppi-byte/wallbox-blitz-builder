@@ -84,6 +84,24 @@ const WallboxFunnel = () => {
         return;
       }
 
+      // Send data to webhook
+      try {
+        const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
+        webhookUrl.searchParams.append('name', data.name || '');
+        webhookUrl.searchParams.append('email', data.email || '');
+        webhookUrl.searchParams.append('plz', data.plz || '');
+        webhookUrl.searchParams.append('adresse', data.adresse || '');
+        webhookUrl.searchParams.append('wallbox_typ', data.wallbox_typ || '');
+        webhookUrl.searchParams.append('installation', data.installation || '');
+        webhookUrl.searchParams.append('foerderung', String(data.foerderung || false));
+        webhookUrl.searchParams.append('features', JSON.stringify(data.features || []));
+
+        await fetch(webhookUrl.toString());
+      } catch (webhookError) {
+        console.error('Webhook error:', webhookError);
+        // Don't show error to user for webhook, continue with success flow
+      }
+
       // Success - move to final step
       nextStep();
       
