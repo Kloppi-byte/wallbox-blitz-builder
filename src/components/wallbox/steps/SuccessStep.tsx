@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { CheckCircle, Mail, Clock, Download } from 'lucide-react';
+import { CheckCircle, Mail, Clock, Download, FileText } from 'lucide-react';
 import { WallboxData } from '../WallboxFunnel';
 
 interface SuccessStepProps {
@@ -16,6 +16,17 @@ interface SuccessStepProps {
 const SuccessStep = ({ data }: SuccessStepProps) => {
   const handleRestart = () => {
     window.location.reload();
+  };
+
+  const handleDownload = () => {
+    if (data.pdfUrl && data.pdfName) {
+      const link = document.createElement('a');
+      link.href = data.pdfUrl;
+      link.download = data.pdfName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -109,6 +120,29 @@ const SuccessStep = ({ data }: SuccessStepProps) => {
           )}
         </CardContent>
       </Card>
+
+      {/* PDF Download */}
+      {data.pdfUrl && (
+        <Card className="max-w-2xl mx-auto bg-wallbox-success/5 border-wallbox-success/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-wallbox-success/10 rounded-lg flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-wallbox-success" />
+                </div>
+                <div>
+                  <h4 className="font-semibold">Dein Angebot ist fertig!</h4>
+                  <p className="text-sm text-muted-foreground">{data.pdfName || 'Wallbox-Angebot.pdf'}</p>
+                </div>
+              </div>
+              <Button onClick={handleDownload} className="gap-2">
+                <Download className="w-4 h-4" />
+                Herunterladen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Next Steps */}
       <Card className="max-w-2xl mx-auto bg-primary/5 border-primary/20">

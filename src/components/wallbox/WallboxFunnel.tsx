@@ -20,6 +20,8 @@ export interface WallboxData {
   email?: string;
   plz?: string;
   adresse?: string;
+  pdfUrl?: string;
+  pdfName?: string;
 }
 
 const WallboxFunnel = () => {
@@ -101,6 +103,17 @@ const WallboxFunnel = () => {
 
       const response = await fetch(webhookUrl.toString());
       if (response.ok) {
+        const webhookData = await response.json();
+        // Extract PDF URL from webhook response
+        if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+          const pdfData = webhookData[0];
+          if (pdfData.url && pdfData.name) {
+            updateData({
+              pdfUrl: pdfData.url,
+              pdfName: pdfData.name
+            });
+          }
+        }
         webhookSuccess = true;
       }
     } catch (webhookError) {
