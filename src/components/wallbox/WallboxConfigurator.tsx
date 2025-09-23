@@ -172,25 +172,58 @@ const WallboxConfigurator = () => {
         features: config.features
       });
 
-      // Send to webhook
-      const response = await fetch('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06', {
+      // Send to webhook (POST JSON first, fallback to GET for endpoints not registered for POST)
+      const payload = { ...config, preise: prices };
+      const webhookBase = 'https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06';
+
+      let gotPdf = false;
+
+      // Try POST JSON
+      const response = await fetch(webhookBase, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...config,
-          preise: prices
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/pdf,application/json;q=0.9,*/*;q=0.8'
+        },
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
         const contentType = response.headers.get('content-type');
-        
         if (contentType && contentType.includes('application/pdf')) {
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
           window.open(url, '_blank');
+          gotPdf = true;
         }
+      } else if (response.status === 404) {
+        // Fallback to GET with query params (n8n webhook not registered for POST)
+        const url = new URL(webhookBase);
+        url.searchParams.set('name', config.kunde.name);
+        url.searchParams.set('email', config.kunde.email);
+        url.searchParams.set('plz', config.kunde.plz);
+        url.searchParams.set('adresse', config.kunde.adresse);
+        url.searchParams.set('wallbox_typ', config.wallbox.artikelnummer);
+        url.searchParams.set('installation', 'konfigurator');
+        url.searchParams.set('foerderung', String(config.foerderung));
+        url.searchParams.set('features', JSON.stringify(config.features));
+        url.searchParams.set('state', encodeURIComponent(JSON.stringify(payload)));
 
+        const getResp = await fetch(url.toString(), {
+          headers: { 'Accept': 'application/pdf,application/json;q=0.9,*/*;q=0.8' }
+        });
+        if (getResp.ok) {
+          const ct = getResp.headers.get('content-type');
+          if (ct && ct.includes('application/pdf')) {
+            const blob = await getResp.blob();
+            const urlObj = URL.createObjectURL(blob);
+            window.open(urlObj, '_blank');
+            gotPdf = true;
+          }
+        }
+      }
+
+      if (gotPdf) {
         toast({
           title: "Angebot erstellt!",
           description: "Ihr PDF-Angebot wurde erfolgreich generiert."
