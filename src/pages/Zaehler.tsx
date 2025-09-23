@@ -12,9 +12,19 @@ import { ArrowLeft, Download, ShoppingCart } from "lucide-react";
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface ZaehlerOption {
+  artikelnummer: number;
+  name: string;
+  price: number;
+  beschreibung?: string;
+  kategorie?: string;
+}
 
 interface ZaehlerConfig {
-  schrank: { name: string; price: number };
+  schrank: ZaehlerOption;
   zaehlerplaetze: number;
   reiheneinbaugeraete: number;
   rcd_typA: boolean;
@@ -54,9 +64,17 @@ interface CalculationResult {
 const Zaehler = () => {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { toast } = useToast();
+
+  const [zaehlerOptions, setZaehlerOptions] = useState<ZaehlerOption[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [config, setConfig] = useState<ZaehlerConfig>({
-    schrank: { name: "Zählerschrank 3-reihig TAB-konform", price: 520 },
+    schrank: {
+      artikelnummer: 0,
+      name: "",
+      price: 0
+    },
     zaehlerplaetze: 1,
     reiheneinbaugeraete: 6,
     rcd_typA: false,
@@ -76,6 +94,57 @@ const Zaehler = () => {
 
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+
+  // Fetch Zählerschränke from Supabase
+  useEffect(() => {
+    const fetchZaehlerOptions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('zählerschränke')
+          .select('*');
+
+        if (error) {
+          toast({
+            title: "Fehler beim Laden",
+            description: "Zählerschränke konnten nicht geladen werden.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const options: ZaehlerOption[] = data.map(item => ({
+            artikelnummer: item.Artikelnummer,
+            name: item.Name || `Artikel ${item.Artikelnummer}`,
+            price: parseFloat(item["VK VK30"]?.replace(',', '.') || '520'),
+            beschreibung: item.Beschreibung,
+            kategorie: item.Kategorie
+          }));
+
+          setZaehlerOptions(options);
+          
+          // Set first option as default
+          if (options.length > 0) {
+            setConfig(prev => ({
+              ...prev,
+              schrank: options[0]
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Zählerschränke:', error);
+        toast({
+          title: "Fehler",
+          description: "Ein unerwarteter Fehler ist aufgetreten.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchZaehlerOptions();
+  }, [toast]);
 
   function calculateZaehlerPrices(cfg: ZaehlerConfig): CalculationResult {
     const PREISE = {
@@ -186,6 +255,17 @@ const Zaehler = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Lade Zählerschränke...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -292,14 +372,42 @@ const Zaehler = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Schrank Selection */}
+              <div className="space-y-2">
+                <Label>Zählerschrank auswählen</Label>
+                <Select 
+                  value={config.schrank.artikelnummer.toString()} 
+                  onValueChange={(value) => {
+                    const selectedSchrank = zaehlerOptions.find(option => option.artikelnummer.toString() === value);
+                    if (selectedSchrank) {
+                      updateConfig('schrank', selectedSchrank);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Zählerschrank wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zaehlerOptions.map((option) => (
+                      <SelectItem key={option.artikelnummer} value={option.artikelnummer.toString()}>
+                        {option.name} - {option.price}€
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Selected Schrank Display */}
               <div className="border rounded-lg p-4 bg-primary/5 border-primary/20">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-semibold">Zählerschrank 3-reihig TAB-konform</h3>
-                    <p className="text-sm text-muted-foreground">Art.-Nr.: ZS-3R-TAB</p>
+                    <h3 className="font-semibold">{config.schrank.name}</h3>
+                    <p className="text-sm text-muted-foreground">Art.-Nr.: {config.schrank.artikelnummer}</p>
+                    {config.schrank.beschreibung && (
+                      <p className="text-sm text-muted-foreground mt-1">{config.schrank.beschreibung}</p>
+                    )}
                   </div>
                   <div className="text-right">
-                    <span className="text-lg font-bold">520€</span>
+                    <span className="text-lg font-bold">{config.schrank.price}€</span>
                   </div>
                 </div>
               </div>

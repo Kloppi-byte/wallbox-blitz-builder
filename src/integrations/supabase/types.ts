@@ -648,6 +648,7 @@ export type Database = {
           partnerbetrieb: string | null
           phone_number: string | null
           plz: string | null
+          "Private Mail LOC Gründer": string | null
           rechtsform: string | null
           steuernummer: string | null
           ust_id: string | null
@@ -671,6 +672,7 @@ export type Database = {
           partnerbetrieb?: string | null
           phone_number?: string | null
           plz?: string | null
+          "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
           steuernummer?: string | null
           ust_id?: string | null
@@ -694,6 +696,7 @@ export type Database = {
           partnerbetrieb?: string | null
           phone_number?: string | null
           plz?: string | null
+          "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
           steuernummer?: string | null
           ust_id?: string | null
@@ -1168,6 +1171,33 @@ export type Database = {
             referencedColumns: ["partner_id"]
           },
         ]
+      }
+      zählerschränke: {
+        Row: {
+          Artikelnummer: number
+          Beschreibung: string | null
+          Kategorie: string | null
+          "Lieferanten Nr.": string | null
+          Name: string | null
+          "VK VK30": string | null
+        }
+        Insert: {
+          Artikelnummer?: number
+          Beschreibung?: string | null
+          Kategorie?: string | null
+          "Lieferanten Nr."?: string | null
+          Name?: string | null
+          "VK VK30"?: string | null
+        }
+        Update: {
+          Artikelnummer?: number
+          Beschreibung?: string | null
+          Kategorie?: string | null
+          "Lieferanten Nr."?: string | null
+          Name?: string | null
+          "VK VK30"?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
