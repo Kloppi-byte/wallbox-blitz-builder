@@ -1006,6 +1006,48 @@ export type Database = {
         }
         Relationships: []
       }
+      wallbox_leads: {
+        Row: {
+          adresse: string
+          created_at: string
+          email: string
+          features: Json | null
+          foerderung: boolean
+          id: string
+          installation: string
+          name: string
+          plz: string
+          updated_at: string
+          wallbox_typ: string
+        }
+        Insert: {
+          adresse: string
+          created_at?: string
+          email: string
+          features?: Json | null
+          foerderung?: boolean
+          id?: string
+          installation: string
+          name: string
+          plz: string
+          updated_at?: string
+          wallbox_typ: string
+        }
+        Update: {
+          adresse?: string
+          created_at?: string
+          email?: string
+          features?: Json | null
+          foerderung?: boolean
+          id?: string
+          installation?: string
+          name?: string
+          plz?: string
+          updated_at?: string
+          wallbox_typ?: string
+        }
+        Relationships: []
+      }
       Werkzeugbestellungen: {
         Row: {
           Angebotsnummer_Anbieter: string | null
