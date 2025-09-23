@@ -172,16 +172,49 @@ const WallboxConfigurator = () => {
         features: config.features
       });
 
-      // Send to webhook via GET (wie ursprünglich)
+      // Send to webhook via GET with ALL configuration data
       const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
+      
+      // Customer data
       webhookUrl.searchParams.append('name', config.kunde.name);
       webhookUrl.searchParams.append('email', config.kunde.email);
       webhookUrl.searchParams.append('plz', config.kunde.plz);
       webhookUrl.searchParams.append('adresse', config.kunde.adresse);
+      
+      // Wallbox configuration
+      webhookUrl.searchParams.append('wallbox_id', config.wallbox.id);
+      webhookUrl.searchParams.append('wallbox_name', config.wallbox.name);
+      webhookUrl.searchParams.append('wallbox_price', config.wallbox.price.toString());
       webhookUrl.searchParams.append('wallbox_typ', config.wallbox.artikelnummer);
+      
+      // Installation configuration
+      webhookUrl.searchParams.append('kabel_laenge_m', config.kabel_laenge_m.toString());
+      webhookUrl.searchParams.append('leitung', config.leitung);
+      webhookUrl.searchParams.append('absicherung', config.absicherung);
+      webhookUrl.searchParams.append('durchbrueche', config.durchbrueche.toString());
+      webhookUrl.searchParams.append('arbeitsstunden', config.arbeitsstunden.toString());
+      webhookUrl.searchParams.append('anfahrt_zone', config.anfahrt_zone);
+      webhookUrl.searchParams.append('hauptsicherung_anpassung', config.hauptsicherung_anpassung.toString());
+      
+      // Options
       webhookUrl.searchParams.append('installation', 'konfigurator');
       webhookUrl.searchParams.append('foerderung', String(config.foerderung));
       webhookUrl.searchParams.append('features', JSON.stringify(config.features));
+      
+      // Pricing breakdown
+      webhookUrl.searchParams.append('preis_material', prices.material.toString());
+      webhookUrl.searchParams.append('preis_arbeit', prices.arbeit.toString());
+      webhookUrl.searchParams.append('preis_zwischensumme', prices.zwischensumme.toString());
+      webhookUrl.searchParams.append('preis_foerderungsabzug', prices.foerderungsabzug.toString());
+      webhookUrl.searchParams.append('preis_gesamt', prices.gesamt.toString());
+      
+      // Complete configuration as JSON
+      webhookUrl.searchParams.append('complete_config', JSON.stringify({
+        config,
+        prices,
+        timestamp: new Date().toISOString(),
+        source: 'wallbox-konfigurator'
+      }));
 
       const response = await fetch(webhookUrl.toString());
       if (response.ok) {
