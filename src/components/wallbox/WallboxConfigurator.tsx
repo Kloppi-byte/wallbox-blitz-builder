@@ -191,16 +191,29 @@ const WallboxConfigurator = () => {
         if (contentType && contentType.includes('application/pdf')) {
           // Handle binary PDF response - direct download
           const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
+          console.log('PDF blob size:', blob.size);
           
-          // Create download link and trigger download
+          // Create download with proper filename
+          const fileName = `Wallbox-Angebot-${config.kunde.name.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+          
+          // Method 1: Try direct blob download
+          const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `Wallbox-Angebot-${config.kunde.name.replace(/\s+/g, '-')}.pdf`;
+          link.download = fileName;
+          link.style.display = 'none';
           document.body.appendChild(link);
+          
+          // Force download
           link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
+          
+          // Cleanup
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 100);
+          
+          console.log('PDF download triggered:', fileName);
         } else if (contentType && contentType.includes('application/json')) {
           // Handle JSON response with PDF URL
           const webhookData = await response.json();
@@ -210,12 +223,17 @@ const WallboxConfigurator = () => {
             const pdfData = webhookData[0];
             if (pdfData.url && pdfData.name) {
               // Download PDF from URL
+              console.log('Downloading PDF from URL:', pdfData.url);
               const link = document.createElement('a');
               link.href = pdfData.url;
               link.download = pdfData.name;
+              link.target = '_blank'; // Fallback if download doesn't work
+              link.style.display = 'none';
               document.body.appendChild(link);
               link.click();
-              document.body.removeChild(link);
+              setTimeout(() => {
+                document.body.removeChild(link);
+              }, 100);
             }
           }
         } else {
@@ -228,12 +246,17 @@ const WallboxConfigurator = () => {
               const pdfData = webhookData[0];
               if (pdfData.url && pdfData.name) {
                 // Download PDF from URL
+                console.log('Downloading PDF from fallback URL:', pdfData.url);
                 const link = document.createElement('a');
                 link.href = pdfData.url;
                 link.download = pdfData.name;
+                link.target = '_blank'; // Fallback if download doesn't work
+                link.style.display = 'none';
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
+                setTimeout(() => {
+                  document.body.removeChild(link);
+                }, 100);
               }
             }
           } catch (parseError) {
