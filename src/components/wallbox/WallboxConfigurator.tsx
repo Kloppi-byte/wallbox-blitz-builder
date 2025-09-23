@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/contexts/CartContext';
+import { CartIcon } from '@/components/cart/CartIcon';
+import { CartSheet } from '@/components/cart/CartSheet';
 import { Minus, Plus, Zap, Download, Euro } from 'lucide-react';
 interface WallboxOption {
   id: string;
@@ -62,9 +65,10 @@ const WallboxConfigurator = () => {
   const [wallboxOptions, setWallboxOptions] = useState<WallboxOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const {
-    toast
-  } = useToast();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  const { addItem, setCustomerData } = useCart();
+  const { toast } = useToast();
   useEffect(() => {
     const fetchWallboxes = async () => {
       try {
@@ -274,6 +278,54 @@ const WallboxConfigurator = () => {
       setIsSubmitting(false);
     }
   };
+
+  const addToCart = () => {
+    const prices = calculatePrices();
+    
+    // Update cart with customer data
+    if (config.kunde.name && config.kunde.email && config.kunde.plz && config.kunde.adresse) {
+      setCustomerData({
+        name: config.kunde.name,
+        email: config.kunde.email,
+        plz: config.kunde.plz,
+        adresse: config.kunde.adresse,
+      });
+    }
+
+    const cartItem = {
+      productType: 'wallbox' as const,
+      name: `${config.wallbox.name} - Wallbox Installation`,
+      configuration: {
+        wallbox: config.wallbox,
+        kabel_laenge_m: config.kabel_laenge_m,
+        leitung: config.leitung,
+        absicherung: config.absicherung,
+        durchbrueche: config.durchbrueche,
+        arbeitsstunden: config.arbeitsstunden,
+        anfahrt_zone: config.anfahrt_zone,
+        hauptsicherung_anpassung: config.hauptsicherung_anpassung,
+        foerderung: config.foerderung,
+        features: config.features,
+      },
+      pricing: {
+        materialCosts: prices.material,
+        laborCosts: prices.arbeit,
+        travelCosts: 0, // included in arbeit
+        subtotal: prices.zwischensumme,
+        subsidy: prices.foerderungsabzug,
+        total: prices.gesamt,
+      },
+      customerData: config.kunde.name ? {
+        name: config.kunde.name,
+        email: config.kunde.email,
+        plz: config.kunde.plz,
+        adresse: config.kunde.adresse,
+      } : undefined,
+    };
+
+    addItem(cartItem);
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center">
@@ -284,6 +336,12 @@ const WallboxConfigurator = () => {
   }
   return <div className="min-h-screen bg-gradient-subtle pb-24">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        
+        {/* Header with Cart */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Wallbox Konfigurator</h1>
+          <CartIcon onClick={() => setIsCartOpen(true)} />
+        </div>
         {/* Header Card */}
         <Card className="mb-8 shadow-elevated">
           <CardHeader className="text-center">
@@ -588,13 +646,25 @@ const WallboxConfigurator = () => {
                 Gesamtpreis inkl. Montage
               </div>
             </div>
-            <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="w-full sm:w-auto">
-              <Download className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Erstelle PDF...' : 'PDF-Angebot erstellen'}
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={addToCart} 
+                variant="outline"
+                size="lg"
+              >
+                Zum Warenkorb hinzufügen
+              </Button>
+              <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="w-full sm:w-auto">
+                <Download className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Erstelle PDF...' : 'Sofort PDF erstellen'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Cart Sheet */}
+      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>;
 };
 export default WallboxConfigurator;
