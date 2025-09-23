@@ -39,7 +39,6 @@ interface ZaehlerConfig {
   plombierung_noetig: boolean;
   dokumentation_protokolle: boolean;
   entsorgung_altmaterial: boolean;
-  rabatt_prozent: number;
   arbeitsstunden_manuell?: number;
 }
 
@@ -51,7 +50,6 @@ interface CalculationResult {
     arbeitskosten: number;
     anfahrtkosten: number;
     orga: number;
-    rabatt: number;
   };
   summe: {
     netto: number;
@@ -89,7 +87,6 @@ const Zaehler = () => {
     plombierung_noetig: false,
     dokumentation_protokolle: false,
     entsorgung_altmaterial: false,
-    rabatt_prozent: 0,
   });
 
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
@@ -113,13 +110,17 @@ const Zaehler = () => {
         }
 
         if (data && data.length > 0) {
-          const options: ZaehlerOption[] = data.map(item => ({
-            artikelnummer: item.Artikelnummer,
-            name: item.Name || `Artikel ${item.Artikelnummer}`,
-            price: parseFloat(item["VK VK30"]?.replace(',', '.') || '520'),
-            beschreibung: item.Beschreibung,
-            kategorie: item.Kategorie
-          }));
+          const options: ZaehlerOption[] = data.map((item) => {
+            const raw = (item["VK VK30"] ?? null) as string | null;
+            const price = raw ? Number(String(raw).replace(/\./g, '').replace(',', '.')) : 520;
+            return {
+              artikelnummer: item.Artikelnummer,
+              name: item.Name || `Artikel ${item.Artikelnummer}`,
+              price,
+              beschreibung: item.Beschreibung,
+              kategorie: item.Kategorie
+            };
+          });
 
           setZaehlerOptions(options);
           
@@ -190,8 +191,7 @@ const Zaehler = () => {
       + (cfg.entsorgung_altmaterial ? ORGA.entsorgung : 0);
 
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten + orga;
-    const rabatt = cfg.rabatt_prozent ? zwischensumme * (cfg.rabatt_prozent / 100) : 0;
-    const netto = Math.max(0, zwischensumme - rabatt);
+    const netto = Math.max(0, zwischensumme);
     const mwst = netto * (MWST_SATZ / 100);
     const brutto = netto + mwst;
 
@@ -202,8 +202,7 @@ const Zaehler = () => {
         arbeitsstunden: Math.round(arbeitsstunden),
         arbeitskosten: +arbeitskosten.toFixed(2),
         anfahrtkosten: +anfahrtkosten.toFixed(2),
-        orga: +orga.toFixed(2),
-        rabatt: +rabatt.toFixed(2)
+        orga: +orga.toFixed(2)
       },
       summe: {
         netto: +netto.toFixed(2),
@@ -576,18 +575,6 @@ const Zaehler = () => {
                   </div>
                 </div>
 
-                {/* Rabatt */}
-                <div className="space-y-2">
-                  <Label htmlFor="rabatt_prozent">Rabatt (%)</Label>
-                  <Input
-                    id="rabatt_prozent"
-                    type="number"
-                    min={0}
-                    max={30}
-                    value={config.rabatt_prozent}
-                    onChange={(e) => updateConfig('rabatt_prozent', parseInt(e.target.value) || 0)}
-                  />
-                </div>
 
                 {/* Manuelle Arbeitsstunden */}
                 <div className="space-y-2">
