@@ -62,25 +62,80 @@ const WallboxFunnel = () => {
   const submitLead = async () => {
     setIsSubmitting(true);
     
-    // Skip webhook and database - just display the provided file
-    const samplePdfData = {
-      url: "https://pdf-temp-files.s3.us-west-2.amazonaws.com/LUAYKYZGKKCW5SVU4C2QPFZRM2YRSTGO/htmltopdf.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIZJDPLX6D7EHVCKA%2F20250923%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20250923T115753Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=75334a7cd0694725d8c22e13243c52cb05d437e186d5fbd9ad6a87d17df6b187",
-      name: "htmltopdf.pdf"
-    };
+    let supabaseSuccess = false;
+    let webhookSuccess = false;
     
-    // Set the PDF data for display
-    updateData({
-      pdfUrl: samplePdfData.url,
-      pdfName: samplePdfData.name
-    });
-    
-    // Move to final step
-    nextStep();
-    
-    toast({
-      title: "Angebot erstellt!",
-      description: "Ihr PDF-Angebot ist bereit zur Ansicht.",
-    });
+    // Try to save to Supabase
+    try {
+      const { error } = await supabase
+        .from('wallbox_leads')
+        .insert([{
+          name: data.name || '',
+          email: data.email || '',
+          plz: data.plz || '',
+          adresse: data.adresse || '',
+          wallbox_typ: data.wallbox_typ || '',
+          installation: data.installation || '',
+          foerderung: data.foerderung || false,
+          features: data.features || []
+        }]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+      } else {
+        supabaseSuccess = true;
+      }
+    } catch (error) {
+      console.error('Supabase unexpected error:', error);
+    }
+
+    // Call the webhook
+    try {
+      const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
+      webhookUrl.searchParams.append('name', data.name || '');
+      webhookUrl.searchParams.append('email', data.email || '');
+      webhookUrl.searchParams.append('plz', data.plz || '');
+      webhookUrl.searchParams.append('adresse', data.adresse || '');
+      webhookUrl.searchParams.append('wallbox_typ', data.wallbox_typ || '');
+      webhookUrl.searchParams.append('installation', data.installation || '');
+      webhookUrl.searchParams.append('foerderung', String(data.foerderung || false));
+      webhookUrl.searchParams.append('features', JSON.stringify(data.features || []));
+
+      const response = await fetch(webhookUrl.toString());
+      if (response.ok) {
+        const webhookData = await response.json();
+        console.log('Webhook response:', webhookData);
+        
+        // Extract PDF URL from webhook response
+        if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
+          const pdfData = webhookData[0];
+          if (pdfData.url && pdfData.name) {
+            updateData({
+              pdfUrl: pdfData.url,
+              pdfName: pdfData.name
+            });
+          }
+        }
+        webhookSuccess = true;
+      }
+    } catch (webhookError) {
+      console.error('Webhook error:', webhookError);
+    }
+
+    // Show appropriate message and proceed
+    if (webhookSuccess) {
+      nextStep();
+      toast({
+        title: "Angebot erstellt!",
+        description: "Ihr PDF-Angebot wurde erfolgreich generiert.",
+      });
+    } else {
+      toast({
+        title: "Fehler",
+        description: "Es gab ein Problem beim Erstellen des Angebots. Bitte versuchen Sie es erneut.",
+        variant: "destructive",
+      });
+    }
     
     setIsSubmitting(false);
   };
