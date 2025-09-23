@@ -189,10 +189,18 @@ const WallboxConfigurator = () => {
         console.log('Webhook response content-type:', contentType);
         
         if (contentType && contentType.includes('application/pdf')) {
-          // Handle binary PDF response
+          // Handle binary PDF response - direct download
           const blob = await response.blob();
-          const pdfUrl = URL.createObjectURL(blob);
-          window.open(pdfUrl, '_blank');
+          const url = URL.createObjectURL(blob);
+          
+          // Create download link and trigger download
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `Wallbox-Angebot-${config.kunde.name.replace(/\s+/g, '-')}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
         } else if (contentType && contentType.includes('application/json')) {
           // Handle JSON response with PDF URL
           const webhookData = await response.json();
@@ -201,7 +209,13 @@ const WallboxConfigurator = () => {
           if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
             const pdfData = webhookData[0];
             if (pdfData.url && pdfData.name) {
-              window.open(pdfData.url, '_blank');
+              // Download PDF from URL
+              const link = document.createElement('a');
+              link.href = pdfData.url;
+              link.download = pdfData.name;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
             }
           }
         } else {
@@ -213,7 +227,13 @@ const WallboxConfigurator = () => {
             if (webhookData && Array.isArray(webhookData) && webhookData.length > 0) {
               const pdfData = webhookData[0];
               if (pdfData.url && pdfData.name) {
-                window.open(pdfData.url, '_blank');
+                // Download PDF from URL
+                const link = document.createElement('a');
+                link.href = pdfData.url;
+                link.download = pdfData.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
               }
             }
           } catch (parseError) {
