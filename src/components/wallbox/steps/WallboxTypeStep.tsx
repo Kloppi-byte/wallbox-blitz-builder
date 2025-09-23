@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Zap, Smartphone, ChevronLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { WallboxData } from '../WallboxFunnel';
 
 interface WallboxTypeStepProps {
@@ -11,37 +13,58 @@ interface WallboxTypeStepProps {
   canGoBack: boolean;
 }
 
+interface WallboxOption {
+  id: string;
+  title: string;
+  description: string;
+  icon: any;
+  recommended: boolean;
+  price?: string;
+}
+
 const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: WallboxTypeStepProps) => {
-  const options = [
-    {
-      id: '11kw-standard',
-      title: '11 kW Standard',
-      description: 'Für den täglichen Gebrauch',
-      icon: Zap,
-      recommended: false,
-    },
-    {
-      id: '22kw-standard',
-      title: '22 kW Standard',
-      description: 'Schnelleres Laden',
-      icon: Zap,
-      recommended: true,
-    },
-    {
-      id: '11kw-smart',
-      title: '11 kW Smart',
-      description: 'Mit App-Steuerung',
-      icon: Smartphone,
-      recommended: false,
-    },
-    {
-      id: '22kw-smart',
-      title: '22 kW Smart',
-      description: 'Schnell + App-Steuerung',
-      icon: Smartphone,
-      recommended: false,
-    },
-  ];
+  const [options, setOptions] = useState<WallboxOption[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWallboxen = async () => {
+      try {
+        const { data: wallboxen, error } = await (supabase as any)
+          .from('wallboxen')
+          .select('*')
+          .order('"Artikelnummer"');
+          
+        if (error) {
+          console.error('Error fetching wallboxen:', error);
+          return;
+        }
+
+        if (wallboxen && wallboxen.length > 0) {
+          const mappedOptions: WallboxOption[] = wallboxen.map((wallbox: any, index: number) => ({
+            id: wallbox.Artikelnummer?.toString() || index.toString(),
+            title: wallbox.Name || 'Wallbox',
+            description: wallbox.Beschreibung ? wallbox.Beschreibung.substring(0, 100) + '...' : '',
+            price: wallbox['VK VK30'] ? `€${wallbox['VK VK30']}` : '',
+            icon: wallbox.Name?.toLowerCase().includes('smart') ? Smartphone : Zap,
+            recommended: index === 0, // First one is recommended
+          }));
+
+          setOptions(mappedOptions);
+          
+          // Set first option as default if no selection exists
+          if (!data.wallbox_typ && mappedOptions.length > 0) {
+            updateData({ wallbox_typ: mappedOptions[0].id });
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching wallboxen:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWallboxen();
+  }, [data.wallbox_typ, updateData]);
 
   const handleSelect = (option: string) => {
     updateData({ wallbox_typ: option });
@@ -62,7 +85,11 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
 
       {/* Options Grid */}
       <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-        {options.map((option) => {
+        {loading ? (
+          <div className="col-span-2 text-center py-8">
+            <p className="text-muted-foreground">Wallboxen werden geladen...</p>
+          </div>
+        ) : options.map((option) => {
           const Icon = option.icon;
           const isSelected = data.wallbox_typ === option.id;
           
@@ -93,8 +120,11 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
                 <h3 className="text-xl font-semibold">{option.title}</h3>
               </CardHeader>
               
-              <CardContent className="text-center">
+              <CardContent className="text-center space-y-2">
                 <p className="text-muted-foreground">{option.description}</p>
+                {option.price && (
+                  <p className="text-lg font-semibold text-primary">{option.price}</p>
+                )}
               </CardContent>
               
               {isSelected && (
