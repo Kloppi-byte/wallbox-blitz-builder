@@ -60,6 +60,10 @@ const WallboxFunnel = () => {
   const submitLead = async () => {
     setIsSubmitting(true);
     
+    let supabaseSuccess = false;
+    let webhookSuccess = false;
+    
+    // Try to save to Supabase
     try {
       const { error } = await supabase
         .from('wallbox_leads')
@@ -75,51 +79,60 @@ const WallboxFunnel = () => {
         }]);
 
       if (error) {
-        console.error('Error submitting lead:', error);
-        toast({
-          title: "Fehler",
-          description: "Es gab ein Problem beim Senden Ihrer Daten. Bitte versuchen Sie es erneut.",
-          variant: "destructive",
-        });
-        return;
+        console.error('Supabase error:', error);
+      } else {
+        supabaseSuccess = true;
       }
+    } catch (error) {
+      console.error('Supabase unexpected error:', error);
+    }
 
-      // Send data to webhook
-      try {
-        const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
-        webhookUrl.searchParams.append('name', data.name || '');
-        webhookUrl.searchParams.append('email', data.email || '');
-        webhookUrl.searchParams.append('plz', data.plz || '');
-        webhookUrl.searchParams.append('adresse', data.adresse || '');
-        webhookUrl.searchParams.append('wallbox_typ', data.wallbox_typ || '');
-        webhookUrl.searchParams.append('installation', data.installation || '');
-        webhookUrl.searchParams.append('foerderung', String(data.foerderung || false));
-        webhookUrl.searchParams.append('features', JSON.stringify(data.features || []));
+    // Always try to send to webhook regardless of Supabase result
+    try {
+      const webhookUrl = new URL('https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06');
+      webhookUrl.searchParams.append('name', data.name || '');
+      webhookUrl.searchParams.append('email', data.email || '');
+      webhookUrl.searchParams.append('plz', data.plz || '');
+      webhookUrl.searchParams.append('adresse', data.adresse || '');
+      webhookUrl.searchParams.append('wallbox_typ', data.wallbox_typ || '');
+      webhookUrl.searchParams.append('installation', data.installation || '');
+      webhookUrl.searchParams.append('foerderung', String(data.foerderung || false));
+      webhookUrl.searchParams.append('features', JSON.stringify(data.features || []));
 
-        await fetch(webhookUrl.toString());
-      } catch (webhookError) {
-        console.error('Webhook error:', webhookError);
-        // Don't show error to user for webhook, continue with success flow
+      const response = await fetch(webhookUrl.toString());
+      if (response.ok) {
+        webhookSuccess = true;
       }
+    } catch (webhookError) {
+      console.error('Webhook error:', webhookError);
+    }
 
-      // Success - move to final step
+    // Show appropriate message and proceed
+    if (webhookSuccess) {
+      // Move to final step if webhook worked (main requirement)
       nextStep();
       
-      toast({
-        title: "Erfolgreich gesendet!",
-        description: "Ihr Angebot wird in Kürze erstellt und an Sie versendet.",
-      });
-      
-    } catch (error) {
-      console.error('Unexpected error:', error);
+      if (supabaseSuccess) {
+        toast({
+          title: "Erfolgreich gesendet!",
+          description: "Ihr Angebot wird in Kürze erstellt und an Sie versendet.",
+        });
+      } else {
+        toast({
+          title: "Angebot wird erstellt!",
+          description: "Ihr Angebot wird in Kürze erstellt und an Sie versendet.",
+        });
+      }
+    } else {
+      // Only show error if webhook failed (since that's the main requirement)
       toast({
         title: "Fehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+        description: "Es gab ein Problem beim Senden Ihrer Daten. Bitte versuchen Sie es erneut.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
+    
+    setIsSubmitting(false);
   };
 
   const CurrentStepComponent = steps[currentStep].component;
