@@ -6,7 +6,7 @@ import IntroStep from './steps/IntroStep';
 import WallboxTypeStep from './steps/WallboxTypeStep';
 import InstallationStep from './steps/InstallationStep';
 import FoerderungStep from './steps/FoerderungStep';
-import FeaturesStep from './steps/FeaturesStep';
+
 import ContactStep from './steps/ContactStep';
 import SuccessStep from './steps/SuccessStep';
 import ProgressBar from './ProgressBar';
@@ -15,7 +15,7 @@ export interface WallboxData {
   wallbox_typ?: string;
   installation?: string;
   foerderung?: boolean;
-  features?: string[];
+  
   name?: string;
   email?: string;
   plz?: string;
@@ -35,7 +35,6 @@ const WallboxFunnel = () => {
     { component: WallboxTypeStep, title: "Wallbox-Typ" },
     { component: InstallationStep, title: "Installation" },
     { component: FoerderungStep, title: "Förderung" },
-    { component: FeaturesStep, title: "Extras" },
     { component: ContactStep, title: "Kontakt" },
     { component: SuccessStep, title: "Fertig" }
   ];
@@ -76,8 +75,7 @@ const WallboxFunnel = () => {
           adresse: data.adresse || '',
           wallbox_typ: data.wallbox_typ || '',
           installation: data.installation || '',
-          foerderung: data.foerderung || false,
-          features: data.features || []
+          foerderung: data.foerderung || false
         }]);
 
       if (error) {
@@ -99,7 +97,6 @@ const WallboxFunnel = () => {
       webhookUrl.searchParams.append('wallbox_typ', data.wallbox_typ || '');
       webhookUrl.searchParams.append('installation', data.installation || '');
       webhookUrl.searchParams.append('foerderung', String(data.foerderung || false));
-      webhookUrl.searchParams.append('features', JSON.stringify(data.features || []));
 
       const response = await fetch(webhookUrl.toString());
       if (response.ok) {

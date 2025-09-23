@@ -118,12 +118,6 @@ const SuccessStep = ({ data }: SuccessStepProps) => {
             <span className="text-muted-foreground">Förderung:</span>
             <span className="font-medium">{data.foerderung ? 'Ja' : 'Nein'}</span>
           </div>
-          {data.features && data.features.length > 0 && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Extras:</span>
-              <span className="font-medium">{data.features.join(', ')}</span>
-            </div>
-          )}
         </CardContent>
       </Card>
 
