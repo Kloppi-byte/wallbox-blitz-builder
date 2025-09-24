@@ -549,47 +549,129 @@ const WallboxConfigurator = () => {
               </CardContent>
             </Card>
 
-            {/* Optional Products */}
+            {/* Required & Optional Components by Category */}
             {config.selectedWallbox && (
               <Card className="shadow-card">
                 <CardHeader>
-                  <CardTitle className="text-lg">Optionale Komponenten</CardTitle>
+                  <CardTitle className="text-lg">Komponenten</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {getOptionalProducts().map((product) => {
-                      const isSelected = config.selectedProducts.some(p => p.artikelnummer === product.artikelnummer);
-                      const selectedProduct = config.selectedProducts.find(p => p.artikelnummer === product.artikelnummer);
-                      
-                      return (
-                        <div key={product.artikelnummer} className="flex items-center space-x-3">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => {
-                              const productToToggle: SelectedProduct = {
-                                artikelnummer: product.artikelnummer,
-                                name: product.name,
-                                price: parseFloat(product.verkaufspreis) || 0,
-                                kategorie: product.kategorie,
-                                beschreibung: product.beschreibung
-                              };
-                              toggleOptionalProduct(productToToggle, checked as boolean);
-                            }}
-                            disabled={selectedProduct?.isRequired}
-                          />
-                          <div className="flex-1">
-                            <span className="text-sm font-medium">{product.name}</span>
-                            {product.beschreibung && (
-                              <p className="text-xs text-muted-foreground">{product.beschreibung}</p>
-                            )}
-                          </div>
-                          <span className="text-sm font-medium">
-                            {parseFloat(product.verkaufspreis).toFixed(2)}€
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <CardContent className="space-y-6">
+                  
+                  {/* Required Components by Category */}
+                  {Object.entries(
+                    config.selectedProducts
+                      .filter(p => p.isRequired)
+                      .reduce((acc, product) => {
+                        if (!acc[product.kategorie]) acc[product.kategorie] = [];
+                        acc[product.kategorie].push(product);
+                        return acc;
+                      }, {} as {[key: string]: SelectedProduct[]})
+                  ).map(([kategorie, products]) => (
+                    <div key={`required-${kategorie}`} className="space-y-2">
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        {kategorie} (Erforderlich)
+                      </Label>
+                      <Select value={products[0]?.artikelnummer.toString()} disabled>
+                        <SelectTrigger className="bg-muted">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg z-50">
+                          {products.map((product) => (
+                            <SelectItem 
+                              key={product.artikelnummer} 
+                              value={product.artikelnummer.toString()}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <span>{product.name}</span>
+                                <Badge variant="secondary" className="ml-2">
+                                  {product.price.toFixed(2)}€
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+
+                  {/* Optional Components by Category */}
+                  {Object.entries(
+                    getOptionalProducts().reduce((acc, product) => {
+                      if (!acc[product.kategorie]) acc[product.kategorie] = [];
+                      acc[product.kategorie].push(product);
+                      return acc;
+                    }, {} as {[key: string]: WallboxProduct[]})
+                  ).map(([kategorie, products]) => {
+                    const selectedProduct = config.selectedProducts.find(
+                      p => p.kategorie === kategorie && !p.isRequired
+                    );
+
+                    return (
+                      <div key={`optional-${kategorie}`} className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          {kategorie} (Optional)
+                        </Label>
+                        <Select
+                          value={selectedProduct?.artikelnummer.toString() || "none"}
+                          onValueChange={(value) => {
+                            if (value === "none") {
+                              // Remove current selection
+                              if (selectedProduct) {
+                                toggleOptionalProduct(selectedProduct, false);
+                              }
+                            } else {
+                              // Remove current selection and add new one
+                              if (selectedProduct) {
+                                toggleOptionalProduct(selectedProduct, false);
+                              }
+                              
+                              const product = products.find(p => p.artikelnummer.toString() === value);
+                              if (product) {
+                                const productToAdd: SelectedProduct = {
+                                  artikelnummer: product.artikelnummer,
+                                  name: product.name,
+                                  price: parseFloat(product.verkaufspreis) || 0,
+                                  kategorie: product.kategorie,
+                                  beschreibung: product.beschreibung
+                                };
+                                toggleOptionalProduct(productToAdd, true);
+                              }
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder={`${kategorie} auswählen`} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            <SelectItem value="none">
+                              <span className="text-muted-foreground">Keine Auswahl</span>
+                            </SelectItem>
+                            {products.map((product) => (
+                              <SelectItem 
+                                key={product.artikelnummer} 
+                                value={product.artikelnummer.toString()}
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <div className="flex flex-col">
+                                    <span>{product.name}</span>
+                                    {product.beschreibung && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {product.beschreibung}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="ml-4 font-medium">
+                                    {parseFloat(product.verkaufspreis).toFixed(2)}€
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+
                 </CardContent>
               </Card>
             )}
