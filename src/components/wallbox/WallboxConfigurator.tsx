@@ -295,7 +295,6 @@ const WallboxConfigurator = () => {
         anfahrt_zone: config.anfahrt_zone,
         hauptsicherung_anpassung: config.hauptsicherung_anpassung,
         foerderung: config.foerderung,
-        features: config.features,
       },
       pricing: {
         materialCosts: prices.material,
@@ -412,13 +411,6 @@ const WallboxConfigurator = () => {
                   <span className="text-sm font-medium">Förderung:</span>
                   <span className="text-sm">{config.foerderung ? 'Ja' : 'Nein'}</span>
                 </div>
-
-                {config.features.length > 0 && <div className="pt-2">
-                    <span className="text-sm font-medium block mb-2">Features:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {config.features.map(feature => <Badge key={feature} variant="secondary" className="text-xs">
-                          {feature === 'pv-anbindung' ? 'PV-Anbindung' : feature === 'lastmanagement' ? 'Lastmanagement' : 'RFID'}
-                        </Badge>)}
                     </div>
                   </div>}
               </div>
@@ -570,27 +562,6 @@ const WallboxConfigurator = () => {
                     KfW-Förderung beantragen (bis 900€)
                   </Label>
                 </div>
-
-                {/* Features */}
-                <div>
-                  <Label className="text-sm font-medium block mb-3">Zusätzliche Features</Label>
-                  <div className="space-y-3">
-                    {[{
-                    id: 'pv-anbindung',
-                    label: 'PV-Anbindung'
-                  }, {
-                    id: 'lastmanagement',
-                    label: 'Lastmanagement'
-                  }, {
-                    id: 'rfid',
-                    label: 'RFID-Zugang'
-                  }].map(feature => <div key={feature.id} className="flex items-center space-x-2">
-                        <Checkbox id={feature.id} checked={config.features.includes(feature.id)} onCheckedChange={checked => handleFeatureChange(feature.id, checked as boolean)} />
-                        <Label htmlFor={feature.id} className="text-sm">
-                          {feature.label}
-                        </Label>
-                      </div>)}
-                  </div>
                 </div>
               </CardContent>
             </Card>
