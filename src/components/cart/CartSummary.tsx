@@ -140,28 +140,6 @@ export function CartSummary() {
           
           <Separator />
           
-          {/* Discount Section */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Label htmlFor="discount">Rabatt (%)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="discount"
-                  type="number"
-                  min="0"
-                  max="30"
-                  value={discountInput}
-                  onChange={(e) => handleDiscountChange(e.target.value)}
-                  placeholder="0"
-                  className="max-w-20"
-                />
-                <Percent className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-          </div>
-          
-          <Separator />
-          
           {/* Travel Costs Summary */}
           {cart.items.length > 0 && (() => {
             const totalLaborHours = cart.items.reduce((sum, item) => {
@@ -189,6 +167,28 @@ export function CartSummary() {
               </div>
             );
           })()}
+          
+          <Separator />
+          
+          {/* Discount Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Label htmlFor="discount">Rabatt (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="discount"
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={discountInput}
+                  onChange={(e) => handleDiscountChange(e.target.value)}
+                  placeholder="0"
+                  className="max-w-20"
+                />
+                <Percent className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
           
           <Separator />
           
