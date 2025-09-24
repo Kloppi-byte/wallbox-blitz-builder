@@ -422,6 +422,10 @@ const WallboxConfigurator = () => {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
+                  <span>Material:</span>
+                  <span>{prices.material.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>Arbeit + Anfahrt:</span>
                   <span>{prices.arbeit.toFixed(2)}€</span>
                 </div>
@@ -444,19 +448,6 @@ const WallboxConfigurator = () => {
 
           {/* Right Column - Configuration */}
           <div className="space-y-6">
-            {/* Material Price */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Materialpreis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between text-lg font-medium">
-                  <span>Material:</span>
-                  <span>{prices.material.toFixed(2)}€</span>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Wallbox Selection */}
             <Card className="shadow-card">
               <CardHeader>
