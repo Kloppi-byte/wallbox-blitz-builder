@@ -688,10 +688,15 @@ const WallboxConfigurator = () => {
                       acc[product.kategorie].push(product);
                       return acc;
                     }, {} as {[key: string]: WallboxProduct[]})
-                  ).map(([kategorie, products]) => {
-                    const selectedProduct = config.selectedProducts.find(
-                      p => p.kategorie === kategorie && !p.isRequired
-                    );
+                   ).map(([kategorie, products]) => {
+                     const selectedProduct = config.selectedProducts.find(
+                       p => p.kategorie === kategorie && !p.isRequired
+                     );
+
+                     // Check if there's an auto-selected product for this category
+                     const wallbox = allProducts.find(p => p.artikelnummer === config.selectedWallbox?.artikelnummer);
+                     const autoSelectedProduct = wallbox?.auto_select ? 
+                       products.find(p => wallbox.auto_select?.includes(p.artikelnummer.toString())) : null;
 
                     return (
                       <div key={`optional-${kategorie}`} className="space-y-2">
@@ -700,7 +705,7 @@ const WallboxConfigurator = () => {
                         </Label>
                         <div className="flex gap-2">
                           <Select
-                            value={selectedProduct?.artikelnummer.toString() || "none"}
+                            value={selectedProduct?.artikelnummer.toString() || autoSelectedProduct?.artikelnummer.toString() || "none"}
                             onValueChange={(value) => {
                               if (value === "none") {
                                 // Remove current selection
