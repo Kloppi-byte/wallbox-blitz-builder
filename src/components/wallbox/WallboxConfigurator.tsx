@@ -267,7 +267,7 @@ const WallboxConfigurator = () => {
       price: parseFloat(product.verkaufspreis) || 0,
       kategorie: product.kategorie,
       beschreibung: product.beschreibung,
-      quantity: 1,
+      quantity: product.anzahl_einheit || 1,
       einheit: product.einheit
     };
 
