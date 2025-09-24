@@ -510,47 +510,43 @@ const WallboxConfigurator = () => {
               </CardContent>
             </Card>
 
-            {/* Cable Selection */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Kabel-Auswahl</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {cableOptions.map(cable => (
-                    <div
-                      key={cable.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                        selectedCable?.id === cable.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedCable(cable)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4 className="font-medium">{cable.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Art.-Nr.: {cable.artikelnummer}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold">{cable.pricePerMeter}€/m</div>
-                          <div className="text-sm text-muted-foreground">
-                            {(cable.pricePerMeter * config.kabel_laenge_m).toFixed(2)}€ total
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Configuration Options */}
             <Card className="shadow-card">
               <CardHeader>
                 <CardTitle className="text-lg">Konfiguration</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Cable Selection */}
+                <div>
+                  <Label className="text-sm font-medium">Kabeltyp</Label>
+                  <Select 
+                    value={selectedCable?.id || ''} 
+                    onValueChange={(value) => {
+                      const cable = cableOptions.find(c => c.id === value);
+                      setSelectedCable(cable || null);
+                    }}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Kabel auswählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {cableOptions.map(cable => (
+                        <SelectItem key={cable.id} value={cable.id}>
+                          <div className="flex justify-between items-center w-full">
+                            <span>{cable.name}</span>
+                            <span className="ml-4 text-muted-foreground">{cable.pricePerMeter}€/m</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedCable && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {(selectedCable.pricePerMeter * config.kabel_laenge_m).toFixed(2)}€ für {config.kabel_laenge_m}m
+                    </p>
+                  )}
+                </div>
+
                 {/* Cable Length */}
                 <div>
                   <Label className="text-sm font-medium">Kabellänge (5-25m)</Label>
