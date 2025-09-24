@@ -23,6 +23,7 @@ interface WallboxProduct {
   beschreibung: string;
   verkaufspreis: string;
   einheit: string;
+  anzahl_einheit: number;
   required: string[] | null;
   optional: string[] | null;
   exclude: string[] | null;
@@ -110,6 +111,7 @@ const WallboxConfigurator = () => {
           beschreibung: item.Beschreibung || '',
           verkaufspreis: item.Verkaufspreis || '0',
           einheit: item.Einheit || 'Stück',
+          anzahl_einheit: item['Anzahl Einheit'] || 1, // Use database column
           required: item.required || [],
           optional: item.optional || [],
           exclude: item.exclude || [],
@@ -159,7 +161,7 @@ const WallboxConfigurator = () => {
       price: parseFloat(wallbox.verkaufspreis) || 0,
       kategorie: wallbox.kategorie,
       beschreibung: wallbox.beschreibung,
-      quantity: 1,
+      quantity: wallbox.anzahl_einheit || 1,
       einheit: wallbox.einheit
     };
 
@@ -180,7 +182,7 @@ const WallboxConfigurator = () => {
             kategorie: product.kategorie,
             beschreibung: product.beschreibung,
             isRequired: true,
-            quantity: 1,
+            quantity: product.anzahl_einheit || 1,
             einheit: product.einheit
           });
         }
@@ -201,7 +203,7 @@ const WallboxConfigurator = () => {
             kategorie: product.kategorie,
             beschreibung: product.beschreibung,
             isAutoSelected,
-            quantity: 1,
+            quantity: product.anzahl_einheit || 1,
             einheit: product.einheit
           });
         }
@@ -434,10 +436,10 @@ const WallboxConfigurator = () => {
         </div>
 
         {/* Main Content - Two Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column - Package Overview */}
-          <Card className="shadow-card">
+          <Card className="shadow-card lg:col-span-1">
             <CardHeader>
               <CardTitle>Paketübersicht</CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -545,7 +547,7 @@ const WallboxConfigurator = () => {
           </Card>
 
           {/* Right Column - Configuration */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:col-span-2">
             
             {/* Wallbox Selection */}
             <Card className="shadow-card">
