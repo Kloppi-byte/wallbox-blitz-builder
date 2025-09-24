@@ -20,20 +20,6 @@ interface WallboxOption {
   price: number;
   artikelnummer: string;
 }
-
-interface CableOption {
-  id: string;
-  name: string;
-  pricePerMeter: number;
-  artikelnummer: string;
-}
-
-interface FiLsOption {
-  id: string;
-  name: string;
-  price: number;
-  artikelnummer: string;
-}
 interface ConfigState {
   wallbox: WallboxOption;
   kabel_laenge_m: number;
@@ -77,45 +63,27 @@ const WallboxConfigurator = () => {
     }
   });
   const [wallboxOptions, setWallboxOptions] = useState<WallboxOption[]>([]);
-  const [cableOptions, setCableOptions] = useState<CableOption[]>([]);
-  const [selectedCable, setSelectedCable] = useState<CableOption | null>(null);
-  const [fiLsOptions, setFiLsOptions] = useState<FiLsOption[]>([]);
-  const [selectedFiLs, setSelectedFiLs] = useState<FiLsOption | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  
-  const { addItem, setCustomerData } = useCart();
-  const { toast } = useToast();
+  const {
+    addItem,
+    setCustomerData
+  } = useCart();
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
-    const fetchWallboxData = async () => {
+    const fetchWallboxes = async () => {
       try {
-        // Fetch wallboxes (only Kategorie == "Wallbox")
         const {
-          data: wallboxData,
-          error: wallboxError
-        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Wallbox').order('Artikelnummer', {
+          data,
+          error
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer"').order('Artikelnummer', {
           ascending: true
         });
-        
-        // Fetch cables (only Kategorie == "Kabel")
-        const {
-          data: cableData,
-          error: cableError
-        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Kabel').order('Artikelnummer', {
-          ascending: true
-        });
-
-        // Fetch FI/LS switches (only Kategorie == "FI/LS")
-        const {
-          data: fiLsData,
-          error: fiLsError
-        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'FI/LS').order('Artikelnummer', {
-          ascending: true
-        });
-
-        if (!wallboxError && wallboxData) {
-          const options = wallboxData.map((item, index) => ({
+        if (!error && data) {
+          const options = data.map((item, index) => ({
             id: `wallbox-${index}`,
             name: item.Name || 'Unbekannt',
             price: parseFloat(item["VK VK30"] || "0"),
@@ -129,63 +97,16 @@ const WallboxConfigurator = () => {
             }));
           }
         }
-
-        if (!cableError && cableData) {
-          const cableOpts = cableData.map((item, index) => ({
-            id: `cable-${index}`,
-            name: item.Name || 'Unbekannt',
-            pricePerMeter: parseFloat(item["VK VK30"] || "0"),
-            artikelnummer: item.Artikelnummer?.toString() || ""
-          }));
-          setCableOptions(cableOpts);
-          if (cableOpts.length > 0) {
-            setSelectedCable(cableOpts[0]);
-          }
-        }
-
-        if (!fiLsError && fiLsData) {
-          const fiLsOpts = fiLsData.map((item, index) => ({
-            id: `fils-${index}`,
-            name: item.Name || 'Unbekannt',
-            price: parseFloat(item["VK VK30"] || "0"),
-            artikelnummer: item.Artikelnummer?.toString() || ""
-          }));
-          setFiLsOptions(fiLsOpts);
-          if (fiLsOpts.length > 0) {
-            setSelectedFiLs(fiLsOpts[0]);
-          }
-        }
       } catch (error) {
-        console.error('Error fetching wallbox data:', error);
+        console.error('Error fetching wallboxes:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchWallboxData();
+    fetchWallboxes();
   }, []);
-
-  // Load saved configuration for editing
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('wallbox-edit-config');
-    if (savedConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedConfig);
-        setConfig(prev => ({
-          ...prev,
-          ...parsedConfig
-        }));
-        // Clear the saved config after loading
-        localStorage.removeItem('wallbox-edit-config');
-      } catch (error) {
-        console.error('Error parsing saved config:', error);
-      }
-    }
-  }, [wallboxOptions]); // Depend on wallboxOptions so it runs after they're loaded
   const calculatePrices = () => {
-    const wallboxCost = config.wallbox.price;
-    const cableCost = selectedCable ? selectedCable.pricePerMeter * config.kabel_laenge_m : config.kabel_laenge_m * 12;
-    const fiLsCost = selectedFiLs ? selectedFiLs.price : 0;
-    const materialkosten = wallboxCost + cableCost + fiLsCost + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
+    const materialkosten = config.wallbox.price + config.kabel_laenge_m * 12 + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
     const arbeitskosten = config.arbeitsstunden * 75;
     const anfahrtkosten = config.anfahrt_zone === 'A' ? 50 : config.anfahrt_zone === 'B' ? 75 : 100;
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten;
@@ -193,11 +114,7 @@ const WallboxConfigurator = () => {
     const gesamtpreis = zwischensumme - foerderungsabzug;
     return {
       material: materialkosten,
-      wallbox: wallboxCost,
-      cable: cableCost,
-      fiLs: fiLsCost,
-      arbeit: arbeitskosten,
-      anfahrt: anfahrtkosten,
+      arbeit: arbeitskosten + anfahrtkosten,
       zwischensumme,
       foerderungsabzug,
       gesamt: gesamtpreis
@@ -365,16 +282,13 @@ const WallboxConfigurator = () => {
       setIsSubmitting(false);
     }
   };
-
   const addToCart = () => {
     const prices = calculatePrices();
-
     const cartItem = {
       productType: 'wallbox' as const,
       name: `${config.wallbox.name} - Wallbox Installation`,
       configuration: {
         wallbox: config.wallbox,
-        cable: selectedCable,
         kabel_laenge_m: config.kabel_laenge_m,
         leitung: config.leitung,
         absicherung: config.absicherung,
@@ -382,21 +296,20 @@ const WallboxConfigurator = () => {
         arbeitsstunden: config.arbeitsstunden,
         anfahrt_zone: config.anfahrt_zone,
         hauptsicherung_anpassung: config.hauptsicherung_anpassung,
-        foerderung: config.foerderung,
+        foerderung: config.foerderung
       },
       pricing: {
         materialCosts: prices.material,
         laborCosts: prices.arbeit,
-        travelCosts: prices.anfahrt,
+        travelCosts: 0,
+        // included in arbeit
         subtotal: prices.zwischensumme,
         subsidy: prices.foerderungsabzug,
-        total: prices.gesamt,
-      },
+        total: prices.gesamt
+      }
     };
-
     addItem(cartItem);
   };
-
   if (loading) {
     return <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center">
@@ -411,17 +324,39 @@ const WallboxConfigurator = () => {
         {/* Header with Cart */}
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => window.location.href = '/'}
-              className="text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" onClick={() => window.location.href = '/'} className="text-muted-foreground hover:text-foreground">
               ← Zurück zur Hauptseite
             </Button>
             <h1 className="text-3xl font-bold text-gray-800">Wallbox Konfigurator</h1>
           </div>
           <CartIcon onClick={() => setIsCartOpen(true)} />
         </div>
+        {/* Header Card */}
+        <Card className="mb-8 shadow-elevated">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2">
+              
+              Wallbox Standardpaket
+            </CardTitle>
+            
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="inline-flex items-center gap-2 text-2xl font-bold text-wallbox-hero">
+              <Euro className="h-6 w-6" />
+              {prices.gesamt.toFixed(2)}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {config.foerderung && prices.foerderungsabzug > 0 && <span className="text-wallbox-success">
+                  (nach Förderabzug von {prices.foerderungsabzug.toFixed(2)}€)
+                </span>}
+            </p>
+            <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="mt-4">
+              <Download className="h-4 w-4 mr-2" />
+              {isSubmitting ? 'Erstelle PDF...' : 'Sofort-Angebot als PDF'}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Main Content - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Package Overview */}
@@ -442,16 +377,6 @@ const WallboxConfigurator = () => {
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Kabellänge:</span>
                   <span className="text-sm">{config.kabel_laenge_m}m</span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Kabel:</span>
-                  <span className="text-sm">{selectedCable?.name || 'Standard Kabel'}</span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">FI/LS-Schalter:</span>
-                  <span className="text-sm">{selectedFiLs?.name || 'Standard FI/LS'}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -489,23 +414,11 @@ const WallboxConfigurator = () => {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Wallbox:</span>
-                  <span>{prices.wallbox.toFixed(2)}€</span>
+                  <span>Material:</span>
+                  <span className="mx-[200px]">{prices.material.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Kabel ({config.kabel_laenge_m}m):</span>
-                  <span>{prices.cable.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>FI/LS-Schalter:</span>
-                  <span>{prices.fiLs.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Zusätzliches Material:</span>
-                  <span>{(prices.material - prices.wallbox - prices.cable - prices.fiLs).toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Arbeit:</span>
+                  <span>Arbeit + Anfahrt:</span>
                   <span>{prices.arbeit.toFixed(2)}€</span>
                 </div>
                 <Separator />
@@ -557,37 +470,6 @@ const WallboxConfigurator = () => {
                 <CardTitle className="text-lg">Konfiguration</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Cable Selection */}
-                <div>
-                  <Label className="text-sm font-medium">Kabeltyp</Label>
-                  <Select 
-                    value={selectedCable?.id || ''} 
-                    onValueChange={(value) => {
-                      const cable = cableOptions.find(c => c.id === value);
-                      setSelectedCable(cable || null);
-                    }}
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Kabel auswählen" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      {cableOptions.map(cable => (
-                        <SelectItem key={cable.id} value={cable.id}>
-                          <div className="flex justify-between items-center w-full">
-                            <span>{cable.name}</span>
-                            <span className="ml-4 text-muted-foreground">{cable.pricePerMeter}€/m</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedCable && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {(selectedCable.pricePerMeter * config.kabel_laenge_m).toFixed(2)}€ für {config.kabel_laenge_m}m
-                    </p>
-                  )}
-                </div>
-
                 {/* Cable Length */}
                 <div>
                   <Label className="text-sm font-medium">Kabellänge (5-25m)</Label>
@@ -602,35 +484,19 @@ const WallboxConfigurator = () => {
                   </div>
                 </div>
 
-                {/* FI/LS Switch Selection */}
+                {/* Cable Type */}
                 <div>
-                  <Label className="text-sm font-medium">FI/LS-Schalter</Label>
-                  <Select 
-                    value={selectedFiLs?.id || ''} 
-                    onValueChange={(value) => {
-                      const fiLs = fiLsOptions.find(f => f.id === value);
-                      setSelectedFiLs(fiLs || null);
-                    }}
-                  >
+                  <Label className="text-sm font-medium">Leitungstyp</Label>
+                  <Select value={config.leitung} onValueChange={value => updateConfig('leitung', value)}>
                     <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="FI/LS-Schalter auswählen" />
+                      <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      {fiLsOptions.map(fiLs => (
-                        <SelectItem key={fiLs.id} value={fiLs.id}>
-                          <div className="flex justify-between items-center w-full">
-                            <span>{fiLs.name}</span>
-                            <span className="ml-4 text-muted-foreground">{fiLs.price}€</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    <SelectContent>
+                      <SelectItem value="NYY-J 5x4mm²">NYY-J 5x4mm²</SelectItem>
+                      <SelectItem value="NYY-J 5x6mm²">NYY-J 5x6mm²</SelectItem>
+                      <SelectItem value="NYY-J 5x10mm²">NYY-J 5x10mm²</SelectItem>
                     </SelectContent>
                   </Select>
-                  {selectedFiLs && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {selectedFiLs.price.toFixed(2)}€
-                    </p>
-                  )}
                 </div>
 
                 {/* Durchbrüche */}
@@ -710,14 +576,15 @@ const WallboxConfigurator = () => {
                 Gesamtpreis inkl. Montage
               </div>
             </div>
-            <Button 
-              onClick={addToCart} 
-              variant="outline"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              Zum Warenkorb hinzufügen
-            </Button>
+            <div className="flex gap-3">
+              <Button onClick={addToCart} variant="outline" size="lg">
+                Zum Warenkorb hinzufügen
+              </Button>
+              <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="w-full sm:w-auto">
+                <Download className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Erstelle PDF...' : 'Sofort PDF erstellen'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
