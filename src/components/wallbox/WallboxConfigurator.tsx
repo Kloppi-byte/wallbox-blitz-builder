@@ -611,19 +611,19 @@ const WallboxConfigurator = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-lg z-50">
-                            {products.map((product) => (
-                              <SelectItem 
-                                key={product.artikelnummer} 
-                                value={product.artikelnummer.toString()}
-                              >
-                                <div className="flex justify-between items-center w-full">
-                                  <span>{product.name}</span>
-                                  <Badge variant="secondary" className="ml-2">
-                                    {product.price.toFixed(2)}€/{product.einheit || 'Stück'}
-                                  </Badge>
-                                </div>
-                              </SelectItem>
-                            ))}
+                             {products.map((product) => (
+                               <SelectItem 
+                                 key={product.artikelnummer} 
+                                 value={product.artikelnummer.toString()}
+                               >
+                                 <div className="flex justify-between items-center w-full">
+                                   <span>{product.name}</span>
+                                   <Badge variant="secondary" className="ml-2">
+                                     {product.price.toFixed(2)}€/{product.einheit || 'Stück'}
+                                   </Badge>
+                                 </div>
+                               </SelectItem>
+                             ))}
                           </SelectContent>
                         </Select>
                         {/* Quantity control for required items */}
@@ -736,26 +736,19 @@ const WallboxConfigurator = () => {
                               <SelectItem value="none">
                                 <span className="text-muted-foreground">Keine Auswahl</span>
                               </SelectItem>
-                              {products.map((product) => (
-                                <SelectItem 
-                                  key={product.artikelnummer} 
-                                  value={product.artikelnummer.toString()}
-                                >
-                                  <div className="flex justify-between items-center w-full">
-                                    <div className="flex flex-col">
-                                      <span>{product.name}</span>
-                                      {product.beschreibung && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {product.beschreibung}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="ml-4 font-medium">
-                                      {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit || 'Stück'}
-                                    </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
+                               {products.map((product) => (
+                                 <SelectItem 
+                                   key={product.artikelnummer} 
+                                   value={product.artikelnummer.toString()}
+                                 >
+                                   <div className="flex justify-between items-center w-full">
+                                     <span>{product.name}</span>
+                                     <span className="ml-4 font-medium">
+                                       {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit || 'Stück'}
+                                     </span>
+                                   </div>
+                                 </SelectItem>
+                               ))}
                             </SelectContent>
                           </Select>
                           
