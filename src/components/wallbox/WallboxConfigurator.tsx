@@ -561,20 +561,6 @@ const WallboxConfigurator = () => {
                   </div>
                 </div>
 
-                {/* Cable Type */}
-                <div>
-                  <Label className="text-sm font-medium">Leitungstyp</Label>
-                  <Select value={config.leitung} onValueChange={value => updateConfig('leitung', value)}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NYY-J 5x4mm²">NYY-J 5x4mm²</SelectItem>
-                      <SelectItem value="NYY-J 5x6mm²">NYY-J 5x6mm²</SelectItem>
-                      <SelectItem value="NYY-J 5x10mm²">NYY-J 5x10mm²</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* Durchbrüche */}
                 <div>
