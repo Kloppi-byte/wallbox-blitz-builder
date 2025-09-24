@@ -353,32 +353,6 @@ const WallboxConfigurator = () => {
           </div>
           <CartIcon onClick={() => setIsCartOpen(true)} />
         </div>
-        {/* Header Card */}
-        <Card className="mb-8 shadow-elevated">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2">
-              
-              Wallbox Standardpaket
-            </CardTitle>
-            
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="inline-flex items-center gap-2 text-2xl font-bold text-wallbox-hero">
-              <Euro className="h-6 w-6" />
-              {prices.gesamt.toFixed(2)}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {config.foerderung && prices.foerderungsabzug > 0 && <span className="text-wallbox-success">
-                  (nach Förderabzug von {prices.foerderungsabzug.toFixed(2)}€)
-                </span>}
-            </p>
-            <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="mt-4">
-              <Download className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Erstelle PDF...' : 'Sofort-Angebot als PDF'}
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Main Content - Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Package Overview */}
@@ -598,19 +572,14 @@ const WallboxConfigurator = () => {
                 Gesamtpreis inkl. Montage
               </div>
             </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={addToCart} 
-                variant="outline"
-                size="lg"
-              >
-                Zum Warenkorb hinzufügen
-              </Button>
-              <Button onClick={submitConfigurator} disabled={isSubmitting} size="lg" className="w-full sm:w-auto">
-                <Download className="h-4 w-4 mr-2" />
-                {isSubmitting ? 'Erstelle PDF...' : 'Sofort PDF erstellen'}
-              </Button>
-            </div>
+            <Button 
+              onClick={addToCart} 
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
+              Zum Warenkorb hinzufügen
+            </Button>
           </div>
         </div>
       </div>
