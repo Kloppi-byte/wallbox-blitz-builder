@@ -411,8 +411,6 @@ const WallboxConfigurator = () => {
                   <span className="text-sm font-medium">Förderung:</span>
                   <span className="text-sm">{config.foerderung ? 'Ja' : 'Nein'}</span>
                 </div>
-                    </div>
-                  </div>}
               </div>
 
               <Separator />
@@ -561,7 +559,6 @@ const WallboxConfigurator = () => {
                   <Label htmlFor="foerderung" className="text-sm">
                     KfW-Förderung beantragen (bis 900€)
                   </Label>
-                </div>
                 </div>
               </CardContent>
             </Card>
