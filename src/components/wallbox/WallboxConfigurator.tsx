@@ -756,8 +756,20 @@ const WallboxConfigurator = () => {
                                ))}
                             </SelectContent>
                           </Select>
-                          
-                          {/* Quantity control for optional items */}
+                           
+                           {/* Show quantity for auto-selected or selected product */}
+                           {(selectedProduct || autoSelectedProduct) && (
+                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                               <span>
+                                 {selectedProduct ? selectedProduct.quantity : (autoSelectedProduct?.anzahl_einheit || 1)}
+                               </span>
+                               <span>
+                                 {selectedProduct ? selectedProduct.einheit : (autoSelectedProduct?.einheit || 'Stück')}
+                               </span>
+                             </div>
+                           )}
+                           
+                           {/* Quantity control for optional items */}
                           {selectedProduct && (
                             <div className="flex items-center gap-1">
                               {kategorie.toLowerCase().includes('kabel') ? (
