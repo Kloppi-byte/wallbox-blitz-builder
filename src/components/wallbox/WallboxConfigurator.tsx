@@ -704,70 +704,80 @@ const WallboxConfigurator = () => {
                           {kategorie} (Optional)
                         </Label>
                         <div className="flex gap-2">
-                          <Select
-                            value={selectedProduct?.artikelnummer.toString() || autoSelectedProduct?.artikelnummer.toString() || "none"}
-                            onValueChange={(value) => {
-                              if (value === "none") {
-                                // Remove current selection
-                                if (selectedProduct) {
-                                  toggleOptionalProduct(selectedProduct, false);
-                                }
-                              } else {
-                                // Remove current selection and add new one
-                                if (selectedProduct) {
-                                  toggleOptionalProduct(selectedProduct, false);
-                                }
-                                
-                                const product = products.find(p => p.artikelnummer.toString() === value);
-                                if (product) {
-                                  const productToAdd: SelectedProduct = {
-                                    artikelnummer: product.artikelnummer,
-                                    name: product.name,
-                                    price: parseFloat(product.verkaufspreis) || 0,
-                                    kategorie: product.kategorie,
-                                    beschreibung: product.beschreibung,
-                                     quantity: product.anzahl_einheit || 1,
-                                     einheit: product.einheit
-                                  };
-                                  toggleOptionalProduct(productToAdd, true);
-                                }
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="bg-background">
-                              <SelectValue placeholder={`${kategorie} auswählen`} />
-                            </SelectTrigger>
-                            <SelectContent className="bg-background border shadow-lg z-50">
-                              <SelectItem value="none">
-                                <span className="text-muted-foreground">Keine Auswahl</span>
-                              </SelectItem>
-                               {products.map((product) => (
-                                 <SelectItem 
-                                   key={product.artikelnummer} 
-                                   value={product.artikelnummer.toString()}
-                                 >
-                                   <div className="flex justify-between items-center w-full">
-                                     <span>{product.name}</span>
-                                     <span className="ml-4 font-medium">
-                                       {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit || 'Stück'}
-                                     </span>
-                                   </div>
+                           <div className="w-full min-h-[3rem]">
+                             <Select
+                               value={selectedProduct?.artikelnummer.toString() || autoSelectedProduct?.artikelnummer.toString() || "none"}
+                               onValueChange={(value) => {
+                                 if (value === "none") {
+                                   // Remove current selection
+                                   if (selectedProduct) {
+                                     toggleOptionalProduct(selectedProduct, false);
+                                   }
+                                 } else {
+                                   // Remove current selection and add new one
+                                   if (selectedProduct) {
+                                     toggleOptionalProduct(selectedProduct, false);
+                                   }
+                                   
+                                   const product = products.find(p => p.artikelnummer.toString() === value);
+                                   if (product) {
+                                     const productToAdd: SelectedProduct = {
+                                       artikelnummer: product.artikelnummer,
+                                       name: product.name,
+                                       price: parseFloat(product.verkaufspreis) || 0,
+                                       kategorie: product.kategorie,
+                                       beschreibung: product.beschreibung,
+                                        quantity: product.anzahl_einheit || 1,
+                                        einheit: product.einheit
+                                     };
+                                     toggleOptionalProduct(productToAdd, true);
+                                   }
+                                 }
+                               }}
+                             >
+                               <SelectTrigger className="bg-background w-full min-h-[3rem] p-3">
+                                 <SelectValue placeholder={`${kategorie} auswählen`}>
+                                   {(() => {
+                                     const displayProduct = selectedProduct || autoSelectedProduct;
+                                     if (displayProduct) {
+                                       return (
+                                         <div className="flex justify-between items-center w-full">
+                                           <div className="flex items-center gap-2">
+                                             <span>{displayProduct.name}</span>
+                                             <span className="text-sm text-muted-foreground">
+                                               {selectedProduct ? selectedProduct.quantity : (autoSelectedProduct?.anzahl_einheit || 1)} {selectedProduct ? selectedProduct.einheit : (autoSelectedProduct?.einheit || 'Stück')}
+                                             </span>
+                                           </div>
+                                           <span className="font-medium ml-auto">
+                                             {parseFloat((displayProduct as any).price || (displayProduct as any).verkaufspreis).toFixed(2)}€/{displayProduct.einheit || 'Stück'}
+                                           </span>
+                                         </div>
+                                       );
+                                     }
+                                     return `${kategorie} auswählen`;
+                                   })()}
+                                 </SelectValue>
+                               </SelectTrigger>
+                               <SelectContent className="bg-background border shadow-lg z-50">
+                                 <SelectItem value="none">
+                                   <span className="text-muted-foreground">Keine Auswahl</span>
                                  </SelectItem>
-                               ))}
-                            </SelectContent>
-                          </Select>
-                           
-                           {/* Show quantity for auto-selected or selected product */}
-                           {(selectedProduct || autoSelectedProduct) && (
-                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                               <span>
-                                 {selectedProduct ? selectedProduct.quantity : (autoSelectedProduct?.anzahl_einheit || 1)}
-                               </span>
-                               <span>
-                                 {selectedProduct ? selectedProduct.einheit : (autoSelectedProduct?.einheit || 'Stück')}
-                               </span>
-                             </div>
-                           )}
+                                  {products.map((product) => (
+                                    <SelectItem 
+                                      key={product.artikelnummer} 
+                                      value={product.artikelnummer.toString()}
+                                    >
+                                      <div className="flex justify-between items-center w-full">
+                                        <span>{product.name}</span>
+                                        <span className="ml-auto font-medium">
+                                          {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit || 'Stück'}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                               </SelectContent>
+                             </Select>
+                           </div>
                            
                            {/* Quantity control for optional items */}
                           {selectedProduct && (
