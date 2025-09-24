@@ -967,81 +967,66 @@ const WallboxConfigurator = () => {
               </CardContent>
             </Card>
 
-            {/* Customer Data */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Ihre Kontaktdaten</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Name *</Label>
-                    <Input
-                      value={config.kunde.name}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        kunde: { ...prev.kunde, name: e.target.value }
-                      }))}
-                      placeholder="Ihr Name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>E-Mail *</Label>
-                    <Input
-                      type="email"
-                      value={config.kunde.email}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        kunde: { ...prev.kunde, email: e.target.value }
-                      }))}
-                      placeholder="ihre@email.de"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>PLZ *</Label>
-                    <Input
-                      value={config.kunde.plz}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        kunde: { ...prev.kunde, plz: e.target.value }
-                      }))}
-                      placeholder="12345"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Adresse *</Label>
-                    <Input
-                      value={config.kunde.adresse}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        kunde: { ...prev.kunde, adresse: e.target.value }
-                      }))}
-                      placeholder="Straße, Hausnummer"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          </div>
+        </div>
 
-            {/* Submit Button */}
-            <div className="flex gap-4">
+        {/* Sticky Footer with Checkout */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50">
+          <div className="container mx-auto px-4 py-4 max-w-6xl">
+            <div className="flex justify-between items-center">
+              <div className="flex flex-col">
+                <span className="text-lg font-semibold">
+                  Gesamtpreis: {prices.gesamt.toFixed(2)}€
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {config.foerderung && "Inklusive Förderung"}
+                </span>
+              </div>
               <Button
-                onClick={submitConfigurator}
-                disabled={isSubmitting}
-                className="flex-1"
+                onClick={() => {
+                  // Add the complete configuration to cart and navigate to checkout
+                  if (config.selectedWallbox) {
+                    // Create the complete wallbox configuration
+                    const wallboxConfig = {
+                      productType: 'wallbox' as const,
+                      name: 'Wallbox Komplett-Paket',
+                      configuration: {
+                        wallbox: config.selectedWallbox,
+                        components: config.selectedProducts,
+                        workingHours: {
+                          meister: config.meisterstunden,
+                          geselle: config.gesellenstunden
+                        },
+                        travelZone: config.anfahrt_zone,
+                        subsidy: config.foerderung
+                      },
+                      pricing: {
+                        materialCosts: prices.material,
+                        laborCosts: prices.arbeit,
+                        travelCosts: prices.anfahrt,
+                        subtotal: prices.netto,
+                        subsidy: config.foerderung ? Math.min(900, prices.netto * 0.1) : 0,
+                        total: prices.gesamt
+                      }
+                    };
+
+                    addItem(wallboxConfig);
+
+                    // Navigate to checkout
+                    window.location.href = '/checkout';
+                  } else {
+                    toast({
+                      title: "Fehler",
+                      description: "Bitte wählen Sie eine Wallbox aus.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
                 size="lg"
+                className="min-w-[200px]"
+                disabled={!config.selectedWallbox}
               >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Erstelle Angebot...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Angebot erstellen
-                  </>
-                )}
+                Zur Kasse
               </Button>
             </div>
           </div>
