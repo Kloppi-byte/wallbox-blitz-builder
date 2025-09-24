@@ -110,7 +110,8 @@ const WallboxConfigurator = () => {
     const gesamtpreis = zwischensumme - foerderungsabzug;
     return {
       material: materialkosten,
-      arbeit: arbeitskosten + anfahrtkosten,
+      arbeit: arbeitskosten,
+      anfahrt: anfahrtkosten,
       zwischensumme,
       foerderungsabzug,
       gesamt: gesamtpreis
@@ -299,7 +300,7 @@ const WallboxConfigurator = () => {
       pricing: {
         materialCosts: prices.material,
         laborCosts: prices.arbeit,
-        travelCosts: 0, // included in arbeit
+        travelCosts: prices.anfahrt,
         subtotal: prices.zwischensumme,
         subsidy: prices.foerderungsabzug,
         total: prices.gesamt,

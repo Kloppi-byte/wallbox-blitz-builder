@@ -23,6 +23,44 @@ const initialCart: Cart = {
   customerData: null,
 };
 
+// Helper function to calculate optimized pricing for cart items
+function calculateOptimizedCart(items: CartItem[]): { optimizedItems: CartItem[], subtotalPrice: number } {
+  if (items.length === 0) return { optimizedItems: [], subtotalPrice: 0 };
+  
+  // Group items by customer (assuming same customer for now, can be enhanced later)
+  const totalLaborHours = items.reduce((sum, item) => {
+    // Extract labor hours from item configuration
+    const laborHours = item.configuration?.arbeitsstunden || 0;
+    return sum + laborHours;
+  }, 0);
+  
+  // Calculate labor cost based on 8-hour workdays (75€/hour)
+  const workdays = Math.ceil(totalLaborHours / 8);
+  const totalLaborCost = workdays * 8 * 75; // Full 8-hour days at 75€/hour
+  
+  // Distribute labor cost proportionally among items
+  const totalOriginalLaborCost = items.reduce((sum, item) => sum + item.pricing.laborCosts, 0);
+  
+  const optimizedItems = items.map(item => {
+    const laborRatio = totalOriginalLaborCost > 0 ? item.pricing.laborCosts / totalOriginalLaborCost : 1 / items.length;
+    const optimizedLaborCost = totalLaborCost * laborRatio;
+    
+    const newTotal = item.pricing.materialCosts + optimizedLaborCost + item.pricing.travelCosts - item.pricing.subsidy;
+    
+    return {
+      ...item,
+      pricing: {
+        ...item.pricing,
+        laborCosts: optimizedLaborCost,
+        total: newTotal,
+      }
+    };
+  });
+  
+  const subtotalPrice = optimizedItems.reduce((sum, item) => sum + item.pricing.total, 0);
+  return { optimizedItems, subtotalPrice };
+}
+
 function cartReducer(state: Cart, action: CartAction): Cart {
   switch (action.type) {
     case 'ADD_ITEM': {
@@ -32,15 +70,15 @@ function cartReducer(state: Cart, action: CartAction): Cart {
         createdAt: new Date(),
       };
       
-      const items = [...state.items, newItem];
-      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const allItems = [...state.items, newItem];
+      const { optimizedItems, subtotalPrice } = calculateOptimizedCart(allItems);
       const discountAmount = subtotalPrice * (state.discountPercent / 100);
       const totalPrice = subtotalPrice - discountAmount;
       
       return {
         ...state,
-        items,
-        totalItems: items.length,
+        items: optimizedItems,
+        totalItems: optimizedItems.length,
         subtotalPrice,
         discountAmount,
         totalPrice,
@@ -48,15 +86,15 @@ function cartReducer(state: Cart, action: CartAction): Cart {
     }
     
     case 'REMOVE_ITEM': {
-      const items = state.items.filter(item => item.id !== action.payload);
-      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const filteredItems = state.items.filter(item => item.id !== action.payload);
+      const { optimizedItems, subtotalPrice } = calculateOptimizedCart(filteredItems);
       const discountAmount = subtotalPrice * (state.discountPercent / 100);
       const totalPrice = subtotalPrice - discountAmount;
       
       return {
         ...state,
-        items,
-        totalItems: items.length,
+        items: optimizedItems,
+        totalItems: optimizedItems.length,
         subtotalPrice,
         discountAmount,
         totalPrice,
@@ -64,18 +102,18 @@ function cartReducer(state: Cart, action: CartAction): Cart {
     }
     
     case 'UPDATE_ITEM': {
-      const items = state.items.map(item =>
+      const updatedItems = state.items.map(item =>
         item.id === action.payload.id
           ? { ...item, ...action.payload.updates }
           : item
       );
-      const subtotalPrice = items.reduce((sum, item) => sum + item.pricing.total, 0);
+      const { optimizedItems, subtotalPrice } = calculateOptimizedCart(updatedItems);
       const discountAmount = subtotalPrice * (state.discountPercent / 100);
       const totalPrice = subtotalPrice - discountAmount;
       
       return {
         ...state,
-        items,
+        items: optimizedItems,
         subtotalPrice,
         discountAmount,
         totalPrice,
