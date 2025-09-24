@@ -40,6 +40,8 @@ interface SelectedProduct {
   beschreibung?: string;
   isRequired?: boolean;
   isAutoSelected?: boolean;
+  quantity: number;
+  einheit?: string;
 }
 
 interface ConfigState {
@@ -156,7 +158,9 @@ const WallboxConfigurator = () => {
       name: wallbox.name,
       price: parseFloat(wallbox.verkaufspreis) || 0,
       kategorie: wallbox.kategorie,
-      beschreibung: wallbox.beschreibung
+      beschreibung: wallbox.beschreibung,
+      quantity: 1,
+      einheit: wallbox.einheit
     };
 
     // Get working hours from selected wallbox
@@ -175,7 +179,9 @@ const WallboxConfigurator = () => {
             price: parseFloat(product.verkaufspreis) || 0,
             kategorie: product.kategorie,
             beschreibung: product.beschreibung,
-            isRequired: true
+            isRequired: true,
+            quantity: 1,
+            einheit: product.einheit
           });
         }
       });
@@ -194,7 +200,9 @@ const WallboxConfigurator = () => {
             price: parseFloat(product.verkaufspreis) || 0,
             kategorie: product.kategorie,
             beschreibung: product.beschreibung,
-            isAutoSelected
+            isAutoSelected,
+            quantity: 1,
+            einheit: product.einheit
           });
         }
       });
@@ -226,6 +234,23 @@ const WallboxConfigurator = () => {
     });
   };
 
+  // Update product quantity
+  const updateProductQuantity = (artikelnummer: number, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    setConfig(prev => ({
+      ...prev,
+      selectedProducts: prev.selectedProducts.map(p => 
+        p.artikelnummer === artikelnummer 
+          ? { ...p, quantity: newQuantity }
+          : p
+      ),
+      selectedWallbox: prev.selectedWallbox?.artikelnummer === artikelnummer
+        ? { ...prev.selectedWallbox, quantity: newQuantity }
+        : prev.selectedWallbox
+    }));
+  };
+
   // Add additional product from category
   const addProductFromCategory = (product: WallboxProduct) => {
     // Remove existing product from same category (only one per category)
@@ -239,7 +264,9 @@ const WallboxConfigurator = () => {
       name: product.name,
       price: parseFloat(product.verkaufspreis) || 0,
       kategorie: product.kategorie,
-      beschreibung: product.beschreibung
+      beschreibung: product.beschreibung,
+      quantity: 1,
+      einheit: product.einheit
     };
 
     setConfig(prev => ({
@@ -256,8 +283,8 @@ const WallboxConfigurator = () => {
 
   // Calculate prices
   const calculatePrices = () => {
-    const wallboxPrice = config.selectedWallbox?.price || 0;
-    const productsPrice = config.selectedProducts.reduce((sum, p) => sum + p.price, 0);
+    const wallboxPrice = config.selectedWallbox ? config.selectedWallbox.price * config.selectedWallbox.quantity : 0;
+    const productsPrice = config.selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
     const materialTotal = wallboxPrice + productsPrice;
 
     const arbeitskosten = (config.meisterstunden * MEISTER_STUNDENSATZ) + 
@@ -441,11 +468,16 @@ const WallboxConfigurator = () => {
                   <h4 className="text-sm font-medium">Zusätzliche Komponenten:</h4>
                   {config.selectedProducts.map((product) => (
                     <div key={product.artikelnummer} className="flex justify-between text-sm">
-                      <span>
+                      <span className="flex items-center gap-2">
                         {product.name}
-                        {product.isRequired && <Badge variant="secondary" className="ml-2 text-xs">Erforderlich</Badge>}
+                        {product.isRequired && <Badge variant="secondary" className="text-xs">Erforderlich</Badge>}
+                        {product.quantity > 1 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({product.quantity} {product.einheit || 'Stück'})
+                          </span>
+                        )}
                       </span>
-                      <span>{product.price.toFixed(2)}€</span>
+                      <span>{(product.price * product.quantity).toFixed(2)}€</span>
                     </div>
                   ))}
                 </div>
@@ -571,26 +603,79 @@ const WallboxConfigurator = () => {
                       <Label className="text-sm font-medium text-muted-foreground">
                         {kategorie} (Erforderlich)
                       </Label>
-                      <Select value={products[0]?.artikelnummer.toString()} disabled>
-                        <SelectTrigger className="bg-muted">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg z-50">
-                          {products.map((product) => (
-                            <SelectItem 
-                              key={product.artikelnummer} 
-                              value={product.artikelnummer.toString()}
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span>{product.name}</span>
-                                <Badge variant="secondary" className="ml-2">
-                                  {product.price.toFixed(2)}€
-                                </Badge>
+                      <div className="flex gap-2">
+                        <Select value={products[0]?.artikelnummer.toString()} disabled>
+                          <SelectTrigger className="bg-muted flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            {products.map((product) => (
+                              <SelectItem 
+                                key={product.artikelnummer} 
+                                value={product.artikelnummer.toString()}
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <span>{product.name}</span>
+                                  <Badge variant="secondary" className="ml-2">
+                                    {product.price.toFixed(2)}€/{product.einheit || 'Stück'}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {/* Quantity control for required items */}
+                        {products[0] && (
+                          <div className="flex items-center gap-1">
+                            {kategorie.toLowerCase().includes('kabel') ? (
+                              // Editable field for cable length
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="0.5"
+                                  value={products[0].quantity}
+                                  onChange={(e) => updateProductQuantity(products[0].artikelnummer, parseFloat(e.target.value) || 1)}
+                                  className="w-16 h-8 text-sm"
+                                />
+                                <span className="text-xs text-muted-foreground">{products[0].einheit || 'm'}</span>
                               </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            ) : (
+                              // + button for other items
+                              products[0].quantity === 1 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateProductQuantity(products[0].artikelnummer, products[0].quantity + 1)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateProductQuantity(products[0].artikelnummer, products[0].quantity - 1)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="text-sm min-w-[2rem] text-center">{products[0].quantity}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateProductQuantity(products[0].artikelnummer, products[0].quantity + 1)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
 
@@ -611,63 +696,119 @@ const WallboxConfigurator = () => {
                         <Label className="text-sm font-medium">
                           {kategorie} (Optional)
                         </Label>
-                        <Select
-                          value={selectedProduct?.artikelnummer.toString() || "none"}
-                          onValueChange={(value) => {
-                            if (value === "none") {
-                              // Remove current selection
-                              if (selectedProduct) {
-                                toggleOptionalProduct(selectedProduct, false);
+                        <div className="flex gap-2">
+                          <Select
+                            value={selectedProduct?.artikelnummer.toString() || "none"}
+                            onValueChange={(value) => {
+                              if (value === "none") {
+                                // Remove current selection
+                                if (selectedProduct) {
+                                  toggleOptionalProduct(selectedProduct, false);
+                                }
+                              } else {
+                                // Remove current selection and add new one
+                                if (selectedProduct) {
+                                  toggleOptionalProduct(selectedProduct, false);
+                                }
+                                
+                                const product = products.find(p => p.artikelnummer.toString() === value);
+                                if (product) {
+                                  const productToAdd: SelectedProduct = {
+                                    artikelnummer: product.artikelnummer,
+                                    name: product.name,
+                                    price: parseFloat(product.verkaufspreis) || 0,
+                                    kategorie: product.kategorie,
+                                    beschreibung: product.beschreibung,
+                                    quantity: 1,
+                                    einheit: product.einheit
+                                  };
+                                  toggleOptionalProduct(productToAdd, true);
+                                }
                               }
-                            } else {
-                              // Remove current selection and add new one
-                              if (selectedProduct) {
-                                toggleOptionalProduct(selectedProduct, false);
-                              }
-                              
-                              const product = products.find(p => p.artikelnummer.toString() === value);
-                              if (product) {
-                                const productToAdd: SelectedProduct = {
-                                  artikelnummer: product.artikelnummer,
-                                  name: product.name,
-                                  price: parseFloat(product.verkaufspreis) || 0,
-                                  kategorie: product.kategorie,
-                                  beschreibung: product.beschreibung
-                                };
-                                toggleOptionalProduct(productToAdd, true);
-                              }
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder={`${kategorie} auswählen`} />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg z-50">
-                            <SelectItem value="none">
-                              <span className="text-muted-foreground">Keine Auswahl</span>
-                            </SelectItem>
-                            {products.map((product) => (
-                              <SelectItem 
-                                key={product.artikelnummer} 
-                                value={product.artikelnummer.toString()}
-                              >
-                                <div className="flex justify-between items-center w-full">
-                                  <div className="flex flex-col">
-                                    <span>{product.name}</span>
-                                    {product.beschreibung && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {product.beschreibung}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="ml-4 font-medium">
-                                    {parseFloat(product.verkaufspreis).toFixed(2)}€
-                                  </span>
-                                </div>
+                            }}
+                          >
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder={`${kategorie} auswählen`} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border shadow-lg z-50">
+                              <SelectItem value="none">
+                                <span className="text-muted-foreground">Keine Auswahl</span>
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              {products.map((product) => (
+                                <SelectItem 
+                                  key={product.artikelnummer} 
+                                  value={product.artikelnummer.toString()}
+                                >
+                                  <div className="flex justify-between items-center w-full">
+                                    <div className="flex flex-col">
+                                      <span>{product.name}</span>
+                                      {product.beschreibung && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {product.beschreibung}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="ml-4 font-medium">
+                                      {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit || 'Stück'}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {/* Quantity control for optional items */}
+                          {selectedProduct && (
+                            <div className="flex items-center gap-1">
+                              {kategorie.toLowerCase().includes('kabel') ? (
+                                // Editable field for cable length
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    step="0.5"
+                                    value={selectedProduct.quantity}
+                                    onChange={(e) => updateProductQuantity(selectedProduct.artikelnummer, parseFloat(e.target.value) || 1)}
+                                    className="w-16 h-8 text-sm"
+                                  />
+                                  <span className="text-xs text-muted-foreground">{selectedProduct.einheit || 'm'}</span>
+                                </div>
+                              ) : (
+                                // + button for other items
+                                selectedProduct.quantity === 1 ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateProductQuantity(selectedProduct.artikelnummer, selectedProduct.quantity + 1)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => updateProductQuantity(selectedProduct.artikelnummer, selectedProduct.quantity - 1)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <span className="text-sm min-w-[2rem] text-center">{selectedProduct.quantity}</span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => updateProductQuantity(selectedProduct.artikelnummer, selectedProduct.quantity + 1)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
