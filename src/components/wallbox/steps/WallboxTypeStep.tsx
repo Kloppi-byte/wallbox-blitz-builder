@@ -29,6 +29,7 @@ const WallboxTypeStep = ({ data, updateData, nextStep, prevStep, canGoBack }: Wa
         const { data: wallboxen, error } = await (supabase as any)
           .from('wallboxen')
           .select('Name, "VK VK30", "Artikelnummer"')
+          .eq('Kategorie', 'Wallbox')
           .order('"Artikelnummer"');
 
         if (error) {

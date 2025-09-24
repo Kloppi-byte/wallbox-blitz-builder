@@ -20,6 +20,13 @@ interface WallboxOption {
   price: number;
   artikelnummer: string;
 }
+
+interface CableOption {
+  id: string;
+  name: string;
+  pricePerMeter: number;
+  artikelnummer: string;
+}
 interface ConfigState {
   wallbox: WallboxOption;
   kabel_laenge_m: number;
@@ -63,6 +70,8 @@ const WallboxConfigurator = () => {
     }
   });
   const [wallboxOptions, setWallboxOptions] = useState<WallboxOption[]>([]);
+  const [cableOptions, setCableOptions] = useState<CableOption[]>([]);
+  const [selectedCable, setSelectedCable] = useState<CableOption | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -70,16 +79,26 @@ const WallboxConfigurator = () => {
   const { addItem, setCustomerData } = useCart();
   const { toast } = useToast();
   useEffect(() => {
-    const fetchWallboxes = async () => {
+    const fetchWallboxData = async () => {
       try {
+        // Fetch wallboxes (only Kategorie == "Wallbox")
         const {
-          data,
-          error
-        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer"').order('Artikelnummer', {
+          data: wallboxData,
+          error: wallboxError
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Wallbox').order('Artikelnummer', {
           ascending: true
         });
-        if (!error && data) {
-          const options = data.map((item, index) => ({
+        
+        // Fetch cables (only Kategorie == "Kabel")
+        const {
+          data: cableData,
+          error: cableError
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Kabel').order('Artikelnummer', {
+          ascending: true
+        });
+
+        if (!wallboxError && wallboxData) {
+          const options = wallboxData.map((item, index) => ({
             id: `wallbox-${index}`,
             name: item.Name || 'Unbekannt',
             price: parseFloat(item["VK VK30"] || "0"),
@@ -93,13 +112,26 @@ const WallboxConfigurator = () => {
             }));
           }
         }
+
+        if (!cableError && cableData) {
+          const cableOpts = cableData.map((item, index) => ({
+            id: `cable-${index}`,
+            name: item.Name || 'Unbekannt',
+            pricePerMeter: parseFloat(item["VK VK30"] || "0"),
+            artikelnummer: item.Artikelnummer?.toString() || ""
+          }));
+          setCableOptions(cableOpts);
+          if (cableOpts.length > 0) {
+            setSelectedCable(cableOpts[0]);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching wallboxes:', error);
+        console.error('Error fetching wallbox data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchWallboxes();
+    fetchWallboxData();
   }, []);
 
   // Load saved configuration for editing
@@ -120,7 +152,9 @@ const WallboxConfigurator = () => {
     }
   }, [wallboxOptions]); // Depend on wallboxOptions so it runs after they're loaded
   const calculatePrices = () => {
-    const materialkosten = config.wallbox.price + config.kabel_laenge_m * 12 + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
+    const wallboxCost = config.wallbox.price;
+    const cableCost = selectedCable ? selectedCable.pricePerMeter * config.kabel_laenge_m : config.kabel_laenge_m * 12;
+    const materialkosten = wallboxCost + cableCost + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
     const arbeitskosten = config.arbeitsstunden * 75;
     const anfahrtkosten = config.anfahrt_zone === 'A' ? 50 : config.anfahrt_zone === 'B' ? 75 : 100;
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten;
@@ -128,6 +162,8 @@ const WallboxConfigurator = () => {
     const gesamtpreis = zwischensumme - foerderungsabzug;
     return {
       material: materialkosten,
+      wallbox: wallboxCost,
+      cable: cableCost,
       arbeit: arbeitskosten,
       anfahrt: anfahrtkosten,
       zwischensumme,
@@ -306,6 +342,7 @@ const WallboxConfigurator = () => {
       name: `${config.wallbox.name} - Wallbox Installation`,
       configuration: {
         wallbox: config.wallbox,
+        cable: selectedCable,
         kabel_laenge_m: config.kabel_laenge_m,
         leitung: config.leitung,
         absicherung: config.absicherung,
@@ -376,6 +413,11 @@ const WallboxConfigurator = () => {
                 </div>
                 
                 <div className="flex justify-between">
+                  <span className="text-sm font-medium">Kabel:</span>
+                  <span className="text-sm">{selectedCable?.name || 'Standard Kabel'}</span>
+                </div>
+                
+                <div className="flex justify-between">
                   <span className="text-sm font-medium">Leitungstyp:</span>
                   <span className="text-sm">{config.leitung}</span>
                 </div>
@@ -410,11 +452,19 @@ const WallboxConfigurator = () => {
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Material:</span>
-                  <span>{prices.material.toFixed(2)}€</span>
+                  <span>Wallbox:</span>
+                  <span>{prices.wallbox.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Arbeit + Anfahrt:</span>
+                  <span>Kabel ({config.kabel_laenge_m}m):</span>
+                  <span>{prices.cable.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Zusätzliches Material:</span>
+                  <span>{(prices.material - prices.wallbox - prices.cable).toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Arbeit:</span>
                   <span>{prices.arbeit.toFixed(2)}€</span>
                 </div>
                 <Separator />
@@ -456,6 +506,41 @@ const WallboxConfigurator = () => {
                         </div>
                       </div>
                     </div>)}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Cable Selection */}
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Kabel-Auswahl</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {cableOptions.map(cable => (
+                    <div
+                      key={cable.id}
+                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                        selectedCable?.id === cable.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setSelectedCable(cable)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-medium">{cable.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Art.-Nr.: {cable.artikelnummer}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold">{cable.pricePerMeter}€/m</div>
+                          <div className="text-sm text-muted-foreground">
+                            {(cable.pricePerMeter * config.kabel_laenge_m).toFixed(2)}€ total
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
