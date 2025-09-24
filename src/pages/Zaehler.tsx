@@ -14,7 +14,6 @@ import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
 interface ZaehlerOption {
   artikelnummer: number;
   name: string;
@@ -22,7 +21,6 @@ interface ZaehlerOption {
   beschreibung?: string;
   kategorie?: string;
 }
-
 interface ZaehlerConfig {
   schrank: ZaehlerOption;
   zaehlerplaetze: number;
@@ -41,7 +39,6 @@ interface ZaehlerConfig {
   entsorgung_altmaterial: boolean;
   arbeitsstunden_manuell?: number;
 }
-
 interface CalculationResult {
   input: ZaehlerConfig;
   details: {
@@ -58,15 +55,16 @@ interface CalculationResult {
     brutto: number;
   };
 }
-
 const Zaehler = () => {
   const navigate = useNavigate();
-  const { addItem } = useCart();
-  const { toast } = useToast();
-
+  const {
+    addItem
+  } = useCart();
+  const {
+    toast
+  } = useToast();
   const [zaehlerOptions, setZaehlerOptions] = useState<ZaehlerOption[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [config, setConfig] = useState<ZaehlerConfig>({
     schrank: {
       artikelnummer: 0,
@@ -86,9 +84,8 @@ const Zaehler = () => {
     inbetriebsetzung_vnb: false,
     plombierung_noetig: false,
     dokumentation_protokolle: false,
-    entsorgung_altmaterial: false,
+    entsorgung_altmaterial: false
   });
-
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -96,22 +93,20 @@ const Zaehler = () => {
   useEffect(() => {
     const fetchZaehlerOptions = async () => {
       try {
-        const { data, error } = await (supabase as any)
-          .from('zählerschränke')
-          .select('Name, "VK VK30", "Artikelnummer", Beschreibung, Kategorie')
-          .order('"Artikelnummer"');
-
+        const {
+          data,
+          error
+        } = await (supabase as any).from('zählerschränke').select('Name, "VK VK30", "Artikelnummer", Beschreibung, Kategorie').order('"Artikelnummer"');
         if (error) {
           toast({
             title: "Fehler beim Laden",
             description: "Zählerschränke konnten nicht geladen werden.",
-            variant: "destructive",
+            variant: "destructive"
           });
           return;
         }
-
         if (data && data.length > 0) {
-          const options: ZaehlerOption[] = data.map((item) => {
+          const options: ZaehlerOption[] = data.map(item => {
             const raw = (item["VK VK30"] ?? null) as string | null;
             const price = raw ? Number(String(raw).replace(/\./g, '').replace(',', '.')) : 520;
             return {
@@ -122,9 +117,8 @@ const Zaehler = () => {
               kategorie: item.Kategorie
             };
           });
-
           setZaehlerOptions(options);
-          
+
           // Set first option as default
           if (options.length > 0) {
             setConfig(prev => ({
@@ -138,16 +132,14 @@ const Zaehler = () => {
         toast({
           title: "Fehler",
           description: "Ein unerwarteter Fehler ist aufgetreten.",
-          variant: "destructive",
+          variant: "destructive"
         });
       } finally {
         setLoading(false);
       }
     };
-
     fetchZaehlerOptions();
   }, [toast]);
-
   function calculateZaehlerPrices(cfg: ZaehlerConfig): CalculationResult {
     const PREISE = {
       rcd_typA: 95,
@@ -160,42 +152,24 @@ const Zaehler = () => {
     };
     const STUNDENSATZ = 75;
     const MWST_SATZ = 19;
-
-    const materialkosten =
-        (cfg.schrank?.price || 0)
-      + (cfg.reiheneinbaugeraete * PREISE.reiheneinbaugeraet)
-      + (cfg.rcd_typA ? PREISE.rcd_typA : 0)
-      + (cfg.ueberspannungsschutz ? PREISE.spd_typ2 : 0)
-      + (cfg.hauptschalter ? PREISE.hauptschalter : 0)
-      + (cfg.sammelschiene_zubehoer ? PREISE.sammelschiene_zubehoer : 0)
-      + (cfg.feldnachruestung * PREISE.feld)
-      + (cfg.leitungsanpassungen_m * PREISE.leitungsanpassung_m);
-
-    const basisStd = 2.5
-                   + Math.max(0, (cfg.zaehlerplaetze - 1)) * 0.8
-                   + (cfg.feldnachruestung * 0.7)
-                   + (cfg.leitungsanpassungen_m * 0.1);
+    const materialkosten = (cfg.schrank?.price || 0) + cfg.reiheneinbaugeraete * PREISE.reiheneinbaugeraet + (cfg.rcd_typA ? PREISE.rcd_typA : 0) + (cfg.ueberspannungsschutz ? PREISE.spd_typ2 : 0) + (cfg.hauptschalter ? PREISE.hauptschalter : 0) + (cfg.sammelschiene_zubehoer ? PREISE.sammelschiene_zubehoer : 0) + cfg.feldnachruestung * PREISE.feld + cfg.leitungsanpassungen_m * PREISE.leitungsanpassung_m;
+    const basisStd = 2.5 + Math.max(0, cfg.zaehlerplaetze - 1) * 0.8 + cfg.feldnachruestung * 0.7 + cfg.leitungsanpassungen_m * 0.1;
     const altbauFaktor = cfg.altbau ? 1.25 : 1.0;
     const arbeitsstunden_auto = Math.round(basisStd * altbauFaktor);
-    const arbeitsstunden = (cfg.arbeitsstunden_manuell ?? arbeitsstunden_auto);
-    const arbeitskosten  = arbeitsstunden * STUNDENSATZ;
-
-    const anfahrtkosten = cfg.anfahrt_zone === 'A' ? 50 : (cfg.anfahrt_zone === 'B' ? 75 : 100);
-
+    const arbeitsstunden = cfg.arbeitsstunden_manuell ?? arbeitsstunden_auto;
+    const arbeitskosten = arbeitsstunden * STUNDENSATZ;
+    const anfahrtkosten = cfg.anfahrt_zone === 'A' ? 50 : cfg.anfahrt_zone === 'B' ? 75 : 100;
     const ORGA = {
-      anmeld_vnb: 120, plombierer: 45, dokumentation: 60, entsorgung: 25
+      anmeld_vnb: 120,
+      plombierer: 45,
+      dokumentation: 60,
+      entsorgung: 25
     };
-    const orga =
-        (cfg.inbetriebsetzung_vnb ? ORGA.anmeld_vnb : 0)
-      + (cfg.plombierung_noetig ? ORGA.plombierer : 0)
-      + (cfg.dokumentation_protokolle ? ORGA.dokumentation : 0)
-      + (cfg.entsorgung_altmaterial ? ORGA.entsorgung : 0);
-
+    const orga = (cfg.inbetriebsetzung_vnb ? ORGA.anmeld_vnb : 0) + (cfg.plombierung_noetig ? ORGA.plombierer : 0) + (cfg.dokumentation_protokolle ? ORGA.dokumentation : 0) + (cfg.entsorgung_altmaterial ? ORGA.entsorgung : 0);
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten + orga;
     const netto = Math.max(0, zwischensumme);
     const mwst = netto * (MWST_SATZ / 100);
     const brutto = netto + mwst;
-
     return {
       input: cfg,
       details: {
@@ -213,16 +187,16 @@ const Zaehler = () => {
       }
     };
   }
-
   useEffect(() => {
     const result = calculateZaehlerPrices(config);
     setCalculation(result);
   }, [config]);
-
   const updateConfig = (key: keyof ZaehlerConfig, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+    setConfig(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
-
   const addToCart = () => {
     if (calculation) {
       addItem({
@@ -240,45 +214,33 @@ const Zaehler = () => {
       });
     }
   };
-
   const exportJSON = () => {
     if (calculation) {
       const dataStr = JSON.stringify(calculation, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
       const exportFileDefaultName = 'zaehler-kalkulation.json';
-      
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+    return <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Lade Zählerschränke...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="mr-4"
-          >
+          <Button variant="ghost" onClick={() => navigate('/')} className="mr-4">
             ← Zurück zur Hauptseite
           </Button>
-          <h1 className="text-xl font-semibold">Zählerschrank Konfigurator</h1>
+          <h1 className="text-xl font-semibold mx-[260px]">Zählerschrank Konfigurator</h1>
           <div className="flex-1" />
           <CartIcon onClick={() => setCartOpen(true)} />
         </div>
@@ -286,8 +248,7 @@ const Zaehler = () => {
 
       <div className="container mx-auto px-4 py-8">
         {/* Main Package Card */}
-        {calculation && (
-          <Card className="mb-8 text-center">
+        {calculation && <Card className="mb-8 text-center">
             <CardContent className="py-12">
               <h2 className="text-2xl font-bold mb-4">Zählerschrank Standardpaket</h2>
               <div className="text-4xl font-bold text-primary mb-6">
@@ -298,8 +259,7 @@ const Zaehler = () => {
                 Sofort-Angebot als PDF
               </Button>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column - Package Overview */}
@@ -311,8 +271,7 @@ const Zaehler = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {calculation && (
-                <>
+              {calculation && <>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="font-medium">Schrank-Modell:</span>
@@ -338,12 +297,10 @@ const Zaehler = () => {
                       <span className="font-medium">Anfahrt:</span>
                       <span>Zone {config.anfahrt_zone}</span>
                     </div>
-                    {config.altbau && (
-                      <div className="flex justify-between">
+                    {config.altbau && <div className="flex justify-between">
                         <span className="font-medium">Altbau:</span>
                         <span>Ja</span>
-                      </div>
-                    )}
+                      </div>}
                   </div>
 
                   <div className="border-t pt-4 space-y-2 text-sm">
@@ -367,8 +324,7 @@ const Zaehler = () => {
                   <Button onClick={addToCart} className="w-full mt-4" size="lg">
                     In den Warenkorb
                   </Button>
-                </>
-              )}
+                </>}
             </CardContent>
           </Card>
 
@@ -381,24 +337,19 @@ const Zaehler = () => {
               {/* Schrank Selection */}
               <div className="space-y-2">
                 <Label>Zählerschrank auswählen</Label>
-                <Select 
-                  value={config.schrank.artikelnummer.toString()} 
-                  onValueChange={(value) => {
-                    const selectedSchrank = zaehlerOptions.find(option => option.artikelnummer.toString() === value);
-                    if (selectedSchrank) {
-                      updateConfig('schrank', selectedSchrank);
-                    }
-                  }}
-                >
+                <Select value={config.schrank.artikelnummer.toString()} onValueChange={value => {
+                const selectedSchrank = zaehlerOptions.find(option => option.artikelnummer.toString() === value);
+                if (selectedSchrank) {
+                  updateConfig('schrank', selectedSchrank);
+                }
+              }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Zählerschrank wählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    {zaehlerOptions.map((option) => (
-                      <SelectItem key={option.artikelnummer} value={option.artikelnummer.toString()}>
+                    {zaehlerOptions.map(option => <SelectItem key={option.artikelnummer} value={option.artikelnummer.toString()}>
                         {option.name} - {option.price}€
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -409,9 +360,7 @@ const Zaehler = () => {
                   <div>
                     <h3 className="font-semibold">{config.schrank.name}</h3>
                     <p className="text-sm text-muted-foreground">Art.-Nr.: {config.schrank.artikelnummer}</p>
-                    {config.schrank.beschreibung && (
-                      <p className="text-sm text-muted-foreground mt-1">{config.schrank.beschreibung}</p>
-                    )}
+                    {config.schrank.beschreibung && <p className="text-sm text-muted-foreground mt-1">{config.schrank.beschreibung}</p>}
                   </div>
                   <div className="text-right">
                     <span className="text-lg font-bold">{config.schrank.price}€</span>
@@ -424,97 +373,49 @@ const Zaehler = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="zaehlerplaetze">Zählerplätze</Label>
-                    <Input
-                      id="zaehlerplaetze"
-                      type="number"
-                      min={1}
-                      max={3}
-                      value={config.zaehlerplaetze}
-                      onChange={(e) => updateConfig('zaehlerplaetze', parseInt(e.target.value) || 1)}
-                    />
+                    <Input id="zaehlerplaetze" type="number" min={1} max={3} value={config.zaehlerplaetze} onChange={e => updateConfig('zaehlerplaetze', parseInt(e.target.value) || 1)} />
                   </div>
                   <div>
                     <Label htmlFor="reiheneinbaugeraete">Reiheneinbaugeräte</Label>
-                    <Input
-                      id="reiheneinbaugeraete"
-                      type="number"
-                      min={0}
-                      max={24}
-                      value={config.reiheneinbaugeraete}
-                      onChange={(e) => updateConfig('reiheneinbaugeraete', parseInt(e.target.value) || 0)}
-                    />
+                    <Input id="reiheneinbaugeraete" type="number" min={0} max={24} value={config.reiheneinbaugeraete} onChange={e => updateConfig('reiheneinbaugeraete', parseInt(e.target.value) || 0)} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="feldnachruestung">Feldnachrüstung</Label>
-                    <Input
-                      id="feldnachruestung"
-                      type="number"
-                      min={0}
-                      max={3}
-                      value={config.feldnachruestung}
-                      onChange={(e) => updateConfig('feldnachruestung', parseInt(e.target.value) || 0)}
-                    />
+                    <Input id="feldnachruestung" type="number" min={0} max={3} value={config.feldnachruestung} onChange={e => updateConfig('feldnachruestung', parseInt(e.target.value) || 0)} />
                   </div>
                   <div>
                     <Label htmlFor="leitungsanpassungen_m">Leitungsanpassungen (m)</Label>
-                    <Input
-                      id="leitungsanpassungen_m"
-                      type="number"
-                      min={0}
-                      max={50}
-                      value={config.leitungsanpassungen_m}
-                      onChange={(e) => updateConfig('leitungsanpassungen_m', parseInt(e.target.value) || 0)}
-                    />
+                    <Input id="leitungsanpassungen_m" type="number" min={0} max={50} value={config.leitungsanpassungen_m} onChange={e => updateConfig('leitungsanpassungen_m', parseInt(e.target.value) || 0)} />
                   </div>
                 </div>
 
                 {/* Checkboxes */}
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="rcd_typA"
-                      checked={config.rcd_typA}
-                      onCheckedChange={(checked) => updateConfig('rcd_typA', checked)}
-                    />
+                    <Checkbox id="rcd_typA" checked={config.rcd_typA} onCheckedChange={checked => updateConfig('rcd_typA', checked)} />
                     <Label htmlFor="rcd_typA">RCD Typ A (+95€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="ueberspannungsschutz"
-                      checked={config.ueberspannungsschutz}
-                      onCheckedChange={(checked) => updateConfig('ueberspannungsschutz', checked)}
-                    />
+                    <Checkbox id="ueberspannungsschutz" checked={config.ueberspannungsschutz} onCheckedChange={checked => updateConfig('ueberspannungsschutz', checked)} />
                     <Label htmlFor="ueberspannungsschutz">Überspannungsschutz (+110€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="hauptschalter"
-                      checked={config.hauptschalter}
-                      onCheckedChange={(checked) => updateConfig('hauptschalter', checked)}
-                    />
+                    <Checkbox id="hauptschalter" checked={config.hauptschalter} onCheckedChange={checked => updateConfig('hauptschalter', checked)} />
                     <Label htmlFor="hauptschalter">Hauptschalter (+65€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="sammelschiene_zubehoer"
-                      checked={config.sammelschiene_zubehoer}
-                      onCheckedChange={(checked) => updateConfig('sammelschiene_zubehoer', checked)}
-                    />
+                    <Checkbox id="sammelschiene_zubehoer" checked={config.sammelschiene_zubehoer} onCheckedChange={checked => updateConfig('sammelschiene_zubehoer', checked)} />
                     <Label htmlFor="sammelschiene_zubehoer">Sammelschiene Zubehör (+35€)</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="altbau"
-                      checked={config.altbau}
-                      onCheckedChange={(checked) => updateConfig('altbau', checked)}
-                    />
+                    <Checkbox id="altbau" checked={config.altbau} onCheckedChange={checked => updateConfig('altbau', checked)} />
                     <Label htmlFor="altbau">Altbau (Arbeitszeit +25%)</Label>
                   </div>
                 </div>
@@ -522,10 +423,7 @@ const Zaehler = () => {
                 {/* Anfahrt Zone */}
                 <div className="space-y-3">
                   <Label>Anfahrt Zone</Label>
-                  <RadioGroup 
-                    value={config.anfahrt_zone} 
-                    onValueChange={(value) => updateConfig('anfahrt_zone', value as 'A' | 'B' | 'C')}
-                  >
+                  <RadioGroup value={config.anfahrt_zone} onValueChange={value => updateConfig('anfahrt_zone', value as 'A' | 'B' | 'C')}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="A" id="zone-a" />
                       <Label htmlFor="zone-a">Zone A (50€)</Label>
@@ -546,38 +444,22 @@ const Zaehler = () => {
                   <Label>Organisation</Label>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="inbetriebsetzung_vnb"
-                        checked={config.inbetriebsetzung_vnb}
-                        onCheckedChange={(checked) => updateConfig('inbetriebsetzung_vnb', checked)}
-                      />
+                      <Checkbox id="inbetriebsetzung_vnb" checked={config.inbetriebsetzung_vnb} onCheckedChange={checked => updateConfig('inbetriebsetzung_vnb', checked)} />
                       <Label htmlFor="inbetriebsetzung_vnb">Inbetriebsetzung VNB (+120€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="plombierung_noetig"
-                        checked={config.plombierung_noetig}
-                        onCheckedChange={(checked) => updateConfig('plombierung_noetig', checked)}
-                      />
+                      <Checkbox id="plombierung_noetig" checked={config.plombierung_noetig} onCheckedChange={checked => updateConfig('plombierung_noetig', checked)} />
                       <Label htmlFor="plombierung_noetig">Plombierung nötig (+45€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="dokumentation_protokolle"
-                        checked={config.dokumentation_protokolle}
-                        onCheckedChange={(checked) => updateConfig('dokumentation_protokolle', checked)}
-                      />
+                      <Checkbox id="dokumentation_protokolle" checked={config.dokumentation_protokolle} onCheckedChange={checked => updateConfig('dokumentation_protokolle', checked)} />
                       <Label htmlFor="dokumentation_protokolle">Dokumentation/Protokolle (+60€)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="entsorgung_altmaterial"
-                        checked={config.entsorgung_altmaterial}
-                        onCheckedChange={(checked) => updateConfig('entsorgung_altmaterial', checked)}
-                      />
+                      <Checkbox id="entsorgung_altmaterial" checked={config.entsorgung_altmaterial} onCheckedChange={checked => updateConfig('entsorgung_altmaterial', checked)} />
                       <Label htmlFor="entsorgung_altmaterial">Entsorgung Altmaterial (+25€)</Label>
                     </div>
                   </div>
@@ -587,14 +469,7 @@ const Zaehler = () => {
                 {/* Manuelle Arbeitsstunden */}
                 <div className="space-y-2">
                   <Label htmlFor="arbeitsstunden_manuell">Arbeitsstunden (manuell)</Label>
-                  <Input
-                    id="arbeitsstunden_manuell"
-                    type="number"
-                    step={1}
-                    value={config.arbeitsstunden_manuell || ''}
-                    onChange={(e) => updateConfig('arbeitsstunden_manuell', e.target.value ? parseInt(e.target.value) : undefined)}
-                    placeholder="Auto-Berechnung"
-                  />
+                  <Input id="arbeitsstunden_manuell" type="number" step={1} value={config.arbeitsstunden_manuell || ''} onChange={e => updateConfig('arbeitsstunden_manuell', e.target.value ? parseInt(e.target.value) : undefined)} placeholder="Auto-Berechnung" />
                 </div>
               </div>
             </CardContent>
@@ -603,8 +478,6 @@ const Zaehler = () => {
       </div>
       
       <CartSheet open={cartOpen} onOpenChange={setCartOpen} />
-    </div>
-  );
+    </div>;
 };
-
 export default Zaehler;
