@@ -38,20 +38,28 @@ function calculateOptimizedCart(items: CartItem[]): { optimizedItems: CartItem[]
   const workdays = Math.ceil(totalLaborHours / 8);
   const totalLaborCost = workdays * 8 * 75; // Full 8-hour days at 75€/hour
   
+  // Travel costs should only be charged once per customer, not per item
+  // Use the highest travel cost among all items (assuming same zone)
+  const maxTravelCost = Math.max(...items.map(item => item.pricing.travelCosts));
+  
   // Distribute labor cost proportionally among items
   const totalOriginalLaborCost = items.reduce((sum, item) => sum + item.pricing.laborCosts, 0);
   
-  const optimizedItems = items.map(item => {
+  const optimizedItems = items.map((item, index) => {
     const laborRatio = totalOriginalLaborCost > 0 ? item.pricing.laborCosts / totalOriginalLaborCost : 1 / items.length;
     const optimizedLaborCost = totalLaborCost * laborRatio;
     
-    const newTotal = item.pricing.materialCosts + optimizedLaborCost + item.pricing.travelCosts - item.pricing.subsidy;
+    // Only charge travel cost for the first item, zero for others
+    const optimizedTravelCost = index === 0 ? maxTravelCost : 0;
+    
+    const newTotal = item.pricing.materialCosts + optimizedLaborCost + optimizedTravelCost - item.pricing.subsidy;
     
     return {
       ...item,
       pricing: {
         ...item.pricing,
         laborCosts: optimizedLaborCost,
+        travelCosts: optimizedTravelCost,
         total: newTotal,
       }
     };

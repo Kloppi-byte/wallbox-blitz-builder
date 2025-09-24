@@ -101,6 +101,24 @@ const WallboxConfigurator = () => {
     };
     fetchWallboxes();
   }, []);
+
+  // Load saved configuration for editing
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('wallbox-edit-config');
+    if (savedConfig) {
+      try {
+        const parsedConfig = JSON.parse(savedConfig);
+        setConfig(prev => ({
+          ...prev,
+          ...parsedConfig
+        }));
+        // Clear the saved config after loading
+        localStorage.removeItem('wallbox-edit-config');
+      } catch (error) {
+        console.error('Error parsing saved config:', error);
+      }
+    }
+  }, [wallboxOptions]); // Depend on wallboxOptions so it runs after they're loaded
   const calculatePrices = () => {
     const materialkosten = config.wallbox.price + config.kabel_laenge_m * 12 + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
     const arbeitskosten = config.arbeitsstunden * 75;

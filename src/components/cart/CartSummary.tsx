@@ -59,9 +59,15 @@ export function CartSummary() {
 
   const handleEditItem = (item: any) => {
     // Navigate back to the configurator with the item's data
-    // This could be implemented by storing the item data and navigating
-    console.log('Edit item:', item);
-    // For now, we'll just log - the actual navigation would depend on your routing setup
+    if (item.productType === 'wallbox' || item.name.toLowerCase().includes('wallbox')) {
+      // Store the configuration in localStorage and navigate to wallbox page
+      localStorage.setItem('wallbox-edit-config', JSON.stringify(item.configuration));
+      window.location.href = '/wallbox';
+    } else if (item.name.toLowerCase().includes('zählerschrank') || item.name.toLowerCase().includes('zaehler')) {
+      // Store the configuration in localStorage and navigate to zaehler page
+      localStorage.setItem('zaehler-edit-config', JSON.stringify(item.configuration));
+      window.location.href = '/zaehler';
+    }
   };
 
   const isFormValid = customerForm.name && customerForm.email && customerForm.plz && customerForm.adresse;
