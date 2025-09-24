@@ -100,8 +100,8 @@ export function CartSummary() {
                   <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                     <div>Material: {(item.pricing?.materialCosts || 0).toFixed(2)}€</div>
                     <div>Arbeitszeit: {(item.pricing?.laborCosts || 0).toFixed(2)}€</div>
-                    <div>Anfahrt: {(item.pricing?.travelCosts || 0).toFixed(2)}€</div>
                     <div>Förderung: -{(item.pricing?.subsidy || 0).toFixed(2)}€</div>
+                    <div></div>
                   </div>
                 </div>
                 
