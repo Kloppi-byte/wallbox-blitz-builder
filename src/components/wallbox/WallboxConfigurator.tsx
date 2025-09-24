@@ -20,7 +20,6 @@ interface WallboxOption {
   price: number;
   artikelnummer: string;
 }
-
 interface CableOption {
   name: string;
   price: number;
@@ -91,24 +90,17 @@ const WallboxConfigurator = () => {
         const {
           data: wallboxData,
           error: wallboxError
-        } = await supabase.from('wallboxen')
-          .select('Name, "VK VK30", "Artikelnummer", Kategorie')
-          .eq('Kategorie', 'Wallbox')
-          .order('Artikelnummer', {
-            ascending: true
-          });
-        
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Wallbox').order('Artikelnummer', {
+          ascending: true
+        });
+
         // Fetch Cables
         const {
           data: cableData,
           error: cableError
-        } = await supabase.from('wallboxen')
-          .select('Name, "VK VK30", "Artikelnummer", Kategorie')
-          .eq('Kategorie', 'Kabel')
-          .order('Artikelnummer', {
-            ascending: true
-          });
-
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Kabel').order('Artikelnummer', {
+          ascending: true
+        });
         if (!wallboxError && wallboxData) {
           const options = wallboxData.map((item, index) => ({
             id: `wallbox-${index}`,
@@ -124,9 +116,8 @@ const WallboxConfigurator = () => {
             }));
           }
         }
-
         if (!cableError && cableData) {
-          const cableOpts = cableData.map((item) => ({
+          const cableOpts = cableData.map(item => ({
             name: item.Name || 'Unbekannt',
             price: parseFloat(item["VK VK30"] || "0"),
             artikelnummer: item.Artikelnummer?.toString() || ""
@@ -148,7 +139,7 @@ const WallboxConfigurator = () => {
     fetchWallboxesAndCables();
   }, []);
   const calculatePrices = () => {
-    const materialkosten = config.wallbox.price + (config.leitung.price * config.kabel_laenge_m) + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
+    const materialkosten = config.wallbox.price + config.leitung.price * config.kabel_laenge_m + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
     const arbeitskosten = config.arbeitsstunden * 75;
     const anfahrtkosten = config.anfahrt_zone === 'A' ? 50 : config.anfahrt_zone === 'B' ? 75 : 100;
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten;
@@ -369,7 +360,7 @@ const WallboxConfigurator = () => {
             <Button variant="ghost" onClick={() => window.location.href = '/'} className="text-muted-foreground hover:text-foreground">
               ← Zurück zur Hauptseite
             </Button>
-            <h1 className="text-3xl font-bold text-gray-800">Wallbox Konfigurator</h1>
+            
           </div>
           <CartIcon onClick={() => setIsCartOpen(true)} />
         </div>
@@ -467,20 +458,18 @@ const WallboxConfigurator = () => {
                 <div className="space-y-2">
                   <Label>Wallbox auswählen</Label>
                   <Select value={config.wallbox.artikelnummer} onValueChange={value => {
-                    const selectedWallbox = wallboxOptions.find(option => option.artikelnummer === value);
-                    if (selectedWallbox) {
-                      updateConfig('wallbox', selectedWallbox);
-                    }
-                  }}>
+                  const selectedWallbox = wallboxOptions.find(option => option.artikelnummer === value);
+                  if (selectedWallbox) {
+                    updateConfig('wallbox', selectedWallbox);
+                  }
+                }}>
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Wallbox wählen" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border z-50">
-                      {wallboxOptions.map(option => (
-                        <SelectItem key={option.artikelnummer} value={option.artikelnummer}>
+                      {wallboxOptions.map(option => <SelectItem key={option.artikelnummer} value={option.artikelnummer}>
                           {option.name} - {option.price}€
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -524,20 +513,18 @@ const WallboxConfigurator = () => {
                 <div>
                   <Label className="text-sm font-medium">Leitungstyp</Label>
                   <Select value={config.leitung.artikelnummer} onValueChange={value => {
-                    const selectedCable = cableOptions.find(cable => cable.artikelnummer === value);
-                    if (selectedCable) {
-                      updateConfig('leitung', selectedCable);
-                    }
-                  }}>
+                  const selectedCable = cableOptions.find(cable => cable.artikelnummer === value);
+                  if (selectedCable) {
+                    updateConfig('leitung', selectedCable);
+                  }
+                }}>
                     <SelectTrigger className="mt-2 bg-background">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background border z-50">
-                      {cableOptions.map(cable => (
-                        <SelectItem key={cable.artikelnummer} value={cable.artikelnummer}>
+                      {cableOptions.map(cable => <SelectItem key={cable.artikelnummer} value={cable.artikelnummer}>
                           {cable.name} - {cable.price}€/m
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
