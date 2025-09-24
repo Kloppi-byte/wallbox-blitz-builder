@@ -246,20 +246,7 @@ const Zaehler = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Main Package Card */}
-        {calculation && <Card className="mb-8 text-center">
-            <CardContent className="py-12">
-              <h2 className="text-2xl font-bold mb-4">Zählerschrank Standardpaket</h2>
-              <div className="text-4xl font-bold text-primary mb-6">
-                € {calculation.summe.brutto.toFixed(2)}
-              </div>
-              <Button onClick={exportJSON} className="bg-primary hover:bg-primary/90" size="lg">
-                <Download className="w-4 h-4 mr-2" />
-                Sofort-Angebot als PDF
-              </Button>
-            </CardContent>
-          </Card>}
+      <div className="container mx-auto px-4 py-8 pb-32">
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column - Package Overview */}
@@ -476,6 +463,33 @@ const Zaehler = () => {
           </Card>
         </div>
       </div>
+
+      {/* Sticky Footer */}
+      {calculation && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <div className="text-2xl font-bold text-primary">
+                  {calculation.summe.brutto.toFixed(2)}€
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Gesamtpreis inkl. Montage
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={addToCart} variant="outline" size="lg">
+                  Zum Warenkorb hinzufügen
+                </Button>
+                <Button onClick={exportJSON} size="lg" className="w-full sm:w-auto">
+                  <Download className="h-4 w-4 mr-2" />
+                  Sofort-Angebot als PDF
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <CartSheet open={cartOpen} onOpenChange={setCartOpen} />
     </div>;
