@@ -27,6 +27,13 @@ interface CableOption {
   pricePerMeter: number;
   artikelnummer: string;
 }
+
+interface FiLsOption {
+  id: string;
+  name: string;
+  price: number;
+  artikelnummer: string;
+}
 interface ConfigState {
   wallbox: WallboxOption;
   kabel_laenge_m: number;
@@ -72,6 +79,8 @@ const WallboxConfigurator = () => {
   const [wallboxOptions, setWallboxOptions] = useState<WallboxOption[]>([]);
   const [cableOptions, setCableOptions] = useState<CableOption[]>([]);
   const [selectedCable, setSelectedCable] = useState<CableOption | null>(null);
+  const [fiLsOptions, setFiLsOptions] = useState<FiLsOption[]>([]);
+  const [selectedFiLs, setSelectedFiLs] = useState<FiLsOption | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -94,6 +103,14 @@ const WallboxConfigurator = () => {
           data: cableData,
           error: cableError
         } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'Kabel').order('Artikelnummer', {
+          ascending: true
+        });
+
+        // Fetch FI/LS switches (only Kategorie == "FI/LS")
+        const {
+          data: fiLsData,
+          error: fiLsError
+        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer", Kategorie').eq('Kategorie', 'FI/LS').order('Artikelnummer', {
           ascending: true
         });
 
@@ -125,6 +142,19 @@ const WallboxConfigurator = () => {
             setSelectedCable(cableOpts[0]);
           }
         }
+
+        if (!fiLsError && fiLsData) {
+          const fiLsOpts = fiLsData.map((item, index) => ({
+            id: `fils-${index}`,
+            name: item.Name || 'Unbekannt',
+            price: parseFloat(item["VK VK30"] || "0"),
+            artikelnummer: item.Artikelnummer?.toString() || ""
+          }));
+          setFiLsOptions(fiLsOpts);
+          if (fiLsOpts.length > 0) {
+            setSelectedFiLs(fiLsOpts[0]);
+          }
+        }
       } catch (error) {
         console.error('Error fetching wallbox data:', error);
       } finally {
@@ -154,7 +184,8 @@ const WallboxConfigurator = () => {
   const calculatePrices = () => {
     const wallboxCost = config.wallbox.price;
     const cableCost = selectedCable ? selectedCable.pricePerMeter * config.kabel_laenge_m : config.kabel_laenge_m * 12;
-    const materialkosten = wallboxCost + cableCost + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
+    const fiLsCost = selectedFiLs ? selectedFiLs.price : 0;
+    const materialkosten = wallboxCost + cableCost + fiLsCost + config.durchbrueche * 50 + (config.hauptsicherung_anpassung ? 200 : 0);
     const arbeitskosten = config.arbeitsstunden * 75;
     const anfahrtkosten = config.anfahrt_zone === 'A' ? 50 : config.anfahrt_zone === 'B' ? 75 : 100;
     const zwischensumme = materialkosten + arbeitskosten + anfahrtkosten;
@@ -164,6 +195,7 @@ const WallboxConfigurator = () => {
       material: materialkosten,
       wallbox: wallboxCost,
       cable: cableCost,
+      fiLs: fiLsCost,
       arbeit: arbeitskosten,
       anfahrt: anfahrtkosten,
       zwischensumme,
@@ -418,6 +450,11 @@ const WallboxConfigurator = () => {
                 </div>
                 
                 <div className="flex justify-between">
+                  <span className="text-sm font-medium">FI/LS-Schalter:</span>
+                  <span className="text-sm">{selectedFiLs?.name || 'Standard FI/LS'}</span>
+                </div>
+                
+                <div className="flex justify-between">
                   <span className="text-sm font-medium">Leitungstyp:</span>
                   <span className="text-sm">{config.leitung}</span>
                 </div>
@@ -460,8 +497,12 @@ const WallboxConfigurator = () => {
                   <span>{prices.cable.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-sm">
+                  <span>FI/LS-Schalter:</span>
+                  <span>{prices.fiLs.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>Zusätzliches Material:</span>
-                  <span>{(prices.material - prices.wallbox - prices.cable).toFixed(2)}€</span>
+                  <span>{(prices.material - prices.wallbox - prices.cable - prices.fiLs).toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Arbeit:</span>
@@ -561,6 +602,36 @@ const WallboxConfigurator = () => {
                   </div>
                 </div>
 
+                {/* FI/LS Switch Selection */}
+                <div>
+                  <Label className="text-sm font-medium">FI/LS-Schalter</Label>
+                  <Select 
+                    value={selectedFiLs?.id || ''} 
+                    onValueChange={(value) => {
+                      const fiLs = fiLsOptions.find(f => f.id === value);
+                      setSelectedFiLs(fiLs || null);
+                    }}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="FI/LS-Schalter auswählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {fiLsOptions.map(fiLs => (
+                        <SelectItem key={fiLs.id} value={fiLs.id}>
+                          <div className="flex justify-between items-center w-full">
+                            <span>{fiLs.name}</span>
+                            <span className="ml-4 text-muted-foreground">{fiLs.price}€</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedFiLs && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {selectedFiLs.price.toFixed(2)}€
+                    </p>
+                  )}
+                </div>
 
                 {/* Durchbrüche */}
                 <div>
