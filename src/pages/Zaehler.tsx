@@ -481,10 +481,6 @@ const Zaehler = () => {
                 <Button onClick={addToCart} variant="outline" size="lg">
                   Zum Warenkorb hinzufügen
                 </Button>
-                <Button onClick={exportJSON} size="lg" className="w-full sm:w-auto">
-                  <Download className="h-4 w-4 mr-2" />
-                  Sofort-Angebot als PDF
-                </Button>
               </div>
             </div>
           </div>
