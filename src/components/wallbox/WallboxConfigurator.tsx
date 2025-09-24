@@ -495,20 +495,6 @@ const WallboxConfigurator = () => {
                 <CardTitle className="text-lg">Konfiguration</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Cable Length */}
-                <div>
-                  <Label className="text-sm font-medium">Kabellänge (5-25m)</Label>
-                  <div className="flex items-center space-x-3 mt-2">
-                    <Button variant="outline" size="sm" onClick={() => updateConfig('kabel_laenge_m', Math.max(5, config.kabel_laenge_m - 0.5))} disabled={config.kabel_laenge_m <= 5}>
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="font-medium w-16 text-center">{config.kabel_laenge_m}m</span>
-                    <Button variant="outline" size="sm" onClick={() => updateConfig('kabel_laenge_m', Math.min(25, config.kabel_laenge_m + 0.5))} disabled={config.kabel_laenge_m >= 25}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
                 {/* Cable Type */}
                 <div>
                   <Label className="text-sm font-medium">Leitungstyp</Label>
@@ -527,6 +513,20 @@ const WallboxConfigurator = () => {
                         </SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Cable Length */}
+                <div>
+                  <Label className="text-sm font-medium">Kabellänge (5-25m)</Label>
+                  <div className="flex items-center space-x-3 mt-2">
+                    <Button variant="outline" size="sm" onClick={() => updateConfig('kabel_laenge_m', Math.max(5, config.kabel_laenge_m - 0.5))} disabled={config.kabel_laenge_m <= 5}>
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="font-medium w-16 text-center">{config.kabel_laenge_m}m</span>
+                    <Button variant="outline" size="sm" onClick={() => updateConfig('kabel_laenge_m', Math.min(25, config.kabel_laenge_m + 0.5))} disabled={config.kabel_laenge_m >= 25}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Durchbrüche */}
