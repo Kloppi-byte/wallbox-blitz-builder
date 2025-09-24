@@ -38,9 +38,10 @@ function calculateOptimizedCart(items: CartItem[]): { optimizedItems: CartItem[]
   const workdays = Math.ceil(totalLaborHours / 8);
   const totalLaborCost = workdays * 8 * 75; // Full 8-hour days at 75€/hour
   
-  // Travel costs should only be charged once per customer, not per item
+  // Travel costs should be charged per workday (every 8 hours)
   // Use the highest travel cost among all items (assuming same zone)
-  const maxTravelCost = Math.max(...items.map(item => item.pricing.travelCosts));
+  const maxTravelCostPerDay = Math.max(...items.map(item => item.pricing.travelCosts));
+  const totalTravelCost = maxTravelCostPerDay * workdays;
   
   // Distribute labor cost proportionally among items
   const totalOriginalLaborCost = items.reduce((sum, item) => sum + item.pricing.laborCosts, 0);
@@ -49,23 +50,24 @@ function calculateOptimizedCart(items: CartItem[]): { optimizedItems: CartItem[]
     const laborRatio = totalOriginalLaborCost > 0 ? item.pricing.laborCosts / totalOriginalLaborCost : 1 / items.length;
     const optimizedLaborCost = totalLaborCost * laborRatio;
     
-    // Only charge travel cost for the first item, zero for others
-    const optimizedTravelCost = index === 0 ? maxTravelCost : 0;
-    
-    const newTotal = item.pricing.materialCosts + optimizedLaborCost + optimizedTravelCost - item.pricing.subsidy;
+    // Reset individual travel costs to 0 - we'll show them separately
+    const newTotal = item.pricing.materialCosts + optimizedLaborCost - item.pricing.subsidy;
     
     return {
       ...item,
       pricing: {
         ...item.pricing,
         laborCosts: optimizedLaborCost,
-        travelCosts: optimizedTravelCost,
+        travelCosts: 0, // Reset individual travel costs
         total: newTotal,
       }
     };
   });
   
-  const subtotalPrice = optimizedItems.reduce((sum, item) => sum + item.pricing.total, 0);
+  // Add travel costs to subtotal separately
+  const itemsSubtotal = optimizedItems.reduce((sum, item) => sum + item.pricing.total, 0);
+  const subtotalPrice = itemsSubtotal + totalTravelCost;
+  
   return { optimizedItems, subtotalPrice };
 }
 

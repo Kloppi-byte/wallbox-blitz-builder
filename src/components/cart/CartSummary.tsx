@@ -162,6 +162,36 @@ export function CartSummary() {
           
           <Separator />
           
+          {/* Travel Costs Summary */}
+          {cart.items.length > 0 && (() => {
+            const totalLaborHours = cart.items.reduce((sum, item) => {
+              const laborHours = item.configuration?.arbeitsstunden || 0;
+              return sum + laborHours;
+            }, 0);
+            const workdays = Math.ceil(totalLaborHours / 8);
+            const maxTravelCostPerDay = Math.max(...cart.items.map(item => {
+              const originalTravelCost = item.configuration?.anfahrt_zone === 'A' ? 50 : 
+                                       item.configuration?.anfahrt_zone === 'B' ? 75 : 100;
+              return originalTravelCost;
+            }));
+            const totalTravelCost = maxTravelCostPerDay * workdays;
+            const zone = cart.items[0]?.configuration?.anfahrt_zone || 'C';
+            
+            return (
+              <div className="space-y-2 bg-muted/50 p-3 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Anfahrt:</span>
+                  <span>{totalTravelCost.toFixed(2)}€</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {totalLaborHours}h Arbeitszeit ({workdays} Arbeitstag{workdays > 1 ? 'e' : ''}) • Zone {zone}
+                </div>
+              </div>
+            );
+          })()}
+          
+          <Separator />
+          
           {/* Price Summary */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
