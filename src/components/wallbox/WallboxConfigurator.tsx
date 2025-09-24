@@ -79,9 +79,12 @@ const WallboxConfigurator = () => {
         const {
           data,
           error
-        } = await supabase.from('wallboxen').select('Name, "VK VK30", "Artikelnummer"').order('Artikelnummer', {
-          ascending: true
-        });
+        } = await supabase.from('wallboxen')
+          .select('Name, "VK VK30", "Artikelnummer", Kategorie')
+          .eq('Kategorie', 'Wallbox')
+          .order('Artikelnummer', {
+            ascending: true
+          });
         if (!error && data) {
           const options = data.map((item, index) => ({
             id: `wallbox-${index}`,
@@ -445,21 +448,40 @@ const WallboxConfigurator = () => {
               <CardHeader>
                 <CardTitle className="text-lg">Wallbox-Modell</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-3">
-                  {wallboxOptions.map(option => <div key={option.id} className={`p-3 border rounded-lg cursor-pointer transition-all ${config.wallbox.id === option.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`} onClick={() => updateConfig('wallbox', option)}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4 className="font-medium">{option.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Art.-Nr.: {option.artikelnummer}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold">{option.price}€</div>
-                        </div>
-                      </div>
-                    </div>)}
+              <CardContent className="space-y-6">
+                {/* Wallbox Selection */}
+                <div className="space-y-2">
+                  <Label>Wallbox auswählen</Label>
+                  <Select value={config.wallbox.artikelnummer} onValueChange={value => {
+                    const selectedWallbox = wallboxOptions.find(option => option.artikelnummer === value);
+                    if (selectedWallbox) {
+                      updateConfig('wallbox', selectedWallbox);
+                    }
+                  }}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Wallbox wählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border z-50">
+                      {wallboxOptions.map(option => (
+                        <SelectItem key={option.artikelnummer} value={option.artikelnummer}>
+                          {option.name} - {option.price}€
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Selected Wallbox Display */}
+                <div className="border rounded-lg p-4 bg-primary/5 border-primary/20">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold">{config.wallbox.name}</h3>
+                      <p className="text-sm text-muted-foreground">Art.-Nr.: {config.wallbox.artikelnummer}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-bold">{config.wallbox.price}€</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
