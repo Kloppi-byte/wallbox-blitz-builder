@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
-import { Building, Users, Home, Calendar, ArrowRight, ArrowLeft, Plus, Minus, Settings } from 'lucide-react';
+import { Building, Users, Home, Calendar, ArrowRight, ArrowLeft, Plus, Minus, Settings, Zap, Euro, Clock } from 'lucide-react';
 
 interface GlobalsData {
   etagen: number;
@@ -37,14 +37,14 @@ interface ComponentData {
 }
 
 interface ConfigState {
+  step: 'globals' | 'components';
   globals: GlobalsData;
   components: ComponentData[];
-  currentStep: number;
-  totalSteps: number;
 }
 
 export const ElektrosanierungConfigurator = () => {
   const [config, setConfig] = useState<ConfigState>({ 
+    step: 'globals',
     globals: {
       etagen: 1,
       zimmer: 4,
@@ -53,9 +53,7 @@ export const ElektrosanierungConfigurator = () => {
       belegt: false,
       installation: 'unterputz'
     },
-    components: [],
-    currentStep: 1,
-    totalSteps: 1
+    components: []
   });
   const [loading, setLoading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -83,7 +81,7 @@ export const ElektrosanierungConfigurator = () => {
       name: 'Schalter tauschen',
       unit: 'Stück',
       price_per_unit: 15,
-      qty_formula: 'globals.zimmer * 2',
+      qty_formula: 'Math.max(globals.zimmer * 2, Math.ceil(globals.zimmer * 1.5))',
       labor_hours_per_unit: 0.2,
       anzahl_einheit: 0,
       customMeisterStunden: 0.08,
@@ -95,7 +93,7 @@ export const ElektrosanierungConfigurator = () => {
       name: 'Lichtauslässe erneuern',
       unit: 'Stück',
       price_per_unit: 35,
-      qty_formula: 'globals.zimmer * 1',
+      qty_formula: 'globals.zimmer * 1 + ((globals.wohnflaeche_qm / globals.zimmer > 20) ? Math.round(globals.zimmer * 0.2) : 0)',
       labor_hours_per_unit: 0.4,
       anzahl_einheit: 0,
       customMeisterStunden: 0.15,
@@ -118,7 +116,7 @@ export const ElektrosanierungConfigurator = () => {
       name: 'Schlitzen & Schließen',
       unit: 'Meter',
       price_per_unit: 12,
-      qty_formula: 'Math.round(globals.wohnflaeche_qm * 0.6)',
+      qty_formula: "(globals.installation==='unterputz' ? Math.round(globals.wohnflaeche_qm * 0.6) : 0)",
       anzahl_einheit: 0,
       customMeisterStunden: 0.02,
       customGesellenstunden: 0.08,
@@ -153,7 +151,7 @@ export const ElektrosanierungConfigurator = () => {
       name: 'Rauchwarnmelder',
       unit: 'Stück',
       price_per_unit: 30,
-      qty_formula: 'globals.zimmer',
+      qty_formula: 'Math.max(3, Math.min(globals.zimmer, 12))',
       anzahl_einheit: 0,
       customMeisterStunden: 0,
       customGesellenstunden: 0.2,
@@ -168,6 +166,17 @@ export const ElektrosanierungConfigurator = () => {
       anzahl_einheit: 0,
       customMeisterStunden: 1,
       customGesellenstunden: 0,
+      customMonteurStunden: 0
+    },
+    {
+      id: 'zusaetzliche_stromkreise',
+      name: 'Zusätzliche Stromkreise 16A',
+      unit: 'Stück',
+      price_per_unit: 180,
+      qty_formula: 'Math.max(0, Math.ceil(globals.wohnflaeche_qm/40) - 3)',
+      anzahl_einheit: 0,
+      customMeisterStunden: 1.5,
+      customGesellenstunden: 1.5,
       customMonteurStunden: 0
     }
   ];
@@ -201,8 +210,10 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   useEffect(() => {
-    initializeComponents();
-  }, []);
+    if (config.step === 'components' && config.components.length === 0) {
+      initializeComponents();
+    }
+  }, [config.step]);
 
   const initializeComponents = () => {
     const components = getDefaultComponents();
@@ -269,14 +280,14 @@ export const ElektrosanierungConfigurator = () => {
 
   // Navigation functions
   const nextStep = () => {
-    if (config.currentStep < config.totalSteps) {
-      setConfig(prev => ({ ...prev, currentStep: prev.currentStep + 1 }));
+    if (config.step === 'globals') {
+      setConfig(prev => ({ ...prev, step: 'components' }));
     }
   };
 
   const prevStep = () => {
-    if (config.currentStep > 1) {
-      setConfig(prev => ({ ...prev, currentStep: prev.currentStep - 1 }));
+    if (config.step === 'components') {
+      setConfig(prev => ({ ...prev, step: 'globals' }));
     }
   };
 
@@ -377,7 +388,6 @@ export const ElektrosanierungConfigurator = () => {
     setIsCartOpen(true);
   };
 
-
   return (
     <div className="min-h-screen bg-wallbox-surface">
       {/* Header */}
@@ -391,71 +401,20 @@ export const ElektrosanierungConfigurator = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Sidebar - Summary (1/3 width) */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Kostenzusammenfassung
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Materialkosten:</span>
-                    <span>{calculateMaterialCosts().toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Meister ({calculateTotalLaborHours('meister').toFixed(1)}h à 95€):</span>
-                    <span>{(calculateTotalLaborHours('meister') * 95).toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Geselle ({calculateTotalLaborHours('geselle').toFixed(1)}h à 85€):</span>
-                    <span>{(calculateTotalLaborHours('geselle') * 85).toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Monteur ({calculateTotalLaborHours('monteur').toFixed(1)}h à 65€):</span>
-                    <span>{(calculateTotalLaborHours('monteur') * 65).toLocaleString('de-DE')}€</span>
-                  </div>
-                  {config.globals.belegt && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Bewohnt-Zuschlag (+15%):</span>
-                      <span>bereits eingerechnet</span>
-                    </div>
-                  )}
-                  {config.globals.baujahr < 1960 && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Altbau-Zuschlag (+20%):</span>
-                      <span>bereits eingerechnet</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Gesamtkosten:</span>
-                    <span>{calculateTotalCosts().toLocaleString('de-DE')}€</span>
-                  </div>
-                </div>
-                
-                <Button onClick={addToCart} className="w-full mt-4" size="lg">
-                  Zur Anfrage hinzufügen
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Content Area (2/3 width) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Globals Configuration */}
+        {config.step === 'globals' ? (
+          /* Step 1: Globals Configuration */
+          <div className="max-w-2xl mx-auto">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Projekt-Parameter
+                  <Building className="h-6 w-6" />
+                  Schritt 1: Projekt-Parameter
                 </CardTitle>
+                <p className="text-muted-foreground">
+                  Bitte geben Sie die grundlegenden Daten Ihres Projekts ein
+                </p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="etagen">Anzahl Etagen</Label>
@@ -501,8 +460,8 @@ export const ElektrosanierungConfigurator = () => {
                     <Input
                       id="baujahr"
                       type="number"
-                      min="1900"
-                      max="2025"
+                      min="1800"
+                      max="2030"
                       value={getInputValue('baujahr', config.globals.baujahr)}
                       onFocus={(e) => handleInputFocus(e, 'baujahr')}
                       onChange={(e) => handleInputChange(e, 'baujahr')}
@@ -510,19 +469,10 @@ export const ElektrosanierungConfigurator = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="belegt"
-                      checked={config.globals.belegt}
-                      onCheckedChange={(checked) => updateGlobals({ belegt: Boolean(checked) })}
-                    />
-                    <Label htmlFor="belegt">Objekt ist bewohnt (+15% Arbeitsaufwand)</Label>
-                  </div>
-                  
                   <div>
-                    <Label>Installationsart</Label>
+                    <Label htmlFor="installation">Installationsart</Label>
                     <Select 
                       value={config.globals.installation} 
                       onValueChange={(value: 'unterputz' | 'aufputz') => updateGlobals({ installation: value })}
@@ -536,108 +486,194 @@ export const ElektrosanierungConfigurator = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Components Configuration */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Komponenten-Auswahl
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {config.components.map((component) => (
-                    <div key={component.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{component.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {component.price_per_unit}€ / {component.unit}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-20 text-center"
-                            value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
-                            onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
-                            onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
-                            onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
-                          />
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          
-                          <div className="text-sm text-muted-foreground min-w-12">
-                            {component.unit}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {component.anzahl_einheit > 0 && (
-                        <div className="flex items-center gap-2 mt-2 text-sm">
-                          <span>M:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-meister`, component.customMeisterStunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-meister`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-meister`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-meister`, 0, (value) => 
-                              updateComponentHours(component.id, 'meister', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h, G:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-geselle`, component.customGesellenstunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-geselle`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-geselle`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-geselle`, 0, (value) => 
-                              updateComponentHours(component.id, 'geselle', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h, Mo:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-monteur`, component.customMonteurStunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-monteur`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-monteur`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-monteur`, 0, (value) => 
-                              updateComponentHours(component.id, 'monteur', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="belegt"
+                      checked={config.globals.belegt}
+                      onCheckedChange={(checked) => updateGlobals({ belegt: checked as boolean })}
+                    />
+                    <Label htmlFor="belegt">Wohnung/Haus ist bewohnt (+15% Arbeitszeit)</Label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-6">
+                  <Button onClick={nextStep} size="lg">
+                    Weiter zu Komponenten
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
-        </div>
+        ) : (
+          /* Step 2: Components Configuration */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Sidebar - Summary */}
+            <div className="lg:col-span-1">
+              <Card className="sticky top-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Euro className="h-5 w-5" />
+                    Kostenzusammenfassung
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Materialkosten:</span>
+                      <span>{calculateMaterialCosts().toLocaleString('de-DE')}€</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Meister ({calculateTotalLaborHours('meister').toFixed(1)}h à 95€):</span>
+                      <span>{(calculateTotalLaborHours('meister') * 95).toLocaleString('de-DE')}€</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Geselle ({calculateTotalLaborHours('geselle').toFixed(1)}h à 85€):</span>
+                      <span>{(calculateTotalLaborHours('geselle') * 85).toLocaleString('de-DE')}€</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Monteur ({calculateTotalLaborHours('monteur').toFixed(1)}h à 65€):</span>
+                      <span>{(calculateTotalLaborHours('monteur') * 65).toLocaleString('de-DE')}€</span>
+                    </div>
+                    
+                    {config.globals.belegt && (
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Bewohnt-Zuschlag (+15%):</span>
+                        <span>eingerechnet</span>
+                      </div>
+                    )}
+                    {config.globals.baujahr < 1960 && (
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Altbau-Zuschlag (+20%):</span>
+                        <span>eingerechnet</span>
+                      </div>
+                    )}
+                    
+                    <Separator />
+                    <div className="flex justify-between font-semibold">
+                      <span>Gesamtkosten:</span>
+                      <span>{calculateTotalCosts().toLocaleString('de-DE')}€</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 mt-4">
+                    <Button onClick={addToCart} className="w-full" size="lg">
+                      Zur Anfrage hinzufügen
+                    </Button>
+                    <Button onClick={prevStep} variant="outline" className="w-full">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Zurück zu Parametern
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Content Area - Components */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-6 w-6" />
+                    Schritt 2: Komponenten-Auswahl
+                  </CardTitle>
+                  <p className="text-muted-foreground">
+                    Mengen wurden automatisch basierend auf Ihren Parametern berechnet
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {config.components.map((component) => (
+                      <div key={component.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{component.name}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {component.price_per_unit}€ / {component.unit}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-20 text-center"
+                              value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
+                              onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
+                              onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
+                              onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
+                            />
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            
+                            <div className="text-sm text-muted-foreground min-w-12">
+                              {component.unit}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {component.anzahl_einheit > 0 && (
+                          <div className="flex items-center gap-2 mt-2 text-sm">
+                            <Clock className="h-4 w-4" />
+                            <span>M:</span>
+                            <Input
+                              type="text"
+                              value={getInputValue(`${component.id}-meister`, component.customMeisterStunden || 0)}
+                              onFocus={(e) => handleInputFocus(e, `${component.id}-meister`)}
+                              onChange={(e) => handleInputChange(e, `${component.id}-meister`)}
+                              onBlur={(e) => handleInputBlur(e, `${component.id}-meister`, 0, (value) => 
+                                updateComponentHours(component.id, 'meister', value)
+                              )}
+                              className="w-16"
+                            />
+                            <span>h, G:</span>
+                            <Input
+                              type="text"
+                              value={getInputValue(`${component.id}-geselle`, component.customGesellenstunden || 0)}
+                              onFocus={(e) => handleInputFocus(e, `${component.id}-geselle`)}
+                              onChange={(e) => handleInputChange(e, `${component.id}-geselle`)}
+                              onBlur={(e) => handleInputBlur(e, `${component.id}-geselle`, 0, (value) => 
+                                updateComponentHours(component.id, 'geselle', value)
+                              )}
+                              className="w-16"
+                            />
+                            <span>h, Mo:</span>
+                            <Input
+                              type="text"
+                              value={getInputValue(`${component.id}-monteur`, component.customMonteurStunden || 0)}
+                              onFocus={(e) => handleInputFocus(e, `${component.id}-monteur`)}
+                              onChange={(e) => handleInputChange(e, `${component.id}-monteur`)}
+                              onBlur={(e) => handleInputBlur(e, `${component.id}-monteur`, 0, (value) => 
+                                updateComponentHours(component.id, 'monteur', value)
+                              )}
+                              className="w-16"
+                            />
+                            <span>h</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
 
       <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
