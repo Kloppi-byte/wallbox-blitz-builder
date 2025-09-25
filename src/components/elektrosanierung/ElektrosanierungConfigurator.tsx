@@ -9,446 +9,365 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
-import { CartSheet } from '@/components/cart/CartSheet';
-import { Building, Users, Home, Calendar, ArrowRight, ArrowLeft, Plus, Minus, Settings, Zap, Euro, Clock } from 'lucide-react';
+import { Building, Users, Home, Calendar, Plus, Minus, Euro, Clock, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface GlobalsData {
+// Types
+interface ProjectParameters {
   etagen: number;
   zimmer: number;
-  wohnflaeche_qm: number;
+  wohnflaeche: number;
   baujahr: number;
-  belegt: boolean;
-  installation: 'unterputz' | 'aufputz';
+  unterputz: boolean;
+  bewohnt: boolean;
 }
 
-interface ComponentData {
-  id: string;
+interface Product {
+  artikelnummer: number;
   name: string;
-  unit: string;
-  anzahl_einheit: number;
-  faktor_zimmer: number;
-  faktor_etage: number;
-  faktor_wohnflaeche: number;
-  faktor_baujahr: number;
-  faktor_unterputz_true: number;
-  selectedProduct?: ProductOption;
-  categoryFilter: string;
-  subcategories: ProductOption[];
-}
-
-interface ProductOption {
-  artikelnummer: string;
-  artikel_name: string;
-  artikel_preis: number;
+  verkaufspreis: number;
+  kategorie: string;
+  ueberkategorie: string;
+  ueberueberkategorie: string[];
   stunden_meister: number;
   stunden_geselle: number;
   stunden_monteur: number;
-  ueberkategorie: string;
-  ueberueberkategorie: string;
-  kategorie: string;
+  faktor_zimmer?: number;
+  faktor_etage?: number;
+  faktor_wohnflaeche?: number;
+  faktor_baujahr?: number;
+  faktor_unterputz?: number;
+  preselect?: boolean;
+  required?: number[];
+  optional?: number[];
+  exclude?: number[];
+  auto_select?: number[];
 }
 
-interface ConfigState {
-  globals: GlobalsData;
-  components: ComponentData[];
+interface CategoryGroup {
+  name: string;
+  ueberkategorie: string;
+  baseProduct?: Product;
+  productOptions: Product[];
+  quantity: number;
+  selectedProduct?: Product;
+  defaultQuantity: number;
+  isManuallyEdited: boolean;
+}
+
+interface ConfiguratorState {
+  parameters: ProjectParameters;
+  categories: CategoryGroup[];
+  costs: {
+    material: number;
+    meister: number;
+    geselle: number;
+    monteur: number;
+    total: number;
+  };
 }
 
 export const ElektrosanierungConfigurator = () => {
-  const [config, setConfig] = useState<ConfigState>({ 
-    globals: {
+  const [state, setState] = useState<ConfiguratorState>({
+    parameters: {
       etagen: 1,
       zimmer: 4,
-      wohnflaeche_qm: 80,
+      wohnflaeche: 80,
       baujahr: 1975,
-      belegt: false,
-      installation: 'unterputz'
+      unterputz: true,
+      bewohnt: false
     },
-    components: []
+    categories: [],
+    costs: { material: 0, meister: 0, geselle: 0, monteur: 0, total: 0 }
   });
-  const [loading, setLoading] = useState(false);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tempInputs, setTempInputs] = useState<Record<string, string>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [tempInputValues, setTempInputValues] = useState<Record<string, string>>({});
-  const [touchedComponents, setTouchedComponents] = useState<Set<string>>(new Set());
-  const [articlePrices, setArticlePrices] = useState<Record<string, number>>({});
-  const [availableProducts, setAvailableProducts] = useState<ProductOption[]>([]);
   const { toast } = useToast();
   const { addItem } = useCart();
 
-  // Default component catalog with multiplication factors
-  const getDefaultComponents = (): ComponentData[] => [
-    {
-      id: 'steckdosen_tausch',
-      name: 'Steckdosen tauschen',
-      unit: 'Stück',
-      anzahl_einheit: 0,
-      faktor_zimmer: 5,
-      faktor_etage: 0,
-      faktor_wohnflaeche: 0,
-      faktor_baujahr: 0,
-      faktor_unterputz_true: 0,
-      categoryFilter: 'steckdose',
-      subcategories: []
-    },
-    {
-      id: 'schalter_tausch',
-      name: 'Schalter tauschen',
-      unit: 'Stück',
-      anzahl_einheit: 0,
-      faktor_zimmer: 2,
-      faktor_etage: 0,
-      faktor_wohnflaeche: 0,
-      faktor_baujahr: 0,
-      faktor_unterputz_true: 0,
-      categoryFilter: 'schalter',
-      subcategories: []
-    },
-    {
-      id: 'lichtauslaesse',
-      name: 'Lichtauslässe erneuern',
-      unit: 'Stück',
-      anzahl_einheit: 0,
-      faktor_zimmer: 1,
-      faktor_etage: 0,
-      faktor_wohnflaeche: 0,
-      faktor_baujahr: 0,
-      faktor_unterputz_true: 0,
-      categoryFilter: 'licht',
-      subcategories: []
-    },
-    {
-      id: 'leitungsverlegung',
-      name: 'Leitungsverlegung',
-      unit: 'Meter',
-      anzahl_einheit: 0,
-      faktor_zimmer: 0,
-      faktor_etage: 0,
-      faktor_wohnflaeche: 4,
-      faktor_baujahr: 0,
-      faktor_unterputz_true: 2,
-      categoryFilter: 'installation',
-      subcategories: []
-    },
-    {
-      id: 'rcd_nachruesten',
-      name: 'FI/RCD nachrüsten 30mA',
-      unit: 'Stück',
-      anzahl_einheit: 0,
-      faktor_zimmer: 0,
-      faktor_etage: 1,
-      faktor_wohnflaeche: 0,
-      faktor_baujahr: 0,
-      faktor_unterputz_true: 0,
-      categoryFilter: 'fi',
-      subcategories: []
-    },
-    {
-      id: 'uv_erneuern',
-      name: 'Unterverteilung erneuern',
-      unit: 'Stück',
-      anzahl_einheit: 0,
-      faktor_zimmer: 0,
-      faktor_etage: 0,
-      faktor_wohnflaeche: 0,
-      faktor_baujahr: 1,
-      faktor_unterputz_true: 0,
-      categoryFilter: 'verteiler',
-      subcategories: []
-    }
-  ];
-
-  // Helper functions for numeric input management
-  const getInputValue = (key: string, actualValue: number) => {
-    return tempInputValues[key] !== undefined ? tempInputValues[key] : String(actualValue);
-  };
-
-  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>, key: string) => {
-    e.target.select();
-    setTempInputValues(prev => ({ ...prev, [key]: e.target.value }));
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setTempInputValues(prev => ({ ...prev, [key]: value }));
-    }
-  };
-
-  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>, key: string, defaultValue: number, updateCallback: (value: number) => void) => {
-    const value = e.target.value.trim();
-    const numericValue = value === '' ? defaultValue : parseFloat(value) || defaultValue;
-    updateCallback(numericValue);
-    setTempInputValues(prev => {
-      const newState = { ...prev };
-      delete newState[key];
-      return newState;
-    });
-  };
-
+  // Fetch products from database
   useEffect(() => {
-    // Fetch products first, then initialize components
-    fetchAvailableProducts();
+    fetchProducts();
   }, []);
 
+  // Calculate categories and costs when parameters or selections change
   useEffect(() => {
-    // Initialize components when products are loaded
-    if (availableProducts.length > 0) {
-      initializeComponents();
+    if (products.length > 0) {
+      calculateCategoriesAndCosts();
     }
-  }, [availableProducts]);
+  }, [products, state.parameters]);
 
-  // No longer needed as prices come from wallboxen table
-
-  const fetchAvailableProducts = async () => {
+  const fetchProducts = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('wallboxen')
-        .select('Artikelnummer, Name, Verkaufspreis, "Überüberkategorie", "Überkategorie", Kategorie, "stunden_meister", "stunden_geselle", "stunden_monteur"')
+        .select(`
+          Artikelnummer,
+          Name, 
+          Verkaufspreis,
+          Kategorie,
+          "Überkategorie",
+          "Überüberkategorie",
+          stunden_meister,
+          stunden_geselle, 
+          stunden_monteur,
+          "Faktor Zimmer",
+          "Faktor Etage",
+          "Faktor Wohnfläche",
+          "Faktor Baujahr < 1990",
+          "Faktor Unterputz==true",
+          preselect,
+          required,
+          optional,
+          exclude,
+          auto_select
+        `)
         .contains('Überüberkategorie', ['Elektrosanierung']);
 
-      if (error) {
-        console.log('Could not fetch products from wallboxen - using fallback data');
-      } else if (data) {
-        const mapped = (data as any[]).map((row) => {
-          const raw = String(row.Verkaufspreis ?? '').trim();
-          const numeric = raw
-            ? parseFloat(
-                raw
-                  .replace(/[^0-9,.-]/g, '')
-                  .replace(/\./g, '')
-                  .replace(',', '.')
-              )
-            : 0;
-          return {
-            artikelnummer: String(row.Artikelnummer),
-            artikel_name: row.Name || `Artikel ${row.Artikelnummer}`,
-            artikel_preis: isNaN(numeric) ? 0 : numeric,
-            stunden_meister: parseFloat(row.stunden_meister) || 0,
-            stunden_geselle: parseFloat(row.stunden_geselle) || 0,
-            stunden_monteur: parseFloat(row.stunden_monteur) || 0,
-            ueberueberkategorie: String(row['Überüberkategorie'] || ''),
-            ueberkategorie: String(row['Überkategorie'] || ''),
-            kategorie: String(row.Kategorie || '')
-          } as ProductOption;
-        });
-        setAvailableProducts(mapped);
-      }
+      if (error) throw error;
+
+      const mappedProducts: Product[] = (data || []).map((item: any) => ({
+        artikelnummer: Number(item.Artikelnummer),
+        name: item.Name || `Artikel ${item.Artikelnummer}`,
+        verkaufspreis: parseFloat(String(item.Verkaufspreis || 0).replace(',', '.')) || 0,
+        kategorie: item.Kategorie || '',
+        ueberkategorie: item.Überkategorie || '',
+        ueberueberkategorie: item.Überüberkategorie || [],
+        stunden_meister: parseFloat(item.stunden_meister || 0),
+        stunden_geselle: parseFloat(item.stunden_geselle || 0),
+        stunden_monteur: parseFloat(item.stunden_monteur || 0),
+        faktor_zimmer: parseFloat(item["Faktor Zimmer"] || 0),
+        faktor_etage: parseFloat(item["Faktor Etage"] || 0),
+        faktor_wohnflaeche: parseFloat(item["Faktor Wohnfläche"] || 0),
+        faktor_baujahr: parseFloat(item["Faktor Baujahr < 1990"] || 0),
+        faktor_unterputz: parseFloat(item["Faktor Unterputz==true"] || 0),
+        preselect: item.preselect || false,
+        required: item.required || [],
+        optional: item.optional || [],
+        exclude: item.exclude || [],
+        auto_select: item.auto_select || []
+      }));
+
+      setProducts(mappedProducts);
     } catch (error) {
-      console.log('Error fetching products');
-    }
-  };
-
-  const initializeComponents = () => {
-    const components = getDefaultComponents();
-    const componentsWithCalculatedQty = components.map(comp => ({
-      ...comp,
-      anzahl_einheit: calculateDefaultQuantity(comp, config.globals),
-      subcategories: getFilteredProducts(comp.categoryFilter)
-    }));
-    
-    setConfig(prev => ({
-      ...prev,
-      components: componentsWithCalculatedQty
-    }));
-  };
-
-  // Calculate default quantity using multiplication factors
-  const calculateDefaultQuantity = (comp: ComponentData, globals: GlobalsData): number => {
-    try {
-      let quantity = 0;
-      
-      // Apply multiplication factors
-      quantity += globals.zimmer * comp.faktor_zimmer;
-      quantity += globals.etagen * comp.faktor_etage;
-      quantity += globals.wohnflaeche_qm * comp.faktor_wohnflaeche;
-      
-      // Add unterputz factor if installation is unterputz
-      if (globals.installation === 'unterputz') {
-        quantity += globals.wohnflaeche_qm * comp.faktor_unterputz_true;
-      }
-      
-      // Add baujahr factor if building is old
-      if (globals.baujahr < 1990) {
-        quantity += comp.faktor_baujahr;
-      }
-      
-      return Math.max(0, Math.round(quantity));
-    } catch (error) {
-      console.warn('Quantity calculation error:', error);
-      return 0;
-    }
-  };
-
-  // Update globals and recalculate formulas
-  const updateGlobals = (updates: Partial<GlobalsData>) => {
-    const newGlobals = { ...config.globals, ...updates };
-    
-    // Recalculate default quantities only for untouched components
-    const updatedComponents = config.components.map(comp => {
-      if (!touchedComponents.has(comp.id)) {
-        return {
-          ...comp,
-          anzahl_einheit: calculateDefaultQuantity(comp, newGlobals),
-          subcategories: getFilteredProducts(comp.categoryFilter)
-        };
-      }
-      return comp;
-    });
-
-    setConfig(prev => ({
-      ...prev,
-      globals: newGlobals,
-      components: updatedComponents
-    }));
-  };
-
-  // Update component quantity
-  const updateComponentQuantity = (id: string, quantity: number) => {
-    setTouchedComponents(prev => new Set(prev).add(id));
-    setConfig(prev => ({
-      ...prev,
-      components: prev.components.map(comp =>
-        comp.id === id ? { ...comp, anzahl_einheit: quantity } : comp
-      )
-    }));
-  };
-
-  // Update selected product for component
-  const updateComponentProduct = (id: string, product: ProductOption) => {
-    setTouchedComponents(prev => new Set(prev).add(id));
-    setConfig(prev => ({
-      ...prev,
-      components: prev.components.map(comp =>
-        comp.id === id ? { 
-          ...comp, 
-          selectedProduct: product
-        } : comp
-      )
-    }));
-  };
-
-  // Get filtered products for a component
-  const getFilteredProducts = (categoryFilter: string): ProductOption[] => {
-    if (!availableProducts.length) return [];
-    
-    // Map component types to Überkategorie names in wallboxen
-    const filterMap: Record<string, string> = {
-      'steckdose': 'steckdose',
-      'schalter': 'schalter', 
-      'licht': 'lichtauslässe',
-      'kabel': 'leitungsverlegung',
-      'fi': 'unterverteilung',
-      'verteiler': 'unterverteilung',
-      'rauchmelder': 'rauchwarnmelder',
-      'stromkreis': 'schlitzen',
-      'installation': 'leitungsverlegung',
-      'pruefung': 'e-check'
-    };
-
-    const target = filterMap[categoryFilter];
-    if (!target) return [];
-
-    return availableProducts.filter((product) => {
-      const root = (product.ueberueberkategorie || '').toLowerCase();
-      const mid = (product.ueberkategorie || '').toLowerCase();
-      return root.includes('elektrosanierung') && mid.includes(target);
-    });
-  };
-
-  // Calculate labor adjustments
-  const getLaborAdjustmentFactor = () => {
-    let factor = 1.0;
-    if (config.globals.belegt) factor += 0.15;
-    if (config.globals.baujahr < 1960) factor += 0.20;
-    return factor;
-  };
-
-  // Calculation functions
-  const calculateMaterialCosts = () => {
-    return config.components.reduce((total, comp) => {
-      if (!comp.selectedProduct) return total;
-      return total + (comp.selectedProduct.artikel_preis * comp.anzahl_einheit);
-    }, 0);
-  };
-
-  const calculateTotalLaborHours = (type: 'meister' | 'geselle' | 'monteur' = 'geselle') => {
-    const baseHours = config.components.reduce((total, comp) => {
-      if (!comp.selectedProduct) return total;
-      const hours = type === 'meister' ? comp.selectedProduct.stunden_meister :
-                   type === 'geselle' ? comp.selectedProduct.stunden_geselle :
-                   comp.selectedProduct.stunden_monteur;
-      return total + (hours * comp.anzahl_einheit);
-    }, 0);
-    
-    return baseHours * getLaborAdjustmentFactor();
-  };
-
-  const calculateTotalCosts = () => {
-    const materialCosts = calculateMaterialCosts();
-    const meisterHours = calculateTotalLaborHours('meister');
-    const geselleHours = calculateTotalLaborHours('geselle');
-    const monteurHours = calculateTotalLaborHours('monteur');
-    
-    // Different hourly rates
-    const laborCosts = (meisterHours * 95) + (geselleHours * 85) + (monteurHours * 65);
-    return materialCosts + laborCosts;
-  };
-
-  // No longer needed as hours come from selected products
-
-  // Add configuration to cart
-  const addToCart = () => {
-    const componentsToAdd = config.components.filter(comp => comp.anzahl_einheit > 0 && comp.selectedProduct);
-    
-    if (componentsToAdd.length === 0) {
+      console.error('Error fetching products:', error);
       toast({
-        title: "Keine Komponenten ausgewählt",
-        description: "Bitte wählen Sie mindestens eine Komponente mit Produkt aus.",
-        variant: "destructive",
+        title: "Fehler beim Laden",
+        description: "Produkte konnten nicht geladen werden.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateQuantity = (product: Product, parameters: ProjectParameters): number => {
+    let quantity = 1; // Base quantity
+
+    // Apply factorization
+    if (product.faktor_zimmer) {
+      quantity += product.faktor_zimmer * parameters.zimmer;
+    }
+    if (product.faktor_etage) {
+      quantity += product.faktor_etage * parameters.etagen;
+    }
+    if (product.faktor_wohnflaeche) {
+      quantity += product.faktor_wohnflaeche * parameters.wohnflaeche;
+    }
+    if (product.faktor_baujahr && parameters.baujahr < 1990) {
+      quantity += product.faktor_baujahr;
+    }
+    if (product.faktor_unterputz && parameters.unterputz) {
+      quantity *= product.faktor_unterputz;
+    }
+
+    return Math.ceil(Math.max(0, quantity));
+  };
+
+  const calculateCategoriesAndCosts = () => {
+    // Group products by Überkategorie
+    const categoryGroups = new Map<string, CategoryGroup>();
+
+    // Find base products (without "Produkt" suffix in Kategorie)
+    const baseProducts = products.filter(p => !p.kategorie.includes('Produkt') && p.kategorie.trim() === '');
+    
+    // Create category groups from base products
+    baseProducts.forEach(baseProduct => {
+      if (!baseProduct.ueberkategorie) return;
+
+      const defaultQuantity = calculateQuantity(baseProduct, state.parameters);
+      
+      // Find product variants (with "Produkt" suffix)
+      const productOptions = products.filter(p => 
+        p.ueberkategorie === baseProduct.ueberkategorie && 
+        p.kategorie.includes('Produkt')
+      );
+
+      // Find preselected or cheapest product
+      let selectedProduct = productOptions.find(p => p.preselect);
+      if (!selectedProduct && productOptions.length > 0) {
+        selectedProduct = productOptions.reduce((min, current) => 
+          current.verkaufspreis < min.verkaufspreis ? current : min
+        );
+      }
+
+      // Check if this category was manually edited
+      const existingCategory = state.categories.find(c => c.ueberkategorie === baseProduct.ueberkategorie);
+      const isManuallyEdited = existingCategory?.isManuallyEdited || false;
+      const quantity = isManuallyEdited ? existingCategory.quantity : defaultQuantity;
+
+      categoryGroups.set(baseProduct.ueberkategorie, {
+        name: baseProduct.name,
+        ueberkategorie: baseProduct.ueberkategorie,
+        baseProduct,
+        productOptions,
+        quantity,
+        selectedProduct: existingCategory?.selectedProduct || selectedProduct,
+        defaultQuantity,
+        isManuallyEdited
+      });
+    });
+
+    // Calculate costs
+    let materialCosts = 0;
+    let meisterHours = 0;
+    let geselleHours = 0;
+    let monteurHours = 0;
+
+    Array.from(categoryGroups.values()).forEach(category => {
+      if (category.selectedProduct && category.quantity > 0) {
+        materialCosts += category.selectedProduct.verkaufspreis * category.quantity;
+        meisterHours += category.selectedProduct.stunden_meister * category.quantity;
+        geselleHours += category.selectedProduct.stunden_geselle * category.quantity;
+        monteurHours += category.selectedProduct.stunden_monteur * category.quantity;
+      }
+    });
+
+    // Apply labor adjustments
+    const laborAdjustment = (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1);
+    meisterHours *= laborAdjustment;
+    geselleHours *= laborAdjustment;
+    monteurHours *= laborAdjustment;
+
+    const laborCosts = meisterHours * 95 + geselleHours * 85 + monteurHours * 65;
+
+    setState(prev => ({
+      ...prev,
+      categories: Array.from(categoryGroups.values()),
+      costs: {
+        material: materialCosts,
+        meister: meisterHours * 95,
+        geselle: geselleHours * 85,
+        monteur: monteurHours * 65,
+        total: materialCosts + laborCosts
+      }
+    }));
+  };
+
+  const updateParameters = (updates: Partial<ProjectParameters>) => {
+    setState(prev => ({
+      ...prev,
+      parameters: { ...prev.parameters, ...updates }
+    }));
+  };
+
+  const updateCategoryQuantity = (ueberkategorie: string, quantity: number) => {
+    setState(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat =>
+        cat.ueberkategorie === ueberkategorie
+          ? { ...cat, quantity, isManuallyEdited: true }
+          : cat
+      )
+    }));
+  };
+
+  const updateCategoryProduct = (ueberkategorie: string, produktNummer: number) => {
+    const selectedProduct = products.find(p => p.artikelnummer === produktNummer);
+    if (!selectedProduct) return;
+
+    setState(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat =>
+        cat.ueberkategorie === ueberkategorie
+          ? { ...cat, selectedProduct }
+          : cat
+      )
+    }));
+  };
+
+  const handleInputChange = (key: string, value: string) => {
+    setTempInputs(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleInputBlur = (key: keyof ProjectParameters, value: string) => {
+    const numValue = parseInt(value) || 0;
+    updateParameters({ [key]: numValue });
+    setTempInputs(prev => {
+      const newInputs = { ...prev };
+      delete newInputs[key];
+      return newInputs;
+    });
+  };
+
+  const addToCart = () => {
+    const selectedCategories = state.categories.filter(cat => cat.quantity > 0 && cat.selectedProduct);
+    
+    if (selectedCategories.length === 0) {
+      toast({
+        title: "Keine Auswahl",
+        description: "Bitte wählen Sie mindestens eine Komponente aus.",
+        variant: "destructive"
       });
       return;
     }
-
-    const materialCosts = calculateMaterialCosts();
-    const laborHours = calculateTotalLaborHours();
-    const laborCosts = laborHours * 85; // €85 per hour
-    const total = materialCosts + laborCosts;
 
     addItem({
       productType: 'elektrosanierung',
       name: 'Elektrosanierung Konfiguration',
       configuration: {
-        globals: config.globals,
-        components: componentsToAdd,
-        materialCosts,
-        laborHours,
-        laborCosts
+        parameters: state.parameters,
+        categories: selectedCategories,
+        costs: state.costs
       },
       pricing: {
-        materialCosts,
-        laborCosts,
+        materialCosts: state.costs.material,
+        laborCosts: state.costs.meister + state.costs.geselle + state.costs.monteur,
         travelCosts: 0,
-        subtotal: total,
+        subtotal: state.costs.total,
         subsidy: 0,
-        total
+        total: state.costs.total
       }
     });
 
     toast({
-      title: "Zur Anfrage hinzugefügt",
-      description: "Elektrosanierung-Konfiguration wurde hinzugefügt.",
+      title: "Erfolgreich hinzugefügt",
+      description: "Konfiguration wurde zum Warenkorb hinzugefügt."
     });
-
-    setIsCartOpen(true);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Produkte werden geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-wallbox-surface">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-background border-b border-border">
+      <div className="border-b border-border">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground">Elektrosanierung Konfigurator</h1>
+            <h1 className="text-2xl font-bold">Elektrosanierung Konfigurator</h1>
             <CartIcon onClick={() => setIsCartOpen(true)} />
           </div>
         </div>
@@ -456,64 +375,8 @@ export const ElektrosanierungConfigurator = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Sidebar - Summary */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Euro className="h-5 w-5" />
-                  Kostenzusammenfassung
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Materialkosten:</span>
-                    <span>{calculateMaterialCosts().toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Meister ({calculateTotalLaborHours('meister').toFixed(1)}h à 95€):</span>
-                    <span>{(calculateTotalLaborHours('meister') * 95).toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Geselle ({calculateTotalLaborHours('geselle').toFixed(1)}h à 85€):</span>
-                    <span>{(calculateTotalLaborHours('geselle') * 85).toLocaleString('de-DE')}€</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Monteur ({calculateTotalLaborHours('monteur').toFixed(1)}h à 65€):</span>
-                    <span>{(calculateTotalLaborHours('monteur') * 65).toLocaleString('de-DE')}€</span>
-                  </div>
-                  
-                  {config.globals.belegt && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Bewohnt-Zuschlag (+15%):</span>
-                      <span>eingerechnet</span>
-                    </div>
-                  )}
-                  {config.globals.baujahr < 1960 && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Altbau-Zuschlag (+20%):</span>
-                      <span>eingerechnet</span>
-                    </div>
-                  )}
-                  
-                  <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Gesamtkosten:</span>
-                    <span>{calculateTotalCosts().toLocaleString('de-DE')}€</span>
-                  </div>
-                </div>
-                
-                <Button onClick={addToCart} className="w-full mt-4" size="lg">
-                  Zur Anfrage hinzufügen
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Content Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Globals Configuration */}
+          {/* Project Parameters */}
+          <div className="lg:col-span-1 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -522,207 +385,211 @@ export const ElektrosanierungConfigurator = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="etagen">Anzahl Etagen</Label>
-                    <Input
-                      id="etagen"
-                      type="number"
-                      min="1"
-                      value={getInputValue('etagen', config.globals.etagen)}
-                      onFocus={(e) => handleInputFocus(e, 'etagen')}
-                      onChange={(e) => handleInputChange(e, 'etagen')}
-                      onBlur={(e) => handleInputBlur(e, 'etagen', 1, (value) => updateGlobals({ etagen: value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="zimmer">Anzahl Zimmer (inkl. Küche & Bad)</Label>
-                    <Input
-                      id="zimmer"
-                      type="number"
-                      min="1"
-                      value={getInputValue('zimmer', config.globals.zimmer)}
-                      onFocus={(e) => handleInputFocus(e, 'zimmer')}
-                      onChange={(e) => handleInputChange(e, 'zimmer')}
-                      onBlur={(e) => handleInputBlur(e, 'zimmer', 1, (value) => updateGlobals({ zimmer: value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="wohnflaeche">Wohnfläche (m²)</Label>
-                    <Input
-                      id="wohnflaeche"
-                      type="number"
-                      min="20"
-                      value={getInputValue('wohnflaeche', config.globals.wohnflaeche_qm)}
-                      onFocus={(e) => handleInputFocus(e, 'wohnflaeche')}
-                      onChange={(e) => handleInputChange(e, 'wohnflaeche')}
-                      onBlur={(e) => handleInputBlur(e, 'wohnflaeche', 20, (value) => updateGlobals({ wohnflaeche_qm: value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="baujahr">Baujahr</Label>
-                    <Input
-                      id="baujahr"
-                      type="number"
-                      min="1800"
-                      max="2030"
-                      value={getInputValue('baujahr', config.globals.baujahr)}
-                      onFocus={(e) => handleInputFocus(e, 'baujahr')}
-                      onChange={(e) => handleInputChange(e, 'baujahr')}
-                      onBlur={(e) => handleInputBlur(e, 'baujahr', 1975, (value) => updateGlobals({ baujahr: value }))}
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="etagen">Etagen</Label>
+                  <Input
+                    id="etagen"
+                    type="number"
+                    min="1"
+                    value={tempInputs.etagen ?? state.parameters.etagen}
+                    onChange={e => handleInputChange('etagen', e.target.value)}
+                    onBlur={e => handleInputBlur('etagen', e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="zimmer">Zimmer</Label>
+                  <Input
+                    id="zimmer"
+                    type="number"
+                    min="1"
+                    value={tempInputs.zimmer ?? state.parameters.zimmer}
+                    onChange={e => handleInputChange('zimmer', e.target.value)}
+                    onBlur={e => handleInputBlur('zimmer', e.target.value)}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="installation">Installationsart</Label>
-                    <Select 
-                      value={config.globals.installation} 
-                      onValueChange={(value: 'unterputz' | 'aufputz') => updateGlobals({ installation: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unterputz">Unterputz</SelectItem>
-                        <SelectItem value="aufputz">Aufputz</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="wohnflaeche">Wohnfläche (m²)</Label>
+                  <Input
+                    id="wohnflaeche"
+                    type="number"
+                    min="1"
+                    value={tempInputs.wohnflaeche ?? state.parameters.wohnflaeche}
+                    onChange={e => handleInputChange('wohnflaeche', e.target.value)}
+                    onBlur={e => handleInputBlur('wohnflaeche', e.target.value)}
+                  />
+                </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="belegt"
-                      checked={config.globals.belegt}
-                      onCheckedChange={(checked) => updateGlobals({ belegt: checked as boolean })}
-                    />
-                    <Label htmlFor="belegt">Wohnung ist bewohnt (+15% Arbeitszeit)</Label>
-                  </div>
+                <div>
+                  <Label htmlFor="baujahr">Baujahr</Label>
+                  <Input
+                    id="baujahr"
+                    type="number"
+                    min="1900"
+                    max="2024"
+                    value={tempInputs.baujahr ?? state.parameters.baujahr}
+                    onChange={e => handleInputChange('baujahr', e.target.value)}
+                    onBlur={e => handleInputBlur('baujahr', e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="unterputz"
+                    checked={state.parameters.unterputz}
+                    onCheckedChange={checked => updateParameters({ unterputz: !!checked })}
+                  />
+                  <Label htmlFor="unterputz">Unterputz Installation</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="bewohnt"
+                    checked={state.parameters.bewohnt}
+                    onCheckedChange={checked => updateParameters({ bewohnt: !!checked })}
+                  />
+                  <Label htmlFor="bewohnt">Wohnung bewohnt (+15% Arbeitszeit)</Label>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Components Configuration */}
+            {/* Cost Summary */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  Komponenten-Auswahl
+                  <Euro className="h-5 w-5" />
+                  Kostenzusammenfassung
                 </CardTitle>
-                <p className="text-muted-foreground">
-                  Mengen wurden automatisch basierend auf Ihren Parametern berechnet
-                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Materialkosten:</span>
+                  <span className="font-semibold">{state.costs.material.toLocaleString('de-DE')}€</span>
+                </div>
+                
+                <div className="flex justify-between text-sm">
+                  <span>Meister:</span>
+                  <span>{state.costs.meister.toLocaleString('de-DE')}€</span>
+                </div>
+                
+                <div className="flex justify-between text-sm">
+                  <span>Geselle:</span>
+                  <span>{state.costs.geselle.toLocaleString('de-DE')}€</span>
+                </div>
+                
+                <div className="flex justify-between text-sm">
+                  <span>Monteur:</span>
+                  <span>{state.costs.monteur.toLocaleString('de-DE')}€</span>
+                </div>
+
+                <Separator />
+                
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Gesamtkosten:</span>
+                  <span>{state.costs.total.toLocaleString('de-DE')}€</span>
+                </div>
+
+                <Button onClick={addToCart} className="w-full mt-4">
+                  Zur Anfrage hinzufügen
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Component Selection */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Komponenten-Auswahl</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                   {config.components.map((component) => {
-                     const filteredProducts = getFilteredProducts(component.categoryFilter);
-                     return (
-                      <div key={component.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{component.name}</h4>
-                             <p className="text-sm text-muted-foreground">
-                               {component.selectedProduct?.artikel_preis || 0}€ / {component.unit}
-                             </p>
-                          </div>
-                          
+                <div className="space-y-6">
+                  {state.categories.map(category => (
+                    <div key={category.ueberkategorie} className="border rounded-lg p-4">
+                      <h3 className="font-semibold mb-3">{category.name}</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                        {/* Quantity Control */}
+                        <div>
+                          <Label>Menge</Label>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
+                              onClick={() => updateCategoryQuantity(category.ueberkategorie, Math.max(0, category.quantity - 1))}
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
-                            
                             <Input
                               type="number"
                               min="0"
-                              className="w-20 text-center"
-                              value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
-                              onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
-                              onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
-                              onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
+                              value={category.quantity}
+                              onChange={e => updateCategoryQuantity(category.ueberkategorie, parseInt(e.target.value) || 0)}
+                              className="text-center"
                             />
-                            
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
+                              onClick={() => updateCategoryQuantity(category.ueberkategorie, category.quantity + 1)}
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
-                            
-                            <div className="text-sm text-muted-foreground min-w-12">
-                              {component.unit}
-                            </div>
                           </div>
                         </div>
 
-                        {/* Product Selection Dropdown - Always show for all components */}
-                        <div className="mb-3">
-                          <Label className="text-sm font-medium">Produkt auswählen:</Label>
-                          <Select 
-                            value={component.selectedProduct?.artikelnummer || ''} 
-                            onValueChange={(value) => {
-                              const filteredProducts = getFilteredProducts(component.categoryFilter);
-                              const product = filteredProducts.find(p => p.artikelnummer === value);
-                              if (product) updateComponentProduct(component.id, product);
-                            }}
+                        {/* Product Selection */}
+                        <div>
+                          <Label>Produktvariante</Label>
+                          <Select
+                            value={category.selectedProduct?.artikelnummer.toString() || ''}
+                            onValueChange={value => updateCategoryProduct(category.ueberkategorie, parseInt(value))}
                           >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder={
-                                getFilteredProducts(component.categoryFilter).length > 0 
-                                  ? "Produkt wählen..." 
-                                  : "Keine Produkte verfügbar"
-                              } />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Produkt wählen" />
                             </SelectTrigger>
                             <SelectContent>
-                              {getFilteredProducts(component.categoryFilter).length > 0 ? (
-                                getFilteredProducts(component.categoryFilter).map((product) => (
-                                  <SelectItem key={product.artikelnummer} value={product.artikelnummer}>
-                                    <div className="flex justify-between items-center w-full">
-                                      <span className="truncate mr-2">{product.artikel_name}</span>
-                                      <span className="text-sm text-muted-foreground">
-                                        {product.artikel_preis}€
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="no-products" disabled>
-                                  Keine Produkte für {component.categoryFilter} gefunden
+                              {category.productOptions.map(product => (
+                                <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                  {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
                                 </SelectItem>
-                              )}
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
+
+                        {/* Cost Information */}
+                        <div>
+                          <Label>Kosten</Label>
+                          <div className="text-sm">
+                            {category.selectedProduct && category.quantity > 0 ? (
+                              <div>
+                                <div>Material: {(category.selectedProduct.verkaufspreis * category.quantity).toLocaleString('de-DE')}€</div>
+                                <div className="text-muted-foreground">
+                                  Arbeitszeit: {((category.selectedProduct.stunden_meister + category.selectedProduct.stunden_geselle + category.selectedProduct.stunden_monteur) * category.quantity).toFixed(1)}h
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       
-                       {component.anzahl_einheit > 0 && component.selectedProduct && (
-                         <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                           <Clock className="h-4 w-4" />
-                           <span>Arbeitszeiten: </span>
-                           <span>M: {component.selectedProduct.stunden_meister}h</span>
-                           <span>G: {component.selectedProduct.stunden_geselle}h</span>
-                           <span>Mo: {component.selectedProduct.stunden_monteur}h</span>
-                         </div>
-                        )}
-                     </div>
-                   );
-                   })}
+                      {!category.isManuallyEdited && (
+                        <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          Automatisch berechnet ({category.defaultQuantity} Stück)
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-
-      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
   );
 };
