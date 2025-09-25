@@ -122,7 +122,11 @@ export const WallboxConfigurator = () => {
       const wallboxes = mappedProducts.filter(p => p.typ === 'Wallbox');
       if (wallboxes.length > 0) {
         const preselected = wallboxes.find(w => w.preselect === true);
-        selectWallbox(preselected || wallboxes[0]);
+        if (preselected) {
+          selectWallbox(preselected);
+        } else if (wallboxes.length > 0) {
+          selectWallbox(wallboxes[0]);
+        }
       }
 
       setLoading(false);
@@ -824,39 +828,42 @@ export const WallboxConfigurator = () => {
                         </div>
                        ))}
 
-                     {/* Show dropdown menus for categories without selected products */}
-                     <div className="space-y-3">
-                       {getAvailableKategorien()
-                         .filter((kategorie) => {
-                           // Only show category if it has NO products currently selected
-                           return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
-                         })
-                         .map((kategorie) => (
-                          <div key={kategorie} className="flex items-center justify-between">
-                            <h3 className="font-medium text-lg">{kategorie}</h3>
-                            <Select onValueChange={(value) => {
-                              if (value && value !== 'none') {
-                                const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === value);
-                                if (product) {
-                                  addOptionalProduct(product);
-                                }
-                              }
-                            }}>
-                              <SelectTrigger className="w-64">
-                                <SelectValue placeholder={`${kategorie} hinzufügen`} />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-60">
-                                <SelectItem value="none">Kein Produkt auswählen</SelectItem>
-                                {getProductsByKategorie(kategorie).map((product) => (
-                                  <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
-                                    {product.name} - {parseFloat(product.verkaufspreis).toFixed(2)}€
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                         ))}
-                      </div>
+                     {/* Single dropdown for all unselected categories */}
+                     {getAvailableKategorien().filter((kategorie) => {
+                       return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                     }).length > 0 && (
+                       <div className="mt-4">
+                         <Select onValueChange={(value) => {
+                           if (value && value !== 'none') {
+                             const [kategorie, artikelnummer] = value.split('|');
+                             const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === artikelnummer);
+                             if (product) {
+                               addOptionalProduct(product);
+                             }
+                           }
+                         }}>
+                           <SelectTrigger className="w-full">
+                             <SelectValue placeholder="Zusätzliche Komponenten hinzufügen" />
+                           </SelectTrigger>
+                           <SelectContent className="max-h-60">
+                             <SelectItem value="none">Kein Produkt auswählen</SelectItem>
+                             {getAvailableKategorien()
+                               .filter((kategorie) => {
+                                 return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                               })
+                               .map((kategorie) => {
+                                 const products = getProductsByKategorie(kategorie);
+                                 return products.map((product) => (
+                                   <SelectItem key={`${kategorie}|${product.artikelnummer}`} value={`${kategorie}|${product.artikelnummer}`}>
+                                     <span className="font-medium">{kategorie}</span> - {product.name} ({parseFloat(product.verkaufspreis).toFixed(2)}€)
+                                   </SelectItem>
+                                 ));
+                               })
+                               .flat()}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     )}
                    </div>
                 </CardContent>
               </Card>
