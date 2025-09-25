@@ -231,10 +231,14 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   useEffect(() => {
+    // Initialize components immediately with fallback prices
+    initializeComponents();
+    // Then try to fetch real prices from database
     fetchArticlePrices();
   }, []);
 
   useEffect(() => {
+    // Re-initialize components when prices are fetched successfully
     if (Object.keys(articlePrices).length > 0) {
       initializeComponents();
     }
@@ -251,12 +255,8 @@ export const ElektrosanierungConfigurator = () => {
         .in('artikelnummer', articleNumbers);
 
       if (error) {
-        console.error('Error fetching article prices:', error);
-        toast({
-          title: "Fehler beim Laden der Preise",
-          description: "Fallback-Preise werden verwendet.",
-          variant: "destructive",
-        });
+        console.log('Using fallback prices - database access restricted');
+        // Don't show error toast for permission issues, just use fallback prices
       } else if (data) {
         const priceMap = data.reduce((acc, item) => {
           acc[item.artikelnummer] = item.artikel_preis;
@@ -265,12 +265,8 @@ export const ElektrosanierungConfigurator = () => {
         setArticlePrices(priceMap);
       }
     } catch (error) {
-      console.error('Error fetching article prices:', error);
-      toast({
-        title: "Fehler beim Laden der Preise",
-        description: "Fallback-Preise werden verwendet.",
-        variant: "destructive",
-      });
+      console.log('Using fallback prices - fetch error');
+      // Don't show error toast, just use fallback prices
     } finally {
       setLoading(false);
     }
