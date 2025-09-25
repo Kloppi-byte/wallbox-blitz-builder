@@ -31,6 +31,7 @@ interface WallboxProduct {
   stunden_monteur?: string;
   typ: string;
   preselect?: boolean;
+  foto?: string;
 }
 
 interface SelectedProduct {
@@ -111,7 +112,8 @@ export const WallboxConfigurator = () => {
         stunden_geselle: item["stunden_geselle"] || '0',
         stunden_monteur: item["stunden_monteur"] || '0',
         typ: item["Typ"] || '',
-        preselect: item["preselect"] || false
+        preselect: item["preselect"] || false,
+        foto: item["foto"] || null
       }));
 
       setProducts(mappedProducts);
@@ -653,10 +655,27 @@ export const WallboxConfigurator = () => {
                                   setIsAlternativesOpen(false);
                                 }}
                               >
-                                {/* Image placeholder on the left */}
-                                <div className="flex-shrink-0 w-32 h-24 bg-muted rounded-lg flex items-center justify-center border">
-                                  <div className="text-xs text-muted-foreground text-center">
-                                    Wallbox<br />Bild
+                                {/* Image on the left */}
+                                <div className="flex-shrink-0 w-32 h-24 bg-muted rounded-lg overflow-hidden border">
+                                  {wallbox.foto ? (
+                                    <img 
+                                      src={wallbox.foto} 
+                                      alt={wallbox.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        const placeholder = target.nextElementSibling as HTMLElement;
+                                        target.style.display = 'none';
+                                        if (placeholder) {
+                                          placeholder.style.display = 'flex';
+                                        }
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`w-full h-full flex items-center justify-center ${wallbox.foto ? 'hidden' : 'flex'}`}>
+                                    <div className="text-xs text-muted-foreground text-center">
+                                      Wallbox<br />Bild
+                                    </div>
                                   </div>
                                 </div>
                                 
