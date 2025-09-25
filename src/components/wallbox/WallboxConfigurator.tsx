@@ -523,72 +523,130 @@ export function WallboxConfigurator() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {getAvailableKategorien().map((kategorie) => (
-                      <div key={kategorie} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-lg">{kategorie}</h3>
-                          <Select onValueChange={(value) => {
-                            if (value && value !== 'none') {
-                              const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === value);
-                              if (product) {
-                                addOptionalProduct(product);
+                    {/* Show categories that have autoselected or manually selected products */}
+                    {getAvailableKategorien()
+                      .filter((kategorie) => {
+                        // Show category if it has autoselected products or manually selected products
+                        const autoSelectedProducts = getAutoSelectProducts();
+                        const hasAutoSelected = autoSelectedProducts.some(p => p.kategorie.trim() === kategorie);
+                        const hasManuallySelected = config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                        return hasAutoSelected || hasManuallySelected;
+                      })
+                      .map((kategorie) => (
+                        <div key={kategorie} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-lg">{kategorie}</h3>
+                            <Select onValueChange={(value) => {
+                              if (value && value !== 'none') {
+                                const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === value);
+                                if (product) {
+                                  addOptionalProduct(product);
+                                }
                               }
+                            }}>
+                              <SelectTrigger className="w-64">
+                                <SelectValue placeholder={`${kategorie} hinzufügen`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Kein Produkt auswählen</SelectItem>
+                                {getProductsByKategorie(kategorie)
+                                  .filter(p => !config.optionalProducts.some(selected => selected.artikelnummer === p.artikelnummer))
+                                  .map((product) => (
+                                    <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                      {product.name} - {parseFloat(product.verkaufspreis).toFixed(2)}€
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Currently selected products for this category */}
+                          <div className="space-y-2">
+                            {config.optionalProducts
+                              .filter(p => p.kategorie === kategorie)
+                              .map((product) => (
+                                <div key={product.artikelnummer} className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
+                                  <div className="flex-1">
+                                    <div className="font-medium">{product.name}</div>
+                                    <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={product.quantity}
+                                        onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                        className="w-20"
+                                      />
+                                      <span className="text-sm">{product.einheit}</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-lg font-bold text-primary">
+                                      {(product.price * product.quantity).toFixed(2)}€
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeOptionalProduct(product.artikelnummer)}
+                                      className="mt-2 text-destructive hover:text-destructive"
+                                    >
+                                      Entfernen
+                                    </Button>
+                                  </div>
+                                </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* Plus button for adding new categories */}
+                    <div className="pt-4 border-t">
+                      <Select
+                        value=""
+                        onValueChange={(value) => {
+                          if (value) {
+                            const [kategorie, artikelnummer] = value.split('|');
+                            const product = allProducts.find(p => p.artikelnummer.toString() === artikelnummer);
+                            if (product) {
+                              addOptionalProduct(product);
                             }
-                          }}>
-                            <SelectTrigger className="w-64">
-                              <SelectValue placeholder={`${kategorie} hinzufügen`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Kein Produkt auswählen</SelectItem>
-                              {getProductsByKategorie(kategorie)
-                                .filter(p => !config.optionalProducts.some(selected => selected.artikelnummer === p.artikelnummer))
-                                .map((product) => (
-                                  <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">+</span>
+                            <SelectValue placeholder="Weitere Kategorien hinzufügen" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent className="max-h-96">
+                          {getAvailableKategorien()
+                            .filter((kategorie) => {
+                              // Only show categories that are not already displayed
+                              const autoSelectedProducts = getAutoSelectProducts();
+                              const hasAutoSelected = autoSelectedProducts.some(p => p.kategorie.trim() === kategorie);
+                              const hasManuallySelected = config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                              return !hasAutoSelected && !hasManuallySelected;
+                            })
+                            .map((kategorie) => (
+                              <div key={kategorie}>
+                                <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
+                                  {kategorie}
+                                </div>
+                                {getProductsByKategorie(kategorie).map((product) => (
+                                  <SelectItem 
+                                    key={product.artikelnummer} 
+                                    value={`${kategorie}|${product.artikelnummer}`}
+                                    className="pl-6"
+                                  >
                                     {product.name} - {parseFloat(product.verkaufspreis).toFixed(2)}€
                                   </SelectItem>
                                 ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Currently selected products for this category */}
-                        <div className="space-y-2">
-                          {config.optionalProducts
-                            .filter(p => p.kategorie === kategorie)
-                            .map((product) => (
-                              <div key={product.artikelnummer} className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
-                                <div className="flex-1">
-                                  <div className="font-medium">{product.name}</div>
-                                  <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={product.quantity}
-                                      onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                      className="w-20"
-                                    />
-                                    <span className="text-sm">{product.einheit}</span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold text-primary">
-                                    {(product.price * product.quantity).toFixed(2)}€
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeOptionalProduct(product.artikelnummer)}
-                                    className="mt-2 text-destructive hover:text-destructive"
-                                  >
-                                    Entfernen
-                                  </Button>
-                                </div>
                               </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
