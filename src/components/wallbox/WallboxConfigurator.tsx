@@ -848,7 +848,7 @@ export const WallboxConfigurator = () => {
                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                              </Button>
                            </PopoverTrigger>
-                           <PopoverContent className="w-full p-0" align="start">
+                           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                              <Command>
                                <CommandInput placeholder="Komponenten suchen..." />
                                <CommandList className="max-h-60">
@@ -879,7 +879,7 @@ export const WallboxConfigurator = () => {
                                                  {product.beschreibung}
                                                </div>
                                                <div className="text-sm font-medium text-primary mt-1">
-                                                 {parseFloat(product.verkaufspreis).toFixed(2)}€
+                                                 {parseFloat(product.verkaufspreis).toFixed(2)}€ / {product.einheit}
                                                </div>
                                              </div>
                                            </CommandItem>
