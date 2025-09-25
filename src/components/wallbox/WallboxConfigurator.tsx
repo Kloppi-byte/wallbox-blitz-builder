@@ -653,16 +653,13 @@ export function WallboxConfigurator() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Show categories that have autoselected or manually selected products */}
-                    {getAvailableKategorien()
-                      .filter((kategorie) => {
-                        // Show category if it has autoselected products or manually selected products
-                        const autoSelectedProducts = getAutoSelectProducts();
-                        const hasAutoSelected = autoSelectedProducts.some(p => p.kategorie.trim() === kategorie);
-                        const hasManuallySelected = config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
-                        return hasAutoSelected || hasManuallySelected;
-                      })
-                      .map((kategorie) => (
+                     {/* Show categories that have products currently selected */}
+                     {getAvailableKategorien()
+                       .filter((kategorie) => {
+                         // Only show category if it has products currently selected
+                         return config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                       })
+                       .map((kategorie) => (
                         <div key={kategorie} className="space-y-3">
                           <div className="flex items-center justify-between">
                             <h3 className="font-medium text-lg">{kategorie}</h3>
@@ -778,15 +775,12 @@ export function WallboxConfigurator() {
                           </div>
                         </SelectTrigger>
                         <SelectContent className="max-h-96">
-                          {getAvailableKategorien()
-                            .filter((kategorie) => {
-                              // Only show categories that are not already displayed
-                              const autoSelectedProducts = getAutoSelectProducts();
-                              const hasAutoSelected = autoSelectedProducts.some(p => p.kategorie.trim() === kategorie);
-                              const hasManuallySelected = config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
-                              return !hasAutoSelected && !hasManuallySelected;
-                            })
-                            .map((kategorie) => (
+                           {getAvailableKategorien()
+                             .filter((kategorie) => {
+                               // Only show categories that are not already displayed (don't have products selected)
+                               return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                             })
+                             .map((kategorie) => (
                               <div key={kategorie}>
                                 <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
                                   {kategorie}
