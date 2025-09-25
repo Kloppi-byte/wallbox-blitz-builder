@@ -718,11 +718,11 @@ export const WallboxConfigurator = () => {
                   <p className="text-sm text-muted-foreground">Wählen Sie zusätzliche Komponenten aus jeder Kategorie.</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                     {/* Show categories that have products currently selected */}
+                  <div className="space-y-6">
+                     {/* Show categories that have products currently selected (both auto-selected and manually added) */}
                      {getAvailableKategorien()
                        .filter((kategorie) => {
-                         // Only show category if it has products currently selected
+                         // Show category if it has products currently selected
                          return config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
                        })
                        .map((kategorie) => (
@@ -740,7 +740,7 @@ export const WallboxConfigurator = () => {
                               <SelectTrigger className="w-64">
                                 <SelectValue placeholder={`${kategorie} hinzufügen`} />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-h-60">
                                 <SelectItem value="none">Kein Produkt auswählen</SelectItem>
                                 {getProductsByKategorie(kategorie)
                                   .filter(p => !config.optionalProducts.some(selected => selected.artikelnummer === p.artikelnummer))
@@ -756,7 +756,7 @@ export const WallboxConfigurator = () => {
                           {/* Currently selected products for this category */}
                           <div className="space-y-2">
                             {config.optionalProducts
-                              .filter(p => p.kategorie === kategorie)
+                              .filter(p => p.kategorie.trim() === kategorie)
                               .map((product) => (
                                 <div key={product.artikelnummer} className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
                                   <div className="flex-1">
@@ -824,7 +824,7 @@ export const WallboxConfigurator = () => {
                         </div>
                        ))}
 
-                     {/* Add new categories */}
+                     {/* Add new categories - show dropdown for categories without selected products */}
                      {getAvailableKategorien()
                        .filter((kategorie) => {
                          // Only show category if it has NO products currently selected
@@ -845,7 +845,7 @@ export const WallboxConfigurator = () => {
                               <SelectTrigger className="w-64">
                                 <SelectValue placeholder={`${kategorie} hinzufügen`} />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-h-60">
                                 <SelectItem value="none">Kein Produkt auswählen</SelectItem>
                                 {getProductsByKategorie(kategorie).map((product) => (
                                   <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
