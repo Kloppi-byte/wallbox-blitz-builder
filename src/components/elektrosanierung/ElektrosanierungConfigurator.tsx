@@ -44,7 +44,9 @@ interface ProductOption {
   stunden_meister: number;
   stunden_geselle: number;
   stunden_monteur: number;
-  typ: string;
+  ueberkategorie: string;
+  ueberueberkategorie: string;
+  kategorie: string;
 }
 
 interface ConfigState {
@@ -201,8 +203,8 @@ export const ElektrosanierungConfigurator = () => {
     try {
       const { data, error } = await supabase
         .from('wallboxen')
-        .select('Artikelnummer, Name, Verkaufspreis, Typ, "stunden_meister", "stunden_geselle", "stunden_monteur"')
-        .ilike('Typ', '%Elektrosanierung%');
+        .select('Artikelnummer, Name, Verkaufspreis, "Überüberkategorie", "Überkategorie", Kategorie, "stunden_meister", "stunden_geselle", "stunden_monteur"')
+        .ilike('Überüberkategorie', '%Elektrosanierung%');
 
       if (error) {
         console.log('Could not fetch products from wallboxen - using fallback data');
@@ -224,7 +226,9 @@ export const ElektrosanierungConfigurator = () => {
             stunden_meister: parseFloat(row.stunden_meister) || 0,
             stunden_geselle: parseFloat(row.stunden_geselle) || 0,
             stunden_monteur: parseFloat(row.stunden_monteur) || 0,
-            typ: row.Typ || ''
+            ueberueberkategorie: String(row['Überüberkategorie'] || ''),
+            ueberkategorie: String(row['Überkategorie'] || ''),
+            kategorie: String(row.Kategorie || '')
           } as ProductOption;
         });
         setAvailableProducts(mapped);
@@ -327,26 +331,27 @@ export const ElektrosanierungConfigurator = () => {
   const getFilteredProducts = (categoryFilter: string): ProductOption[] => {
     if (!availableProducts.length) return [];
     
-    // Map component types to their corresponding Typ patterns in wallboxen
+    // Map component types to Überkategorie names in wallboxen
     const filterMap: Record<string, string> = {
-      'steckdose': 'elektrosanierung - steckdose sub',
-      'schalter': 'elektrosanierung - schalter sub',
-      'licht': 'elektrosanierung - licht sub',
-      'kabel': 'elektrosanierung - kabel sub',
-      'fi': 'elektrosanierung - fi sub',
-      'verteiler': 'elektrosanierung - verteiler sub',
-      'rauchmelder': 'elektrosanierung - rauchmelder sub',
-      'stromkreis': 'elektrosanierung - stromkreis sub',
-      'installation': 'elektrosanierung - installation sub',
-      'pruefung': 'elektrosanierung - pruefung sub'
+      'steckdose': 'steckdose',
+      'schalter': 'schalter',
+      'licht': 'licht',
+      'kabel': 'kabel',
+      'fi': 'fi',
+      'verteiler': 'verteiler',
+      'rauchmelder': 'rauchmelder',
+      'stromkreis': 'stromkreis',
+      'installation': 'leitungsverlegung',
+      'pruefung': 'prü'
     };
 
     const target = filterMap[categoryFilter];
     if (!target) return [];
 
     return availableProducts.filter((product) => {
-      const typ = (product.typ || '').toLowerCase();
-      return typ.includes(target);
+      const root = (product.ueberueberkategorie || '').toLowerCase();
+      const mid = (product.ueberkategorie || '').toLowerCase();
+      return root.includes('elektrosanierung') && mid.includes(target);
     });
   };
 
