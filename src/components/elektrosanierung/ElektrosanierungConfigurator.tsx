@@ -68,6 +68,7 @@ interface ConfiguratorState {
     meister: number;
     geselle: number;
     monteur: number;
+    travel: number;
     total: number;
   };
 }
@@ -83,7 +84,7 @@ export const ElektrosanierungConfigurator = () => {
       bewohnt: false
     },
     categories: [], // Start with empty categories
-    costs: { material: 0, meister: 0, geselle: 0, monteur: 0, total: 0 }
+    costs: { material: 0, meister: 0, geselle: 0, monteur: 0, travel: 0, total: 0 }
   });
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -233,7 +234,8 @@ export const ElektrosanierungConfigurator = () => {
         meister: meisterHours * 95,
         geselle: geselleHours * 85,
         monteur: monteurHours * 65,
-        total: materialCosts + laborCosts
+        travel: prev.costs.travel,
+        total: materialCosts + laborCosts + prev.costs.travel
       }
     }));
   };
@@ -366,6 +368,17 @@ export const ElektrosanierungConfigurator = () => {
     updateProductEntry(entryId, { product: selectedProduct });
   };
 
+  const updateTravelCosts = (amount: number) => {
+    setState(prev => ({
+      ...prev,
+      costs: {
+        ...prev.costs,
+        travel: amount,
+        total: prev.costs.material + prev.costs.meister + prev.costs.geselle + prev.costs.monteur + amount
+      }
+    }));
+  };
+
   const handleInputChange = (key: string, value: string) => {
     setTempInputs(prev => ({ ...prev, [key]: value }));
   };
@@ -407,7 +420,7 @@ export const ElektrosanierungConfigurator = () => {
       pricing: {
         materialCosts: state.costs.material,
         laborCosts: state.costs.meister + state.costs.geselle + state.costs.monteur,
-        travelCosts: 0,
+        travelCosts: state.costs.travel,
         subtotal: state.costs.total,
         subsidy: 0,
         total: state.costs.total
@@ -551,6 +564,11 @@ export const ElektrosanierungConfigurator = () => {
                 <div className="flex justify-between text-sm">
                   <span>Monteur:</span>
                   <span>{state.costs.monteur.toLocaleString('de-DE')}€</span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span>Anfahrtskosten:</span>
+                  <span>{state.costs.travel.toLocaleString('de-DE')}€</span>
                 </div>
 
                 <Separator />
@@ -763,6 +781,8 @@ export const ElektrosanierungConfigurator = () => {
                     type="number"
                     min="0"
                     step="0.01"
+                    value={state.costs.travel}
+                    onChange={e => updateTravelCosts(parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
                     className="max-w-40"
                   />
