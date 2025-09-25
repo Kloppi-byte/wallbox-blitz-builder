@@ -711,9 +711,69 @@ export const ElektrosanierungConfigurator = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Hours Summary and Travel Costs */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Stunden-Aufstellung & Anfahrtskosten
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Hours Breakdown */}
+                <div className="space-y-2">
+                  <h3 className="font-medium">Arbeitszeiten (Summe aller Positionen)</h3>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="bg-muted/30 p-3 rounded-md">
+                      <div className="font-medium text-center">Meister</div>
+                      <div className="text-lg font-bold text-center mt-1">
+                        {state.categories.reduce((total, cat) => 
+                          total + cat.productEntries.reduce((entryTotal, entry) => 
+                            entryTotal + (entry.product.stunden_meister * entry.quantity), 0), 0
+                        ).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-md">
+                      <div className="font-medium text-center">Geselle</div>
+                      <div className="text-lg font-bold text-center mt-1">
+                        {state.categories.reduce((total, cat) => 
+                          total + cat.productEntries.reduce((entryTotal, entry) => 
+                            entryTotal + (entry.product.stunden_geselle * entry.quantity), 0), 0
+                        ).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-md">
+                      <div className="font-medium text-center">Monteur</div>
+                      <div className="text-lg font-bold text-center mt-1">
+                        {state.categories.reduce((total, cat) => 
+                          total + cat.productEntries.reduce((entryTotal, entry) => 
+                            entryTotal + (entry.product.stunden_monteur * entry.quantity), 0), 0
+                        ).toFixed(1)}h
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Travel Costs */}
+                <div className="space-y-2">
+                  <Label htmlFor="anfahrtskosten">Anfahrtskosten (€)</Label>
+                  <Input
+                    id="anfahrtskosten"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="max-w-40"
+                  />
+                </div>
+               </CardContent>
+             </Card>
+           </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
+
+  export default ElektrosanierungConfigurator;
