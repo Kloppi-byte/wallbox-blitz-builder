@@ -279,8 +279,43 @@ export function WallboxConfigurator() {
     return wallboxPrice + requiredPrice + optionalPrice;
   };
 
+  const calculateTotalHours = () => {
+    let totalMeisterStunden = 0;
+    let totalGesellenstunden = 0;
+
+    // Add wallbox hours
+    if (config.selectedWallbox) {
+      const wallboxData = allProducts.find(p => p.artikelnummer === config.selectedWallbox!.artikelnummer);
+      if (wallboxData) {
+        totalMeisterStunden += parseFloat(wallboxData.stunden_meister || '0') * config.selectedWallbox.quantity;
+        totalGesellenstunden += parseFloat(wallboxData.stunden_geselle || '0') * config.selectedWallbox.quantity;
+      }
+    }
+
+    // Add required product hours
+    config.requiredProducts.forEach(product => {
+      const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
+      if (productData) {
+        totalMeisterStunden += parseFloat(productData.stunden_meister || '0') * product.quantity;
+        totalGesellenstunden += parseFloat(productData.stunden_geselle || '0') * product.quantity;
+      }
+    });
+
+    // Add optional product hours
+    config.optionalProducts.forEach(product => {
+      const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
+      if (productData) {
+        totalMeisterStunden += parseFloat(productData.stunden_meister || '0') * product.quantity;
+        totalGesellenstunden += parseFloat(productData.stunden_geselle || '0') * product.quantity;
+      }
+    });
+
+    return { totalMeisterStunden, totalGesellenstunden };
+  };
+
   const calculateLaborCosts = () => {
-    return (config.meisterStunden * config.meisterStundensatz) + (config.gesellenStunden * config.gesellenStundensatz);
+    const { totalMeisterStunden, totalGesellenstunden } = calculateTotalHours();
+    return (totalMeisterStunden * config.meisterStundensatz) + (totalGesellenstunden * config.gesellenStundensatz);
   };
 
   const calculateTotal = () => {
@@ -298,8 +333,8 @@ export function WallboxConfigurator() {
           wallbox: config.selectedWallbox,
           requiredProducts: config.requiredProducts,
           optionalProducts: config.optionalProducts,
-          meisterStunden: config.meisterStunden,
-          gesellenStunden: config.gesellenStunden
+          meisterStunden: calculateTotalHours().totalMeisterStunden,
+          gesellenStunden: calculateTotalHours().totalGesellenstunden
         },
         pricing: {
           materialCosts: calculateMaterialCosts(),
@@ -375,12 +410,24 @@ export function WallboxConfigurator() {
                           <div className="font-medium text-sm text-primary">Benötigte Komponenten</div>
                           {config.requiredProducts.map((product) => (
                             <div key={product.artikelnummer} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                              <div className="text-sm">
-                                <div>{product.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {product.quantity} {product.einheit}
-                                </div>
-                              </div>
+                               <div className="text-sm">
+                                 <div>{product.name}</div>
+                                 <div className="text-xs text-muted-foreground">
+                                   {product.quantity} {product.einheit}
+                                   {(() => {
+                                     const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
+                                     if (productData) {
+                                       const meisterStunden = parseFloat(productData.stunden_meister || '0');
+                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
+                                       const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
+                                       if (totalHours > 0) {
+                                         return ` • ${totalHours}h`;
+                                       }
+                                     }
+                                     return '';
+                                   })()}
+                                 </div>
+                               </div>
                               <div className="text-sm font-medium">
                                 {(product.price * product.quantity).toFixed(2)}€
                               </div>
@@ -398,19 +445,31 @@ export function WallboxConfigurator() {
                           <div className="font-medium text-sm text-green-600">Optionale Komponenten</div>
                           {config.optionalProducts.map((product) => (
                             <div key={product.artikelnummer} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                              <div className="text-sm flex-1">
-                                <div>{product.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={product.quantity}
-                                    onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                    className="w-16 h-6 text-xs mt-1"
-                                  />
-                                  {product.einheit}
-                                </div>
-                              </div>
+                               <div className="text-sm flex-1">
+                                 <div>{product.name}</div>
+                                 <div className="text-xs text-muted-foreground">
+                                   <Input
+                                     type="number"
+                                     min="1"
+                                     value={product.quantity}
+                                     onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                     className="w-16 h-6 text-xs mt-1"
+                                   />
+                                   {product.einheit}
+                                   {(() => {
+                                     const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
+                                     if (productData) {
+                                       const meisterStunden = parseFloat(productData.stunden_meister || '0');
+                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
+                                       const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
+                                       if (totalHours > 0) {
+                                         return ` • ${totalHours}h`;
+                                       }
+                                     }
+                                     return '';
+                                   })()}
+                                 </div>
+                               </div>
                               <div className="text-sm font-medium flex items-center gap-2">
                                 {(product.price * product.quantity).toFixed(2)}€
                                 <Button
@@ -569,16 +628,28 @@ export function WallboxConfigurator() {
                                   <div className="flex-1">
                                     <div className="font-medium">{product.name}</div>
                                     <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        value={product.quantity}
-                                        onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                        className="w-20"
-                                      />
-                                      <span className="text-sm">{product.einheit}</span>
-                                    </div>
+                                     <div className="flex items-center gap-2 mt-2">
+                                       <Input
+                                         type="number"
+                                         min="1"
+                                         value={product.quantity}
+                                         onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                         className="w-20"
+                                       />
+                                       <span className="text-sm">{product.einheit}</span>
+                                       {(() => {
+                                         const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
+                                         if (productData) {
+                                           const meisterStunden = parseFloat(productData.stunden_meister || '0');
+                                           const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
+                                           const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
+                                           if (totalHours > 0) {
+                                             return <span className="text-sm text-muted-foreground">• {totalHours}h</span>;
+                                           }
+                                         }
+                                         return null;
+                                       })()}
+                                     </div>
                                   </div>
                                   <div className="text-right">
                                     <div className="text-lg font-bold text-primary">
@@ -661,36 +732,48 @@ export function WallboxConfigurator() {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">Passen Sie die Arbeitsstunden bei Bedarf an.</p>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={config.meisterStunden}
-                      onChange={(e) => updateLaborHours('meister', parseFloat(e.target.value) || 0)}
-                    />
-                    <div className="text-sm text-muted-foreground">
-                      = {(config.meisterStunden * config.meisterStundensatz).toFixed(2)}€
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gesellenstunden (à {config.gesellenStundensatz}€)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={config.gesellenStunden}
-                      onChange={(e) => updateLaborHours('geselle', parseFloat(e.target.value) || 0)}
-                    />
-                    <div className="text-sm text-muted-foreground">
-                      = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+               <CardContent>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                     <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
+                     <div className="relative">
+                       <Input
+                         type="number"
+                         min="0"
+                         step="0.5"
+                         value={calculateTotalHours().totalMeisterStunden}
+                         readOnly
+                         className="bg-muted cursor-not-allowed"
+                       />
+                       <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                         <span className="text-sm text-muted-foreground">Automatisch berechnet</span>
+                       </div>
+                     </div>
+                     <div className="text-sm text-muted-foreground">
+                       = {(calculateTotalHours().totalMeisterStunden * config.meisterStundensatz).toFixed(2)}€
+                     </div>
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Gesellenstunden (à {config.gesellenStundensatz}€)</Label>
+                     <div className="relative">
+                       <Input
+                         type="number"
+                         min="0"
+                         step="0.5"
+                         value={calculateTotalHours().totalGesellenstunden}
+                         readOnly
+                         className="bg-muted cursor-not-allowed"
+                       />
+                       <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                         <span className="text-sm text-muted-foreground">Automatisch berechnet</span>
+                       </div>
+                     </div>
+                     <div className="text-sm text-muted-foreground">
+                       = {(calculateTotalHours().totalGesellenstunden * config.gesellenStundensatz).toFixed(2)}€
+                     </div>
+                   </div>
+                 </div>
+               </CardContent>
             </Card>
           </div>
         </div>
