@@ -635,15 +635,15 @@ export const WallboxConfigurator = () => {
                             Alternative Produkte
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Alternative Wallbox-Produkte</DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-4 mt-4">
+                          <div className="grid gap-4 mt-4">
                             {getWallboxes().map((wallbox) => (
                               <div 
                                 key={wallbox.artikelnummer}
-                                className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                                className={`flex gap-4 p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                                   config.selectedWallbox?.artikelnummer === wallbox.artikelnummer 
                                     ? 'border-primary bg-primary/5 ring-2 ring-primary' 
                                     : 'border-border hover:border-primary'
@@ -653,20 +653,31 @@ export const WallboxConfigurator = () => {
                                   setIsAlternativesOpen(false);
                                 }}
                               >
-                                <div className="flex items-center justify-between">
+                                {/* Image placeholder on the left */}
+                                <div className="flex-shrink-0 w-32 h-24 bg-muted rounded-lg flex items-center justify-center border">
+                                  <div className="text-xs text-muted-foreground text-center">
+                                    Wallbox<br />Bild
+                                  </div>
+                                </div>
+                                
+                                {/* Product information */}
+                                <div className="flex-1 flex items-center justify-between">
                                   <div className="flex-1">
-                                    <h3 className="font-semibold">{wallbox.name}</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">{wallbox.beschreibung}</p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <span className="text-sm text-muted-foreground">{wallbox.einheit}</span>
+                                    <h3 className="font-semibold text-lg">{wallbox.name}</h3>
+                                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{wallbox.beschreibung}</p>
+                                    <div className="flex items-center gap-2 mt-3">
+                                      <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded">{wallbox.einheit}</span>
                                       {config.selectedWallbox?.artikelnummer === wallbox.artikelnummer && (
-                                        <Badge variant="secondary">Ausgewählt</Badge>
+                                        <Badge variant="default" className="bg-primary text-primary-foreground">Ausgewählt</Badge>
                                       )}
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <div className="text-lg font-bold text-primary">
+                                  <div className="text-right ml-4">
+                                    <div className="text-2xl font-bold text-primary">
                                       {parseFloat(wallbox.verkaufspreis).toFixed(2)}€
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      inkl. MwSt.
                                     </div>
                                   </div>
                                 </div>
