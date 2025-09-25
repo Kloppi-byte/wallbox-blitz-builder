@@ -428,31 +428,12 @@ export function WallboxConfigurator() {
                      <div className="p-3 bg-primary/10 rounded-lg">
                        <div className="font-medium text-primary">Wallbox</div>
                        <div className="text-sm">{config.selectedWallbox.name}</div>
-                       <div className="flex justify-between items-center mt-2">
-                         <div className="flex items-center gap-2 text-xs">
-                           <span>M:</span>
-                           <Input
-                             type="number"
-                             min="0"
-                             step="0.5"
-                             value={config.selectedWallbox.customMeisterStunden || 0}
-                             onChange={(e) => updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
-                             className="w-12 h-6 text-xs"
-                           />
-                           <span>h, G:</span>
-                           <Input
-                             type="number"
-                             min="0"
-                             step="0.5"
-                             value={config.selectedWallbox.customGesellenstunden || 0}
-                             onChange={(e) => updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
-                             className="w-12 h-6 text-xs"
-                           />
-                           <span>h</span>
-                         </div>
-                         <div className="text-right font-bold">
-                           {config.selectedWallbox.price.toFixed(2)}€
-                         </div>
+                       <div className="text-xs text-muted-foreground mt-1">
+                         M: {(config.selectedWallbox.customMeisterStunden || 0) * config.selectedWallbox.quantity}h, 
+                         G: {(config.selectedWallbox.customGesellenstunden || 0) * config.selectedWallbox.quantity}h
+                       </div>
+                       <div className="text-right font-bold">
+                         {config.selectedWallbox.price.toFixed(2)}€
                        </div>
                      </div>
 
@@ -466,27 +447,10 @@ export function WallboxConfigurator() {
                              <div key={product.artikelnummer} className="flex justify-between items-center p-2 bg-muted/50 rounded">
                                <div className="text-sm">
                                  <div>{product.name}</div>
-                                 <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                   <span>{product.quantity} {product.einheit}</span>
-                                   <span>• M:</span>
-                                   <Input
-                                     type="number"
-                                     min="0"
-                                     step="0.5"
-                                     value={product.customMeisterStunden || 0}
-                                     onChange={(e) => updateProductHours('required', product.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
-                                     className="w-12 h-5 text-xs"
-                                   />
-                                   <span>h, G:</span>
-                                   <Input
-                                     type="number"
-                                     min="0"
-                                     step="0.5"
-                                     value={product.customGesellenstunden || 0}
-                                     onChange={(e) => updateProductHours('required', product.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
-                                     className="w-12 h-5 text-xs"
-                                   />
-                                   <span>h</span>
+                                 <div className="text-xs text-muted-foreground">
+                                   {product.quantity} {product.einheit} • 
+                                   M: {(product.customMeisterStunden || 0) * product.quantity}h, 
+                                   G: {(product.customGesellenstunden || 0) * product.quantity}h
                                  </div>
                                </div>
                                <div className="text-sm font-medium">
@@ -509,35 +473,16 @@ export function WallboxConfigurator() {
                                <div className="text-sm flex-1">
                                  <div>{product.name}</div>
                                  <div className="text-xs text-muted-foreground">
-                                   <div className="flex items-center gap-1 mt-1">
-                                     <Input
-                                       type="number"
-                                       min="1"
-                                       value={product.quantity}
-                                       onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                       className="w-16 h-6 text-xs"
-                                     />
-                                     <span>{product.einheit}</span>
-                                     <span>• M:</span>
-                                     <Input
-                                       type="number"
-                                       min="0"
-                                       step="0.5"
-                                       value={product.customMeisterStunden || 0}
-                                       onChange={(e) => updateProductHours('optional', product.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
-                                       className="w-12 h-5 text-xs"
-                                     />
-                                     <span>h, G:</span>
-                                     <Input
-                                       type="number"
-                                       min="0"
-                                       step="0.5"
-                                       value={product.customGesellenstunden || 0}
-                                       onChange={(e) => updateProductHours('optional', product.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
-                                       className="w-12 h-5 text-xs"
-                                     />
-                                     <span>h</span>
-                                   </div>
+                                   <Input
+                                     type="number"
+                                     min="1"
+                                     value={product.quantity}
+                                     onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                     className="w-16 h-6 text-xs mt-1"
+                                   />
+                                   {product.einheit} • 
+                                   M: {(product.customMeisterStunden || 0) * product.quantity}h, 
+                                   G: {(product.customGesellenstunden || 0) * product.quantity}h
                                  </div>
                                </div>
                               <div className="text-sm font-medium flex items-center gap-2">
@@ -611,36 +556,61 @@ export function WallboxConfigurator() {
                 <CardTitle>Wallbox auswählen</CardTitle>
                 <p className="text-sm text-muted-foreground">Wählen Sie zunächst Ihre gewünschte Wallbox aus.</p>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {getWallboxes().map((wallbox) => (
-                    <Card 
-                      key={wallbox.artikelnummer}
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        config.selectedWallbox?.artikelnummer === wallbox.artikelnummer 
-                          ? 'ring-2 ring-primary' 
-                          : ''
-                      }`}
-                      onClick={() => selectWallbox(wallbox)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold">{wallbox.name}</h3>
-                          <p className="text-sm text-muted-foreground">{wallbox.beschreibung}</p>
-                          <div className="flex justify-between items-center">
-                            <span className="text-lg font-bold text-primary">
-                              {parseFloat(wallbox.verkaufspreis).toFixed(2)}€
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {wallbox.einheit}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
+               <CardContent>
+                 <div className="space-y-4">
+                   {getWallboxes().map((wallbox) => (
+                     <div 
+                       key={wallbox.artikelnummer}
+                       className={`p-4 bg-primary/10 rounded-lg border border-primary/20 cursor-pointer transition-all hover:shadow-md ${
+                         config.selectedWallbox?.artikelnummer === wallbox.artikelnummer 
+                           ? 'ring-2 ring-primary' 
+                           : ''
+                       }`}
+                       onClick={() => selectWallbox(wallbox)}
+                     >
+                       <div className="flex items-center justify-between">
+                         <div className="flex-1">
+                           <h3 className="font-semibold">{wallbox.name}</h3>
+                           <p className="text-sm text-muted-foreground mt-1">{wallbox.beschreibung}</p>
+                           <div className="flex items-center gap-2 mt-2">
+                             <span className="text-sm">{wallbox.einheit}</span>
+                             {config.selectedWallbox?.artikelnummer === wallbox.artikelnummer && (
+                               <>
+                                 <span className="text-sm">• M:</span>
+                                 <Input
+                                   type="number"
+                                   min="0"
+                                   step="0.5"
+                                   value={config.selectedWallbox?.customMeisterStunden || 0}
+                                   onChange={(e) => updateProductHours('wallbox', wallbox.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
+                                   className="w-16"
+                                   onClick={(e) => e.stopPropagation()}
+                                 />
+                                 <span className="text-sm">h, G:</span>
+                                 <Input
+                                   type="number"
+                                   min="0"
+                                   step="0.5"
+                                   value={config.selectedWallbox?.customGesellenstunden || 0}
+                                   onChange={(e) => updateProductHours('wallbox', wallbox.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
+                                   className="w-16"
+                                   onClick={(e) => e.stopPropagation()}
+                                 />
+                                 <span className="text-sm">h</span>
+                               </>
+                             )}
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <div className="text-lg font-bold text-primary">
+                             {parseFloat(wallbox.verkaufspreis).toFixed(2)}€
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               </CardContent>
             </Card>
 
             {/* Optional Components */}
