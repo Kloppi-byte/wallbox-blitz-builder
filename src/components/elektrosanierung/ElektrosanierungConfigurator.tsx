@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
-import { Building, Users, Home, Calendar, Plus, Minus, Euro, Clock, Info } from 'lucide-react';
+import { Building, Users, Home, Calendar, Plus, Minus, Euro, Clock, Info, X, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 // Types
@@ -77,7 +77,7 @@ export const ElektrosanierungConfigurator = () => {
       unterputz: true,
       bewohnt: false
     },
-    categories: [],
+    categories: [], // Start with empty categories
     costs: { material: 0, meister: 0, geselle: 0, monteur: 0, total: 0 }
   });
 
@@ -85,6 +85,7 @@ export const ElektrosanierungConfigurator = () => {
   const [loading, setLoading] = useState(true);
   const [tempInputs, setTempInputs] = useState<Record<string, string>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const { toast } = useToast();
   const { addItem } = useCart();
 
@@ -93,12 +94,19 @@ export const ElektrosanierungConfigurator = () => {
     fetchProducts();
   }, []);
 
-  // Calculate categories and costs when parameters or selections change
+  // Calculate costs when parameters or selections change
   useEffect(() => {
     if (products.length > 0) {
-      calculateCategoriesAndCosts();
+      calculateCosts();
+      // Extract available categories from products
+      const categories = [...new Set(products
+        .filter(p => !p.kategorie.includes('Produkt') && p.kategorie.trim() === '')
+        .map(p => p.ueberkategorie)
+        .filter(Boolean)
+      )];
+      setAvailableCategories(categories);
     }
-  }, [products, state.parameters]);
+  }, [products, state.parameters, state.categories]);
 
   const fetchProducts = async () => {
     try {
@@ -188,57 +196,13 @@ export const ElektrosanierungConfigurator = () => {
     return Math.ceil(Math.max(0, quantity));
   };
 
-  const calculateCategoriesAndCosts = () => {
-    // Group products by Überkategorie
-    const categoryGroups = new Map<string, CategoryGroup>();
-
-    // Find base products (without "Produkt" suffix in Kategorie)
-    const baseProducts = products.filter(p => !p.kategorie.includes('Produkt') && p.kategorie.trim() === '');
-    
-    // Create category groups from base products
-    baseProducts.forEach(baseProduct => {
-      if (!baseProduct.ueberkategorie) return;
-
-      const defaultQuantity = calculateQuantity(baseProduct, state.parameters);
-      
-      // Find product variants (with "Produkt" suffix)
-      const productOptions = products.filter(p => 
-        p.ueberkategorie === baseProduct.ueberkategorie && 
-        p.kategorie.includes('Produkt')
-      );
-
-      // Find preselected or cheapest product
-      let selectedProduct = productOptions.find(p => p.preselect);
-      if (!selectedProduct && productOptions.length > 0) {
-        selectedProduct = productOptions.reduce((min, current) => 
-          current.verkaufspreis < min.verkaufspreis ? current : min
-        );
-      }
-
-      // Check if this category was manually edited
-      const existingCategory = state.categories.find(c => c.ueberkategorie === baseProduct.ueberkategorie);
-      const isManuallyEdited = existingCategory?.isManuallyEdited || false;
-      const quantity = isManuallyEdited ? existingCategory.quantity : defaultQuantity;
-
-      categoryGroups.set(baseProduct.ueberkategorie, {
-        name: baseProduct.name,
-        ueberkategorie: baseProduct.ueberkategorie,
-        baseProduct,
-        productOptions,
-        quantity,
-        selectedProduct: existingCategory?.selectedProduct || selectedProduct,
-        defaultQuantity,
-        isManuallyEdited
-      });
-    });
-
-    // Calculate costs
+  const calculateCosts = () => {
     let materialCosts = 0;
     let meisterHours = 0;
     let geselleHours = 0;
     let monteurHours = 0;
 
-    Array.from(categoryGroups.values()).forEach(category => {
+    state.categories.forEach(category => {
       if (category.selectedProduct && category.quantity > 0) {
         materialCosts += category.selectedProduct.verkaufspreis * category.quantity;
         meisterHours += category.selectedProduct.stunden_meister * category.quantity;
@@ -257,7 +221,6 @@ export const ElektrosanierungConfigurator = () => {
 
     setState(prev => ({
       ...prev,
-      categories: Array.from(categoryGroups.values()),
       costs: {
         material: materialCosts,
         meister: meisterHours * 95,
@@ -265,6 +228,56 @@ export const ElektrosanierungConfigurator = () => {
         monteur: monteurHours * 65,
         total: materialCosts + laborCosts
       }
+    }));
+  };
+
+  const addCategory = (ueberkategorie: string) => {
+    // Find base product for this category
+    const baseProduct = products.find(p => 
+      p.ueberkategorie === ueberkategorie && 
+      !p.kategorie.includes('Produkt') && 
+      p.kategorie.trim() === ''
+    );
+
+    if (!baseProduct) return;
+
+    const defaultQuantity = calculateQuantity(baseProduct, state.parameters);
+    
+    // Find product variants
+    const productOptions = products.filter(p => 
+      p.ueberkategorie === ueberkategorie && 
+      p.kategorie.includes('Produkt')
+    );
+
+    // Find preselected or cheapest product
+    let selectedProduct = productOptions.find(p => p.preselect);
+    if (!selectedProduct && productOptions.length > 0) {
+      selectedProduct = productOptions.reduce((min, current) => 
+        current.verkaufspreis < min.verkaufspreis ? current : min
+      );
+    }
+
+    const newCategory: CategoryGroup = {
+      name: baseProduct.name,
+      ueberkategorie,
+      baseProduct,
+      productOptions,
+      quantity: defaultQuantity,
+      selectedProduct,
+      defaultQuantity,
+      isManuallyEdited: false
+    };
+
+    setState(prev => ({
+      ...prev,
+      categories: [...prev.categories, newCategory]
+    }));
+  };
+
+  const removeCategory = (ueberkategorie: string) => {
+    setState(prev => ({
+      ...prev,
+      categories: prev.categories.filter(cat => cat.ueberkategorie !== ueberkategorie)
     }));
   };
 
@@ -280,7 +293,11 @@ export const ElektrosanierungConfigurator = () => {
       ...prev,
       categories: prev.categories.map(cat =>
         cat.ueberkategorie === ueberkategorie
-          ? { ...cat, quantity, isManuallyEdited: true }
+          ? { 
+              ...cat, 
+              quantity, 
+              isManuallyEdited: true
+            }
           : cat
       )
     }));
@@ -504,16 +521,26 @@ export const ElektrosanierungConfigurator = () => {
                 <CardTitle>Komponenten-Auswahl</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {state.categories.map(category => (
-                    <div key={category.ueberkategorie} className="border rounded-lg p-4">
-                      <h3 className="font-semibold mb-3">{category.name}</h3>
+                    <div key={category.ueberkategorie} className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-lg">{category.name}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCategory(category.ueberkategorie)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                      <div className="grid grid-cols-3 gap-4">
                         {/* Quantity Control */}
                         <div>
-                          <Label>Menge</Label>
-                          <div className="flex items-center gap-2">
+                          <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
+                          <div className="flex items-center gap-2 mt-1">
                             <Button
                               variant="outline"
                               size="sm"
@@ -526,7 +553,7 @@ export const ElektrosanierungConfigurator = () => {
                               min="0"
                               value={category.quantity}
                               onChange={e => updateCategoryQuantity(category.ueberkategorie, parseInt(e.target.value) || 0)}
-                              className="text-center"
+                              className="text-center w-24"
                             />
                             <Button
                               variant="outline"
@@ -536,16 +563,22 @@ export const ElektrosanierungConfigurator = () => {
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
+                          {!category.isManuallyEdited && (
+                            <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              Automatisch berechnet ({category.defaultQuantity} Stück)
+                            </div>
+                          )}
                         </div>
 
                         {/* Product Selection */}
                         <div>
-                          <Label>Produktvariante</Label>
+                          <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
                           <Select
                             value={category.selectedProduct?.artikelnummer.toString() || ''}
                             onValueChange={value => updateCategoryProduct(category.ueberkategorie, parseInt(value))}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Produkt wählen" />
                             </SelectTrigger>
                             <SelectContent>
@@ -560,30 +593,46 @@ export const ElektrosanierungConfigurator = () => {
 
                         {/* Cost Information */}
                         <div>
-                          <Label>Kosten</Label>
-                          <div className="text-sm">
+                          <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
+                          <div className="mt-1">
                             {category.selectedProduct && category.quantity > 0 ? (
-                              <div>
-                                <div>Material: {(category.selectedProduct.verkaufspreis * category.quantity).toLocaleString('de-DE')}€</div>
-                                <div className="text-muted-foreground">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium">
+                                  Material: {(category.selectedProduct.verkaufspreis * category.quantity).toLocaleString('de-DE')}€
+                                </div>
+                                <div className="text-xs text-muted-foreground">
                                   Arbeitszeit: {((category.selectedProduct.stunden_meister + category.selectedProduct.stunden_geselle + category.selectedProduct.stunden_monteur) * category.quantity).toFixed(1)}h
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </div>
                         </div>
                       </div>
-                      
-                      {!category.isManuallyEdited && (
-                        <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-                          <Info className="h-3 w-3" />
-                          Automatisch berechnet ({category.defaultQuantity} Stück)
-                        </div>
-                      )}
                     </div>
                   ))}
+
+                  {/* Add Category Button */}
+                  <div className="border-2 border-dashed border-muted rounded-lg p-6">
+                    <Select onValueChange={addCategory}>
+                      <SelectTrigger className="w-full">
+                        <div className="flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          <SelectValue placeholder="Leistung hinzufügen" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCategories
+                          .filter(cat => !state.categories.some(existing => existing.ueberkategorie === cat))
+                          .map(category => (
+                            <SelectItem key={category} value={category}>
+                              {products.find(p => p.ueberkategorie === category && !p.kategorie.includes('Produkt'))?.name || category}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
