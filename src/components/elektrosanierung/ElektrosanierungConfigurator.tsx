@@ -653,8 +653,16 @@ export const ElektrosanierungConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedElektrosanierung?.customMeisterStunden || 0}
-                                onChange={(e) => updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
+                                value={config.selectedElektrosanierung?.customMeisterStunden === 0 ? '' : config.selectedElektrosanierung?.customMeisterStunden || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', value === '' ? 0 : parseFloat(value) || 0);
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', 0);
+                                  }
+                                }}
                                 className="w-16"
                               />
                               <span className="text-sm">h, G:</span>
@@ -662,8 +670,16 @@ export const ElektrosanierungConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedElektrosanierung?.customGesellenstunden || 0}
-                                onChange={(e) => updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
+                                value={config.selectedElektrosanierung?.customGesellenstunden === 0 ? '' : config.selectedElektrosanierung?.customGesellenstunden || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', value === '' ? 0 : parseFloat(value) || 0);
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', 0);
+                                  }
+                                }}
                                 className="w-16"
                               />
                               <span className="text-sm">h, Mo:</span>
@@ -671,8 +687,16 @@ export const ElektrosanierungConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedElektrosanierung?.customMonteurStunden || 0}
-                                onChange={(e) => updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', parseFloat(e.target.value) || 0)}
+                                value={config.selectedElektrosanierung?.customMonteurStunden === 0 ? '' : config.selectedElektrosanierung?.customMonteurStunden || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', value === '' ? 0 : parseFloat(value) || 0);
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', 0);
+                                  }
+                                }}
                                 className="w-16"
                               />
                               <span className="text-sm">h</span>
@@ -819,41 +843,77 @@ export const ElektrosanierungConfigurator = () => {
                                     <div className="font-medium">{product.name}</div>
                                     <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
                                      <div className="flex items-center gap-2 mt-2">
-                                       <Input
-                                         type="number"
-                                         min="1"
-                                         value={product.quantity}
-                                         onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                         className="w-20"
-                                       />
+                              <Input
+                                type="number"
+                                min="1"
+                                value={product.quantity === 0 ? '' : product.quantity}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '' || value === '0') {
+                                    updateProductQuantity('optional', product.artikelnummer, 0);
+                                  } else {
+                                    updateProductQuantity('optional', product.artikelnummer, parseInt(value) || 1);
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '' || e.target.value === '0') {
+                                    updateProductQuantity('optional', product.artikelnummer, 1);
+                                  }
+                                }}
+                                className="w-20"
+                              />
                                        <span className="text-sm">{product.einheit}</span>
                                        <span className="text-sm">• M:</span>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         step="0.5"
-                                         value={product.customMeisterStunden || 0}
-                                         onChange={(e) => updateProductHours('optional', product.artikelnummer, 'meister', parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={product.customMeisterStunden === 0 ? '' : product.customMeisterStunden || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            updateProductHours('optional', product.artikelnummer, 'meister', value === '' ? 0 : parseFloat(value) || 0);
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              updateProductHours('optional', product.artikelnummer, 'meister', 0);
+                            }
+                          }}
+                          className="w-16"
+                        />
                                        <span className="text-sm">h, G:</span>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         step="0.5"
-                                         value={product.customGesellenstunden || 0}
-                                         onChange={(e) => updateProductHours('optional', product.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={product.customGesellenstunden === 0 ? '' : product.customGesellenstunden || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            updateProductHours('optional', product.artikelnummer, 'geselle', value === '' ? 0 : parseFloat(value) || 0);
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              updateProductHours('optional', product.artikelnummer, 'geselle', 0);
+                            }
+                          }}
+                          className="w-16"
+                        />
                                        <span className="text-sm">h, Mo:</span>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         step="0.5"
-                                         value={product.customMonteurStunden || 0}
-                                         onChange={(e) => updateProductHours('optional', product.artikelnummer, 'monteur', parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={product.customMonteurStunden === 0 ? '' : product.customMonteurStunden || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            updateProductHours('optional', product.artikelnummer, 'monteur', value === '' ? 0 : parseFloat(value) || 0);
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              updateProductHours('optional', product.artikelnummer, 'monteur', 0);
+                            }
+                          }}
+                          className="w-16"
+                        />
                                        <span className="text-sm">h</span>
                                      </div>
                                   </div>
