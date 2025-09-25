@@ -1,4 +1,4 @@
-import WallboxConfigurator from '@/components/wallbox/WallboxConfigurator';
+import { WallboxConfigurator } from '@/components/wallbox/WallboxConfigurator';
 
 const Index = () => {
   return <WallboxConfigurator />;
