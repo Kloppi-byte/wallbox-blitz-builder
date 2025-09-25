@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Calculator, Zap } from "lucide-react";
+import { Calculator, Zap, Wrench } from "lucide-react";
 import { CartIcon } from "@/components/cart/CartIcon";
 
 const Landing = () => {
@@ -22,7 +22,7 @@ const Landing = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
@@ -55,6 +55,24 @@ const Landing = () => {
                 size="lg"
               >
                 Wallbox konfigurieren
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Wrench className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Elektrosanierung</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button 
+                onClick={() => navigate('/elektrosanierung')}
+                className="w-full"
+                size="lg"
+              >
+                Elektrosanierung konfigurieren
               </Button>
             </CardContent>
           </Card>
