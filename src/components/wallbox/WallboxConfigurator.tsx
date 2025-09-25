@@ -103,6 +103,14 @@ export function WallboxConfigurator() {
       }));
 
       setAllProducts(products);
+      
+      // Auto-select first wallbox if none is selected
+      if (products.length > 0 && !config.selectedWallbox) {
+        const wallboxes = products.filter(p => p.kategorie === 'Wallbox');
+        if (wallboxes.length > 0) {
+          selectWallbox(wallboxes[0]);
+        }
+      }
     } catch (error) {
       console.error('Error loading products:', error);
       toast({
