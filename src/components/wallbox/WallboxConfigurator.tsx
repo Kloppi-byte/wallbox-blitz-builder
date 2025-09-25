@@ -653,10 +653,14 @@ export const WallboxConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedWallbox?.customMeisterStunden === 0 ? '' : config.selectedWallbox?.customMeisterStunden || ''}
+                                value={config.selectedWallbox?.customMeisterStunden || 0}
                                 onChange={(e) => {
                                   const value = e.target.value;
-                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'meister', value === '' ? 0 : parseFloat(value) || 0);
+                                  if (value === '') {
+                                    // Temporarily allow empty for user input
+                                    return;
+                                  }
+                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'meister', parseFloat(value) || 0);
                                 }}
                                 onBlur={(e) => {
                                   if (e.target.value === '') {
@@ -670,10 +674,14 @@ export const WallboxConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedWallbox?.customGesellenstunden === 0 ? '' : config.selectedWallbox?.customGesellenstunden || ''}
+                                value={config.selectedWallbox?.customGesellenstunden || 0}
                                 onChange={(e) => {
                                   const value = e.target.value;
-                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'geselle', value === '' ? 0 : parseFloat(value) || 0);
+                                  if (value === '') {
+                                    // Temporarily allow empty for user input
+                                    return;
+                                  }
+                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'geselle', parseFloat(value) || 0);
                                 }}
                                 onBlur={(e) => {
                                   if (e.target.value === '') {
@@ -687,10 +695,14 @@ export const WallboxConfigurator = () => {
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={config.selectedWallbox?.customMonteurStunden === 0 ? '' : config.selectedWallbox?.customMonteurStunden || ''}
+                                value={config.selectedWallbox?.customMonteurStunden || 0}
                                 onChange={(e) => {
                                   const value = e.target.value;
-                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'monteur', value === '' ? 0 : parseFloat(value) || 0);
+                                  if (value === '') {
+                                    // Temporarily allow empty for user input
+                                    return;
+                                  }
+                                  updateProductHours('wallbox', config.selectedWallbox.artikelnummer, 'monteur', parseFloat(value) || 0);
                                 }}
                                 onBlur={(e) => {
                                   if (e.target.value === '') {
@@ -846,14 +858,14 @@ export const WallboxConfigurator = () => {
                               <Input
                                 type="number"
                                 min="1"
-                                value={product.quantity === 0 ? '' : product.quantity}
+                                value={product.quantity}
                                 onChange={(e) => {
                                   const value = e.target.value;
-                                  if (value === '' || value === '0') {
-                                    updateProductQuantity('optional', product.artikelnummer, 0);
-                                  } else {
-                                    updateProductQuantity('optional', product.artikelnummer, parseInt(value) || 1);
+                                  if (value === '') {
+                                    // Temporarily allow empty for user input
+                                    return;
                                   }
+                                  updateProductQuantity('optional', product.artikelnummer, parseInt(value) || 1);
                                 }}
                                 onBlur={(e) => {
                                   if (e.target.value === '' || e.target.value === '0') {
@@ -868,10 +880,14 @@ export const WallboxConfigurator = () => {
                           type="number"
                           min="0"
                           step="0.5"
-                          value={product.customMeisterStunden === 0 ? '' : product.customMeisterStunden || ''}
+                          value={product.customMeisterStunden || 0}
                           onChange={(e) => {
                             const value = e.target.value;
-                            updateProductHours('optional', product.artikelnummer, 'meister', value === '' ? 0 : parseFloat(value) || 0);
+                            if (value === '') {
+                              // Temporarily allow empty for user input
+                              return;
+                            }
+                            updateProductHours('optional', product.artikelnummer, 'meister', parseFloat(value) || 0);
                           }}
                           onBlur={(e) => {
                             if (e.target.value === '') {
@@ -885,10 +901,14 @@ export const WallboxConfigurator = () => {
                           type="number"
                           min="0"
                           step="0.5"
-                          value={product.customGesellenstunden === 0 ? '' : product.customGesellenstunden || ''}
+                          value={product.customGesellenstunden || 0}
                           onChange={(e) => {
                             const value = e.target.value;
-                            updateProductHours('optional', product.artikelnummer, 'geselle', value === '' ? 0 : parseFloat(value) || 0);
+                            if (value === '') {
+                              // Temporarily allow empty for user input
+                              return;
+                            }
+                            updateProductHours('optional', product.artikelnummer, 'geselle', parseFloat(value) || 0);
                           }}
                           onBlur={(e) => {
                             if (e.target.value === '') {
@@ -902,10 +922,14 @@ export const WallboxConfigurator = () => {
                           type="number"
                           min="0"
                           step="0.5"
-                          value={product.customMonteurStunden === 0 ? '' : product.customMonteurStunden || ''}
+                          value={product.customMonteurStunden || 0}
                           onChange={(e) => {
                             const value = e.target.value;
-                            updateProductHours('optional', product.artikelnummer, 'monteur', value === '' ? 0 : parseFloat(value) || 0);
+                            if (value === '') {
+                              // Temporarily allow empty for user input
+                              return;
+                            }
+                            updateProductHours('optional', product.artikelnummer, 'monteur', parseFloat(value) || 0);
                           }}
                           onBlur={(e) => {
                             if (e.target.value === '') {
