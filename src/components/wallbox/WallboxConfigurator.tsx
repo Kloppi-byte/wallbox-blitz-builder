@@ -5,13 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
-import { Zap, Euro, Plus, Clock } from 'lucide-react';
+import { Zap, Euro, Clock } from 'lucide-react';
 
 interface WallboxProduct {
   artikelnummer: number;
@@ -72,8 +71,6 @@ export function WallboxConfigurator() {
     anfahrtZone: '',
     anfahrtKosten: 0
   });
-
-  const [showAdditionalProducts, setShowAdditionalProducts] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     loadProducts();
@@ -221,33 +218,34 @@ export function WallboxConfigurator() {
       meisterStunden,
       gesellenStunden
     }));
-
-    // Reset additional product visibility
-    setShowAdditionalProducts({});
   };
 
-  const selectOptionalProduct = (kategorie: string, product: WallboxProduct | null) => {
-    setConfig(prev => {
-      const newOptionalProducts = prev.optionalProducts.filter(p => p.kategorie !== kategorie);
-      
-      if (product) {
-        const selectedProduct: SelectedProduct = {
-          artikelnummer: product.artikelnummer,
-          name: product.name,
-          price: parseFloat(product.verkaufspreis) || 0,
-          kategorie: product.kategorie,
-          beschreibung: product.beschreibung,
-          quantity: product.anzahl_einheit || 1,
-          einheit: product.einheit
-        };
-        newOptionalProducts.push(selectedProduct);
-      }
+  const addOptionalProduct = (product: WallboxProduct) => {
+    // Check if product is already selected
+    const isAlreadySelected = config.optionalProducts.some(p => p.artikelnummer === product.artikelnummer);
+    if (isAlreadySelected) return;
 
-      return {
-        ...prev,
-        optionalProducts: newOptionalProducts
-      };
-    });
+    const selectedProduct: SelectedProduct = {
+      artikelnummer: product.artikelnummer,
+      name: product.name,
+      price: parseFloat(product.verkaufspreis) || 0,
+      kategorie: product.kategorie,
+      beschreibung: product.beschreibung,
+      quantity: product.anzahl_einheit || 1,
+      einheit: product.einheit
+    };
+
+    setConfig(prev => ({
+      ...prev,
+      optionalProducts: [...prev.optionalProducts, selectedProduct]
+    }));
+  };
+
+  const removeOptionalProduct = (artikelnummer: number) => {
+    setConfig(prev => ({
+      ...prev,
+      optionalProducts: prev.optionalProducts.filter(p => p.artikelnummer !== artikelnummer)
+    }));
   };
 
   const updateProductQuantity = (type: 'required' | 'optional', artikelnummer: number, quantity: number) => {
@@ -392,14 +390,29 @@ export function WallboxConfigurator() {
                           <div className="font-medium text-sm text-green-600">Optionale Komponenten</div>
                           {config.optionalProducts.map((product) => (
                             <div key={product.artikelnummer} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                              <div className="text-sm">
+                              <div className="text-sm flex-1">
                                 <div>{product.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {product.quantity} {product.einheit}
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={product.quantity}
+                                    onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                    className="w-16 h-6 text-xs mt-1"
+                                  />
+                                  {product.einheit}
                                 </div>
                               </div>
-                              <div className="text-sm font-medium">
+                              <div className="text-sm font-medium flex items-center gap-2">
                                 {(product.price * product.quantity).toFixed(2)}€
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeOptionalProduct(product.artikelnummer)}
+                                  className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                >
+                                  ×
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -473,18 +486,18 @@ export function WallboxConfigurator() {
                       }`}
                       onClick={() => selectWallbox(wallbox)}
                     >
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">{wallbox.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground mb-2">{wallbox.beschreibung}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-lg">
-                            {parseFloat(wallbox.verkaufspreis).toFixed(2)}€
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {wallbox.anzahl_einheit} {wallbox.einheit}
-                          </span>
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <h3 className="font-semibold">{wallbox.name}</h3>
+                          <p className="text-sm text-muted-foreground">{wallbox.beschreibung}</p>
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg font-bold text-primary">
+                              {parseFloat(wallbox.verkaufspreis).toFixed(2)}€
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {wallbox.einheit}
+                            </span>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -493,250 +506,131 @@ export function WallboxConfigurator() {
               </CardContent>
             </Card>
 
+            {/* Optional Components */}
             {config.selectedWallbox && (
-              <>
-                {/* Required Components */}
-                {getRequiredProducts().length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-primary">Benötigte Komponenten</CardTitle>
-                      <p className="text-sm text-muted-foreground">Diese Komponenten werden automatisch zur Wallbox hinzugefügt.</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {getRequiredProducts().map((product) => {
-                          const selectedProduct = config.requiredProducts.find(
-                            p => p.artikelnummer === product.artikelnummer
-                          );
-                          const quantity = selectedProduct?.quantity || product.anzahl_einheit || 1;
+              <Card>
+                <CardHeader>
+                  <CardTitle>Optionale Komponenten</CardTitle>
+                  <p className="text-sm text-muted-foreground">Wählen Sie zusätzliche Komponenten aus jeder Kategorie.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {getAvailableKategorien().map((kategorie) => (
+                      <div key={kategorie} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-lg">{kategorie}</h3>
+                          <Select onValueChange={(value) => {
+                            if (value && value !== 'none') {
+                              const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === value);
+                              if (product) {
+                                addOptionalProduct(product);
+                              }
+                            }
+                          }}>
+                            <SelectTrigger className="w-64">
+                              <SelectValue placeholder={`${kategorie} hinzufügen`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Kein Produkt auswählen</SelectItem>
+                              {getProductsByKategorie(kategorie)
+                                .filter(p => !config.optionalProducts.some(selected => selected.artikelnummer === p.artikelnummer))
+                                .map((product) => (
+                                  <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                    {product.name} - {parseFloat(product.verkaufspreis).toFixed(2)}€
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                          return (
-                            <div key={product.artikelnummer} className="flex justify-between items-center p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{product.name}</span>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => updateProductQuantity('required', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                    className="w-16 h-8"
-                                  />
-                                  <span className="text-sm text-muted-foreground">{product.einheit}</span>
+                        {/* Currently selected products for this category */}
+                        <div className="space-y-2">
+                          {config.optionalProducts
+                            .filter(p => p.kategorie === kategorie)
+                            .map((product) => (
+                              <div key={product.artikelnummer} className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
+                                <div className="flex-1">
+                                  <div className="font-medium">{product.name}</div>
+                                  <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={product.quantity}
+                                      onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
+                                      className="w-20"
+                                    />
+                                    <span className="text-sm">{product.einheit}</span>
+                                  </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground mt-1">{product.beschreibung}</p>
+                                <div className="text-right">
+                                  <div className="text-lg font-bold text-primary">
+                                    {(product.price * product.quantity).toFixed(2)}€
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeOptionalProduct(product.artikelnummer)}
+                                    className="mt-2 text-destructive hover:text-destructive"
+                                  >
+                                    Entfernen
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="text-right ml-4">
-                                <div className="font-medium">
-                                  {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  = {(parseFloat(product.verkaufspreis) * quantity).toFixed(2)}€
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Optional Components by Category */}
-                {getAvailableKategorien().length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-green-600">Optionale Komponenten</CardTitle>
-                      <p className="text-sm text-muted-foreground">Wählen Sie zusätzliche Komponenten aus jeder Kategorie.</p>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue={getAvailableKategorien()[0]} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                          {getAvailableKategorien().map((kategorie) => (
-                            <TabsTrigger key={kategorie} value={kategorie}>
-                              {kategorie}
-                            </TabsTrigger>
                           ))}
-                        </TabsList>
-                        
-                        {getAvailableKategorien().map((kategorie) => {
-                          const products = getProductsByKategorie(kategorie);
-                          const selectedProduct = config.optionalProducts.find(p => p.kategorie === kategorie);
-                          const autoSelectedProducts = getAutoSelectProducts();
-                          const autoSelectedProduct = autoSelectedProducts.find(p => p.kategorie === kategorie);
-                          const currentProduct: SelectedProduct | null = selectedProduct || (autoSelectedProduct ? {
-                            artikelnummer: autoSelectedProduct.artikelnummer,
-                            name: autoSelectedProduct.name,
-                            price: parseFloat(autoSelectedProduct.verkaufspreis) || 0,
-                            kategorie: autoSelectedProduct.kategorie,
-                            beschreibung: autoSelectedProduct.beschreibung,
-                            quantity: autoSelectedProduct.anzahl_einheit || 1,
-                            einheit: autoSelectedProduct.einheit,
-                            isAutoSelected: true
-                          } : null);
-
-                          return (
-                            <TabsContent key={kategorie} value={kategorie} className="space-y-4">
-                              {/* Current Selection */}
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Aktuell gewählt:</Label>
-                                {currentProduct ? (
-                                  <div className="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium">{currentProduct.name}</span>
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          value={currentProduct.quantity}
-                                          onChange={(e) => updateProductQuantity('optional', currentProduct.artikelnummer, parseInt(e.target.value) || 1)}
-                                          className="w-16 h-8"
-                                        />
-                                        <span className="text-sm text-muted-foreground">{currentProduct.einheit}</span>
-                                        {autoSelectedProduct && !selectedProduct && (
-                                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Auto-gewählt</span>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-muted-foreground mt-1">{currentProduct.beschreibung}</p>
-                                    </div>
-                                    <div className="text-right ml-4">
-                                      <div className="font-medium">
-                                        {currentProduct.price.toFixed(2)}€/{currentProduct.einheit}
-                                      </div>
-                                      <div className="text-sm text-muted-foreground">
-                                        = {(currentProduct.price * currentProduct.quantity).toFixed(2)}€
-                                      </div>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => selectOptionalProduct(kategorie, null)}
-                                        className="mt-1"
-                                      >
-                                        Entfernen
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="p-3 border border-dashed border-muted rounded-lg text-center text-muted-foreground">
-                                    Keine {kategorie} gewählt
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Additional Products */}
-                              {!showAdditionalProducts[kategorie] ? (
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setShowAdditionalProducts(prev => ({ ...prev, [kategorie]: true }))}
-                                  className="w-full"
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  + Produkt aus {kategorie} hinzufügen
-                                </Button>
-                              ) : (
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-center">
-                                    <Label className="text-sm font-medium">Verfügbare {kategorie}-Produkte:</Label>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setShowAdditionalProducts(prev => ({ ...prev, [kategorie]: false }))}
-                                    >
-                                      Ausblenden
-                                    </Button>
-                                  </div>
-                                  <div className="grid gap-3">
-                                    {products.map((product) => (
-                                      <div
-                                        key={product.artikelnummer}
-                                        className={`p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                                          currentProduct?.artikelnummer === product.artikelnummer
-                                            ? 'border-green-500 bg-green-50'
-                                            : 'border-muted hover:border-primary'
-                                        }`}
-                                        onClick={() => selectOptionalProduct(kategorie, product)}
-                                      >
-                                        <div className="flex justify-between items-start">
-                                          <div className="flex-1">
-                                            <div className="font-medium">{product.name}</div>
-                                            <p className="text-sm text-muted-foreground mt-1">{product.beschreibung}</p>
-                                          </div>
-                                          <div className="text-right ml-4">
-                                            <div className="font-medium">
-                                              {parseFloat(product.verkaufspreis).toFixed(2)}€/{product.einheit}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </TabsContent>
-                          );
-                        })}
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Labor Hours */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      Arbeitsstunden
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">Passen Sie die Arbeitsstunden bei Bedarf an.</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={config.meisterStunden}
-                          onChange={(e) => updateLaborHours('meister', parseFloat(e.target.value) || 0)}
-                        />
-                        <div className="text-sm text-muted-foreground">
-                          = {(config.meisterStunden * config.meisterStundensatz).toFixed(2)}€
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Gesellenstunden (à {config.gesellenStundensatz}€)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={config.gesellenStunden}
-                          onChange={(e) => updateLaborHours('geselle', parseFloat(e.target.value) || 0)}
-                        />
-                        <div className="text-sm text-muted-foreground">
-                          = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Separator className="my-4" />
-                    
-                    <div className="flex justify-between items-center font-medium">
-                      <span>Gesamte Arbeitskosten:</span>
-                      <span className="text-lg">{calculateLaborCosts().toFixed(2)}€</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
+
+            {/* Labor Hours */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Arbeitsstunden
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Passen Sie die Arbeitsstunden bei Bedarf an.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={config.meisterStunden}
+                      onChange={(e) => updateLaborHours('meister', parseFloat(e.target.value) || 0)}
+                    />
+                    <div className="text-sm text-muted-foreground">
+                      = {(config.meisterStunden * config.meisterStundensatz).toFixed(2)}€
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gesellenstunden (à {config.gesellenStundensatz}€)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={config.gesellenStunden}
+                      onChange={(e) => updateLaborHours('geselle', parseFloat(e.target.value) || 0)}
+                    />
+                    <div className="text-sm text-muted-foreground">
+                      = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
 
-      <CartSheet 
-        open={isCartOpen} 
-        onOpenChange={() => setIsCartOpen(false)} 
-      />
+      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
   );
 }
