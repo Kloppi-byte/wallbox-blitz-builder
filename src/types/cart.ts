@@ -1,6 +1,6 @@
 export interface CartItem {
   id: string;
-  productType: 'wallbox' | 'solar' | 'heating' | 'other';
+  productType: 'wallbox' | 'elektrosanierung' | 'solar' | 'heating' | 'other';
   name: string;
   configuration: any;
   pricing: {
