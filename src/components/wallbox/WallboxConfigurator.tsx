@@ -367,9 +367,10 @@ export function WallboxConfigurator() {
   };
 
   const calculateLaborCosts = () => {
-    return (config.meisterStunden * config.meisterStundensatz) + 
-           (config.gesellenStunden * config.gesellenStundensatz) + 
-           (config.monteurStunden * config.monteurStundensatz);
+    const { totalMeisterStunden, totalGesellenstunden, totalMonteurStunden } = calculateTotalHours();
+    return (totalMeisterStunden * config.meisterStundensatz) + 
+           (totalGesellenstunden * config.gesellenStundensatz) + 
+           (totalMonteurStunden * config.monteurStundensatz);
   };
 
   const calculateTotal = () => {
@@ -387,9 +388,9 @@ export function WallboxConfigurator() {
           wallbox: config.selectedWallbox,
           requiredProducts: config.requiredProducts,
           optionalProducts: config.optionalProducts,
-          meisterStunden: config.meisterStunden,
-          gesellenStunden: config.gesellenStunden,
-          monteurStunden: config.monteurStunden
+          meisterStunden: calculateTotalHours().totalMeisterStunden,
+          gesellenStunden: calculateTotalHours().totalGesellenstunden,
+          monteurStunden: calculateTotalHours().totalMonteurStunden
         },
         pricing: {
           materialCosts: calculateMaterialCosts(),
@@ -826,12 +827,11 @@ export function WallboxConfigurator() {
                        type="number"
                        min="0"
                        step="0.5"
-                       value={config.meisterStunden}
+                       value={calculateTotalHours().totalMeisterStunden}
                        onChange={(e) => updateLaborHours('meister', parseFloat(e.target.value) || 0)}
-                       placeholder={calculateTotalHours().totalMeisterStunden.toString()}
                      />
                      <div className="text-sm text-muted-foreground">
-                       = {(config.meisterStunden * config.meisterStundensatz).toFixed(2)}€
+                       = {(calculateTotalHours().totalMeisterStunden * config.meisterStundensatz).toFixed(2)}€
                      </div>
                    </div>
                    <div className="space-y-2">
@@ -840,12 +840,11 @@ export function WallboxConfigurator() {
                        type="number"
                        min="0"
                        step="0.5"
-                       value={config.gesellenStunden}
+                       value={calculateTotalHours().totalGesellenstunden}
                        onChange={(e) => updateLaborHours('geselle', parseFloat(e.target.value) || 0)}
-                       placeholder={calculateTotalHours().totalGesellenstunden.toString()}
                      />
                      <div className="text-sm text-muted-foreground">
-                       = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
+                       = {(calculateTotalHours().totalGesellenstunden * config.gesellenStundensatz).toFixed(2)}€
                      </div>
                    </div>
                    <div className="space-y-2">
@@ -854,12 +853,11 @@ export function WallboxConfigurator() {
                        type="number"
                        min="0"
                        step="0.5"
-                       value={config.monteurStunden}
+                       value={calculateTotalHours().totalMonteurStunden}
                        onChange={(e) => updateLaborHours('monteur', parseFloat(e.target.value) || 0)}
-                       placeholder={calculateTotalHours().totalMonteurStunden.toString()}
                      />
                      <div className="text-sm text-muted-foreground">
-                       = {(config.monteurStunden * config.monteurStundensatz).toFixed(2)}€
+                       = {(calculateTotalHours().totalMonteurStunden * config.monteurStundensatz).toFixed(2)}€
                      </div>
                    </div>
                  </div>
