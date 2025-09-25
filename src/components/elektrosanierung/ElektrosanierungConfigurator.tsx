@@ -299,7 +299,7 @@ export const ElektrosanierungConfigurator = () => {
       const { data, error } = await supabase
         .from('article_master')
         .select('artikelnummer, artikel_name, artikel_preis, kategorie, subkategorie')
-        .ilike('subkategorie', '%Schalter & Steckdosen%');
+        .ilike('subkategorie', '%Elektrosanierung%');
 
       if (error) {
         console.log('Could not fetch products - using fallback data');
@@ -394,27 +394,25 @@ export const ElektrosanierungConfigurator = () => {
   const getFilteredProducts = (categoryFilter: string): ProductOption[] => {
     if (!availableProducts.length) return [];
     
-    const filterMap: Record<string, string[]> = {
-      'steckdose': ['steckdose', 'SCHUKO'],
-      'schalter': ['schalter', 'wippe', 'wipp'],
-      'licht': ['antennen', 'kabel', 'zentral'],
-      'rauchmelder': ['rauchmelder', 'rauchwarn'],
-      'kabel': ['kabel', 'leitung'],
-      'fi': ['fi', 'rcd'],
-      'verteiler': ['verteiler', 'verteilung'],
-      'stromkreis': ['stromkreis', 'sicherung'],
-      'installation': [],
-      'pruefung': []
+    // Map component types to their corresponding database subkategorie patterns
+    const filterMap: Record<string, string> = {
+      'steckdose': 'Elektrosanierung Steckdose Sub',
+      'schalter': 'Elektrosanierung Schalter Sub', 
+      'licht': 'Elektrosanierung Licht Sub',
+      'kabel': 'Elektrosanierung Kabel Sub',
+      'fi': 'Elektrosanierung FI Sub',
+      'verteiler': 'Elektrosanierung Verteiler Sub',
+      'rauchmelder': 'Elektrosanierung Rauchmelder Sub',
+      'stromkreis': 'Elektrosanierung Stromkreis Sub',
+      'installation': 'Elektrosanierung Installation Sub',
+      'pruefung': 'Elektrosanierung Pruefung Sub'
     };
 
-    const keywords = filterMap[categoryFilter] || [];
-    if (keywords.length === 0) return [];
+    const targetSubkategorie = filterMap[categoryFilter];
+    if (!targetSubkategorie) return [];
 
     return availableProducts.filter(product => 
-      keywords.some(keyword => 
-        product.artikel_name.toLowerCase().includes(keyword.toLowerCase()) ||
-        product.subkategorie.toLowerCase().includes(keyword.toLowerCase())
-      )
+      product.subkategorie && product.subkategorie.includes(targetSubkategorie)
     );
   };
 
