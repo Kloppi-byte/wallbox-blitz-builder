@@ -76,8 +76,40 @@ export const ElektrosanierungConfigurator = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAlternativesOpen, setIsAlternativesOpen] = useState(false);
   const [isComponentsOpen, setIsComponentsOpen] = useState(false);
+  // State for tracking temporary input values during editing
+  const [tempInputValues, setTempInputValues] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { addItem } = useCart();
+
+  // Helper functions for numeric input management
+  const getInputValue = (key: string, actualValue: number) => {
+    return tempInputValues[key] !== undefined ? tempInputValues[key] : String(actualValue);
+  };
+
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>, key: string) => {
+    e.target.select();
+    setTempInputValues(prev => ({ ...prev, [key]: e.target.value }));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
+    const value = e.target.value;
+    // Allow empty string and valid numeric input
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setTempInputValues(prev => ({ ...prev, [key]: value }));
+    }
+  };
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>, key: string, defaultValue: number, updateCallback: (value: number) => void) => {
+    const value = e.target.value.trim();
+    const numericValue = value === '' ? defaultValue : parseFloat(value) || defaultValue;
+    updateCallback(numericValue);
+    // Clear temp value to show actual value
+    setTempInputValues(prev => {
+      const newState = { ...prev };
+      delete newState[key];
+      return newState;
+    });
+  };
 
   useEffect(() => {
     loadProducts();
@@ -650,65 +682,35 @@ export const ElektrosanierungConfigurator = () => {
                               <span className="text-sm">{config.selectedElektrosanierung.einheit}</span>
                               <span className="text-sm">• M:</span>
                               <Input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={config.selectedElektrosanierung?.customMeisterStunden || 0}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '') {
-                                    // Temporarily allow empty for user input
-                                    return;
-                                  }
-                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', parseFloat(value) || 0);
-                                }}
-                                onBlur={(e) => {
-                                  if (e.target.value === '') {
-                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', 0);
-                                  }
-                                }}
+                                type="text"
+                                value={getInputValue(`elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-meister`, config.selectedElektrosanierung?.customMeisterStunden || 0)}
+                                onFocus={(e) => handleInputFocus(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-meister`)}
+                                onChange={(e) => handleInputChange(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-meister`)}
+                                onBlur={(e) => handleInputBlur(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-meister`, 0, (value) => 
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'meister', value)
+                                )}
                                 className="w-16"
                               />
                               <span className="text-sm">h, G:</span>
                               <Input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={config.selectedElektrosanierung?.customGesellenstunden || 0}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '') {
-                                    // Temporarily allow empty for user input
-                                    return;
-                                  }
-                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', parseFloat(value) || 0);
-                                }}
-                                onBlur={(e) => {
-                                  if (e.target.value === '') {
-                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', 0);
-                                  }
-                                }}
+                                type="text"
+                                value={getInputValue(`elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-geselle`, config.selectedElektrosanierung?.customGesellenstunden || 0)}
+                                onFocus={(e) => handleInputFocus(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-geselle`)}
+                                onChange={(e) => handleInputChange(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-geselle`)}
+                                onBlur={(e) => handleInputBlur(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-geselle`, 0, (value) => 
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'geselle', value)
+                                )}
                                 className="w-16"
                               />
                               <span className="text-sm">h, Mo:</span>
                               <Input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={config.selectedElektrosanierung?.customMonteurStunden || 0}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '') {
-                                    // Temporarily allow empty for user input
-                                    return;
-                                  }
-                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', parseFloat(value) || 0);
-                                }}
-                                onBlur={(e) => {
-                                  if (e.target.value === '') {
-                                    updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', 0);
-                                  }
-                                }}
+                                type="text"
+                                value={getInputValue(`elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-monteur`, config.selectedElektrosanierung?.customMonteurStunden || 0)}
+                                onFocus={(e) => handleInputFocus(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-monteur`)}
+                                onChange={(e) => handleInputChange(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-monteur`)}
+                                onBlur={(e) => handleInputBlur(e, `elektrosanierung-${config.selectedElektrosanierung.artikelnummer}-monteur`, 0, (value) => 
+                                  updateProductHours('elektrosanierung', config.selectedElektrosanierung.artikelnummer, 'monteur', value)
+                                )}
                                 className="w-16"
                               />
                               <span className="text-sm">h</span>
@@ -856,86 +858,47 @@ export const ElektrosanierungConfigurator = () => {
                                     <div className="text-sm text-muted-foreground">{product.beschreibung}</div>
                                      <div className="flex items-center gap-2 mt-2">
                               <Input
-                                type="number"
-                                min="1"
-                                value={product.quantity}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '') {
-                                    // Temporarily allow empty for user input
-                                    return;
-                                  }
-                                  updateProductQuantity('optional', product.artikelnummer, parseInt(value) || 1);
-                                }}
-                                onBlur={(e) => {
-                                  if (e.target.value === '' || e.target.value === '0') {
-                                    updateProductQuantity('optional', product.artikelnummer, 1);
-                                  }
-                                }}
+                                type="text"
+                                value={getInputValue(`optional-qty-${product.artikelnummer}`, product.quantity)}
+                                onFocus={(e) => handleInputFocus(e, `optional-qty-${product.artikelnummer}`)}
+                                onChange={(e) => handleInputChange(e, `optional-qty-${product.artikelnummer}`)}
+                                onBlur={(e) => handleInputBlur(e, `optional-qty-${product.artikelnummer}`, 1, (value) => 
+                                  updateProductQuantity('optional', product.artikelnummer, Math.max(1, Math.floor(value)))
+                                )}
                                 className="w-20"
                               />
                                        <span className="text-sm">{product.einheit}</span>
                                        <span className="text-sm">• M:</span>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={product.customMeisterStunden || 0}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '') {
-                              // Temporarily allow empty for user input
-                              return;
-                            }
-                            updateProductHours('optional', product.artikelnummer, 'meister', parseFloat(value) || 0);
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') {
-                              updateProductHours('optional', product.artikelnummer, 'meister', 0);
-                            }
-                          }}
+                          type="text"
+                          value={getInputValue(`optional-${product.artikelnummer}-meister`, product.customMeisterStunden || 0)}
+                          onFocus={(e) => handleInputFocus(e, `optional-${product.artikelnummer}-meister`)}
+                          onChange={(e) => handleInputChange(e, `optional-${product.artikelnummer}-meister`)}
+                          onBlur={(e) => handleInputBlur(e, `optional-${product.artikelnummer}-meister`, 0, (value) => 
+                            updateProductHours('optional', product.artikelnummer, 'meister', value)
+                          )}
                           className="w-16"
                         />
                                        <span className="text-sm">h, G:</span>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={product.customGesellenstunden || 0}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '') {
-                              // Temporarily allow empty for user input
-                              return;
-                            }
-                            updateProductHours('optional', product.artikelnummer, 'geselle', parseFloat(value) || 0);
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') {
-                              updateProductHours('optional', product.artikelnummer, 'geselle', 0);
-                            }
-                          }}
+                          type="text"
+                          value={getInputValue(`optional-${product.artikelnummer}-geselle`, product.customGesellenstunden || 0)}
+                          onFocus={(e) => handleInputFocus(e, `optional-${product.artikelnummer}-geselle`)}
+                          onChange={(e) => handleInputChange(e, `optional-${product.artikelnummer}-geselle`)}
+                          onBlur={(e) => handleInputBlur(e, `optional-${product.artikelnummer}-geselle`, 0, (value) => 
+                            updateProductHours('optional', product.artikelnummer, 'geselle', value)
+                          )}
                           className="w-16"
                         />
                                        <span className="text-sm">h, Mo:</span>
                         <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={product.customMonteurStunden || 0}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '') {
-                              // Temporarily allow empty for user input
-                              return;
-                            }
-                            updateProductHours('optional', product.artikelnummer, 'monteur', parseFloat(value) || 0);
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') {
-                              updateProductHours('optional', product.artikelnummer, 'monteur', 0);
-                            }
-                          }}
+                          type="text"
+                          value={getInputValue(`optional-${product.artikelnummer}-monteur`, product.customMonteurStunden || 0)}
+                          onFocus={(e) => handleInputFocus(e, `optional-${product.artikelnummer}-monteur`)}
+                          onChange={(e) => handleInputChange(e, `optional-${product.artikelnummer}-monteur`)}
+                          onBlur={(e) => handleInputBlur(e, `optional-${product.artikelnummer}-monteur`, 0, (value) => 
+                            updateProductHours('optional', product.artikelnummer, 'monteur', value)
+                          )}
                           className="w-16"
                         />
                                        <span className="text-sm">h</span>
@@ -1066,11 +1029,13 @@ export const ElektrosanierungConfigurator = () => {
                       <div className="flex items-center gap-2">
                         <Input
                           id="travelCosts"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={config.travelCosts}
-                          onChange={(e) => setConfig(prev => ({ ...prev, travelCosts: parseFloat(e.target.value) || 0 }))}
+                          type="text"
+                          value={getInputValue('travel-costs', config.travelCosts)}
+                          onFocus={(e) => handleInputFocus(e, 'travel-costs')}
+                          onChange={(e) => handleInputChange(e, 'travel-costs')}
+                          onBlur={(e) => handleInputBlur(e, 'travel-costs', 0, (value) => 
+                            setConfig(prev => ({ ...prev, travelCosts: value }))
+                          )}
                           className="w-32"
                         />
                         <span className="text-sm text-muted-foreground">€</span>
