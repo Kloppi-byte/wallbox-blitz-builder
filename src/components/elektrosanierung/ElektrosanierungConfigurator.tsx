@@ -115,7 +115,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.08,
       customGesellenstunden: 0.12,
       customMonteurStunden: 0,
-      categoryFilter: 'Schalter'
+      categoryFilter: 'schalter'
     },
     {
       id: 'lichtauslaesse',
@@ -129,7 +129,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.15,
       customGesellenstunden: 0.25,
       customMonteurStunden: 0,
-      categoryFilter: 'Lichtauslässe'
+      categoryFilter: 'licht'
     },
     {
       id: 'leitungsverlegung',
@@ -142,7 +142,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.05,
       customGesellenstunden: 0.1,
       customMonteurStunden: 0.05,
-      categoryFilter: 'Leitungsverlegung'
+      categoryFilter: 'kabel'
     },
     {
       id: 'schlitzen_schliessen',
@@ -154,7 +154,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.02,
       customGesellenstunden: 0.08,
       customMonteurStunden: 0.1,
-      categoryFilter: 'Schlitzen'
+      categoryFilter: 'installation'
     },
     {
       id: 'rcd_nachruesten',
@@ -168,7 +168,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.5,
       customGesellenstunden: 0.5,
       customMonteurStunden: 0,
-      categoryFilter: 'FI/RCD'
+      categoryFilter: 'fi'
     },
     {
       id: 'uv_erneuern',
@@ -182,7 +182,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 3,
       customGesellenstunden: 3,
       customMonteurStunden: 0,
-      categoryFilter: 'Unterverteilung'
+      categoryFilter: 'verteiler'
     },
     {
       id: 'rauchmelder',
@@ -194,7 +194,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0,
       customGesellenstunden: 0.2,
       customMonteurStunden: 0.1,
-      categoryFilter: 'Rauchwarnmelder'
+      categoryFilter: 'rauchmelder'
     },
     {
       id: 'e_check',
@@ -206,7 +206,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 1,
       customGesellenstunden: 0,
       customMonteurStunden: 0,
-      categoryFilter: 'E-Check'
+      categoryFilter: 'pruefung'
     },
     {
       id: 'zusaetzliche_stromkreise',
@@ -297,14 +297,32 @@ export const ElektrosanierungConfigurator = () => {
   const fetchAvailableProducts = async () => {
     try {
       const { data, error } = await supabase
-        .from('article_master')
-        .select('artikelnummer, artikel_name, artikel_preis, kategorie, subkategorie')
-        .ilike('subkategorie', '%Elektrosanierung%');
+        .from('wallboxen')
+        .select('Artikelnummer, Name, Verkaufspreis, Typ')
+        .ilike('Typ', '%Elektrosanierung%');
 
       if (error) {
-        console.log('Could not fetch products - using fallback data');
+        console.log('Could not fetch products from wallboxen - using fallback data');
       } else if (data) {
-        setAvailableProducts(data);
+        const mapped = (data as any[]).map((row) => {
+          const raw = String(row.Verkaufspreis ?? '').trim();
+          const numeric = raw
+            ? parseFloat(
+                raw
+                  .replace(/[^0-9,.-]/g, '')
+                  .replace(/\./g, '')
+                  .replace(',', '.')
+              )
+            : 0;
+          return {
+            artikelnummer: String(row.Artikelnummer),
+            artikel_name: row.Name || `Artikel ${row.Artikelnummer}`,
+            artikel_preis: isNaN(numeric) ? 0 : numeric,
+            kategorie: 'Elektrosanierung',
+            subkategorie: row.Typ || ''
+          } as ProductOption;
+        });
+        setAvailableProducts(mapped);
       }
     } catch (error) {
       console.log('Error fetching products');
@@ -394,26 +412,27 @@ export const ElektrosanierungConfigurator = () => {
   const getFilteredProducts = (categoryFilter: string): ProductOption[] => {
     if (!availableProducts.length) return [];
     
-    // Map component types to their corresponding database subkategorie patterns
+    // Map component types to their corresponding Typ patterns in wallboxen
     const filterMap: Record<string, string> = {
-      'steckdose': 'Elektrosanierung Steckdose Sub',
-      'schalter': 'Elektrosanierung Schalter Sub', 
-      'licht': 'Elektrosanierung Licht Sub',
-      'kabel': 'Elektrosanierung Kabel Sub',
-      'fi': 'Elektrosanierung FI Sub',
-      'verteiler': 'Elektrosanierung Verteiler Sub',
-      'rauchmelder': 'Elektrosanierung Rauchmelder Sub',
-      'stromkreis': 'Elektrosanierung Stromkreis Sub',
-      'installation': 'Elektrosanierung Installation Sub',
-      'pruefung': 'Elektrosanierung Pruefung Sub'
+      'steckdose': 'elektrosanierung - steckdose sub',
+      'schalter': 'elektrosanierung - schalter sub',
+      'licht': 'elektrosanierung - licht sub',
+      'kabel': 'elektrosanierung - kabel sub',
+      'fi': 'elektrosanierung - fi sub',
+      'verteiler': 'elektrosanierung - verteiler sub',
+      'rauchmelder': 'elektrosanierung - rauchmelder sub',
+      'stromkreis': 'elektrosanierung - stromkreis sub',
+      'installation': 'elektrosanierung - installation sub',
+      'pruefung': 'elektrosanierung - pruefung sub'
     };
 
-    const targetSubkategorie = filterMap[categoryFilter];
-    if (!targetSubkategorie) return [];
+    const target = filterMap[categoryFilter];
+    if (!target) return [];
 
-    return availableProducts.filter(product => 
-      product.subkategorie && product.subkategorie.includes(targetSubkategorie)
-    );
+    return availableProducts.filter((product) => {
+      const sub = (product.subkategorie || '').toLowerCase();
+      return sub.includes(target);
+    });
   };
 
   // Calculate labor adjustments
