@@ -121,15 +121,64 @@ export const WallboxConfigurator = () => {
 
       setProducts(mappedProducts);
 
-      // Auto-select preselected wallbox if available, otherwise first wallbox
+      // Initialize selection using mappedProducts to avoid state race
       const wallboxes = mappedProducts.filter(p => p.typ === 'Wallbox');
       if (wallboxes.length > 0) {
-        const preselected = wallboxes.find(w => w.preselect === true);
-        if (preselected) {
-          selectWallbox(preselected);
-        } else if (wallboxes.length > 0) {
-          selectWallbox(wallboxes[0]);
-        }
+        const wallbox = wallboxes.find(w => w.preselect === true) || wallboxes[0];
+
+        const selectedWallbox: SelectedProduct = {
+          artikelnummer: wallbox.artikelnummer,
+          name: wallbox.name,
+          price: parseFloat(wallbox.verkaufspreis),
+          kategorie: wallbox.kategorie,
+          beschreibung: wallbox.beschreibung,
+          quantity: 1,
+          einheit: wallbox.einheit,
+          customMeisterStunden: parseFloat(wallbox.stunden_meister) || 0,
+          customGesellenstunden: parseFloat(wallbox.stunden_geselle) || 0,
+          customMonteurStunden: parseFloat(wallbox.stunden_monteur || '0') || 0
+        };
+
+        const requiredProducts: SelectedProduct[] = (wallbox.required || [])
+          .map(id => mappedProducts.find(p => p.artikelnummer.toString() === id && p.typ !== 'Wallbox'))
+          .filter(Boolean)
+          .map(p => ({
+            artikelnummer: p!.artikelnummer,
+            name: p!.name,
+            price: parseFloat(p!.verkaufspreis),
+            kategorie: p!.kategorie,
+            beschreibung: p!.beschreibung,
+            isRequired: true,
+            quantity: 1,
+            einheit: p!.einheit,
+            customMeisterStunden: parseFloat(p!.stunden_meister) || 0,
+            customGesellenstunden: parseFloat(p!.stunden_geselle) || 0,
+            customMonteurStunden: parseFloat(p!.stunden_monteur || '0') || 0
+          }));
+
+        const autoSelectedProducts: SelectedProduct[] = (wallbox.auto_select || [])
+          .map(id => mappedProducts.find(p => p.artikelnummer.toString() === id && p.typ !== 'Wallbox'))
+          .filter(Boolean)
+          .map(p => ({
+            artikelnummer: p!.artikelnummer,
+            name: p!.name,
+            price: parseFloat(p!.verkaufspreis),
+            kategorie: p!.kategorie,
+            beschreibung: p!.beschreibung,
+            isAutoSelected: true,
+            quantity: 1,
+            einheit: p!.einheit,
+            customMeisterStunden: parseFloat(p!.stunden_meister) || 0,
+            customGesellenstunden: parseFloat(p!.stunden_geselle) || 0,
+            customMonteurStunden: parseFloat(p!.stunden_monteur || '0') || 0
+          }));
+
+        setConfig(prev => ({
+          ...prev,
+          selectedWallbox,
+          requiredProducts,
+          optionalProducts: autoSelectedProducts
+        }));
       }
 
       setLoading(false);
