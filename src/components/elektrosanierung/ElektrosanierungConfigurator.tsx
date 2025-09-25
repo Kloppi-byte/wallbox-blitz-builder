@@ -35,6 +35,16 @@ interface ComponentData {
   customMeisterStunden?: number;
   customGesellenstunden?: number;
   customMonteurStunden?: number;
+  selectedProduct?: ProductOption;
+  categoryFilter: string;
+}
+
+interface ProductOption {
+  artikelnummer: string;
+  artikel_name: string;
+  artikel_preis: number;
+  kategorie: string;
+  subkategorie: string;
 }
 
 interface ConfigState {
@@ -59,6 +69,7 @@ export const ElektrosanierungConfigurator = () => {
   const [tempInputValues, setTempInputValues] = useState<Record<string, string>>({});
   const [touchedComponents, setTouchedComponents] = useState<Set<string>>(new Set());
   const [articlePrices, setArticlePrices] = useState<Record<string, number>>({});
+  const [availableProducts, setAvailableProducts] = useState<ProductOption[]>([]);
   const { toast } = useToast();
   const { addItem } = useCart();
 
@@ -89,7 +100,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '849130',
       customMeisterStunden: 0.1,
       customGesellenstunden: 0.15,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'steckdose'
     },
     {
       id: 'schalter_tausch',
@@ -102,7 +114,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '813016',
       customMeisterStunden: 0.08,
       customGesellenstunden: 0.12,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'schalter'
     },
     {
       id: 'lichtauslaesse',
@@ -115,7 +128,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '849171',
       customMeisterStunden: 0.15,
       customGesellenstunden: 0.25,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'licht'
     },
     {
       id: 'leitungsverlegung',
@@ -127,7 +141,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '125101',
       customMeisterStunden: 0.05,
       customGesellenstunden: 0.1,
-      customMonteurStunden: 0.05
+      customMonteurStunden: 0.05,
+      categoryFilter: 'kabel'
     },
     {
       id: 'schlitzen_schliessen',
@@ -138,7 +153,8 @@ export const ElektrosanierungConfigurator = () => {
       anzahl_einheit: 0,
       customMeisterStunden: 0.02,
       customGesellenstunden: 0.08,
-      customMonteurStunden: 0.1
+      customMonteurStunden: 0.1,
+      categoryFilter: 'installation'
     },
     {
       id: 'rcd_nachruesten',
@@ -151,7 +167,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '606663',
       customMeisterStunden: 0.5,
       customGesellenstunden: 0.5,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'fi'
     },
     {
       id: 'uv_erneuern',
@@ -164,7 +181,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '606808',
       customMeisterStunden: 3,
       customGesellenstunden: 3,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'verteiler'
     },
     {
       id: 'rauchmelder',
@@ -175,7 +193,8 @@ export const ElektrosanierungConfigurator = () => {
       anzahl_einheit: 0,
       customMeisterStunden: 0,
       customGesellenstunden: 0.2,
-      customMonteurStunden: 0.1
+      customMonteurStunden: 0.1,
+      categoryFilter: 'rauchmelder'
     },
     {
       id: 'e_check',
@@ -186,7 +205,8 @@ export const ElektrosanierungConfigurator = () => {
       anzahl_einheit: 0,
       customMeisterStunden: 1,
       customGesellenstunden: 0,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'pruefung'
     },
     {
       id: 'zusaetzliche_stromkreise',
@@ -198,7 +218,8 @@ export const ElektrosanierungConfigurator = () => {
       artikelnummer: '606819',
       customMeisterStunden: 1.5,
       customGesellenstunden: 1.5,
-      customMonteurStunden: 0
+      customMonteurStunden: 0,
+      categoryFilter: 'stromkreis'
     }
   ];
 
@@ -235,6 +256,7 @@ export const ElektrosanierungConfigurator = () => {
     initializeComponents();
     // Then try to fetch real prices from database
     fetchArticlePrices();
+    fetchAvailableProducts();
   }, []);
 
   useEffect(() => {
@@ -269,6 +291,23 @@ export const ElektrosanierungConfigurator = () => {
       // Don't show error toast, just use fallback prices
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('article_master')
+        .select('artikelnummer, artikel_name, artikel_preis, kategorie, subkategorie')
+        .ilike('subkategorie', '%Schalter & Steckdosen%');
+
+      if (error) {
+        console.log('Could not fetch products - using fallback data');
+      } else if (data) {
+        setAvailableProducts(data);
+      }
+    } catch (error) {
+      console.log('Error fetching products');
     }
   };
 
@@ -333,6 +372,50 @@ export const ElektrosanierungConfigurator = () => {
         comp.id === id ? { ...comp, anzahl_einheit: quantity } : comp
       )
     }));
+  };
+
+  // Update selected product for component
+  const updateComponentProduct = (id: string, product: ProductOption) => {
+    setTouchedComponents(prev => new Set(prev).add(id));
+    setConfig(prev => ({
+      ...prev,
+      components: prev.components.map(comp =>
+        comp.id === id ? { 
+          ...comp, 
+          selectedProduct: product,
+          price_per_unit: product.artikel_preis,
+          artikelnummer: product.artikelnummer
+        } : comp
+      )
+    }));
+  };
+
+  // Get filtered products for a component
+  const getFilteredProducts = (categoryFilter: string): ProductOption[] => {
+    if (!availableProducts.length) return [];
+    
+    const filterMap: Record<string, string[]> = {
+      'steckdose': ['steckdose', 'SCHUKO'],
+      'schalter': ['schalter', 'wippe', 'wipp'],
+      'licht': ['antennen', 'kabel', 'zentral'],
+      'rauchmelder': ['rauchmelder', 'rauchwarn'],
+      'kabel': ['kabel', 'leitung'],
+      'fi': ['fi', 'rcd'],
+      'verteiler': ['verteiler', 'verteilung'],
+      'stromkreis': ['stromkreis', 'sicherung'],
+      'installation': [],
+      'pruefung': []
+    };
+
+    const keywords = filterMap[categoryFilter] || [];
+    if (keywords.length === 0) return [];
+
+    return availableProducts.filter(product => 
+      keywords.some(keyword => 
+        product.artikel_name.toLowerCase().includes(keyword.toLowerCase()) ||
+        product.subkategorie.toLowerCase().includes(keyword.toLowerCase())
+      )
+    );
   };
 
   // Calculate labor adjustments
@@ -609,48 +692,80 @@ export const ElektrosanierungConfigurator = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {config.components.map((component) => (
-                    <div key={component.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{component.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {component.price_per_unit}€ / {component.unit}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-20 text-center"
-                            value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
-                            onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
-                            onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
-                            onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
-                          />
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          
-                          <div className="text-sm text-muted-foreground min-w-12">
-                            {component.unit}
-                          </div>
-                        </div>
-                      </div>
+                   {config.components.map((component) => {
+                     const filteredProducts = getFilteredProducts(component.categoryFilter);
+                     return (
+                     <div key={component.id} className="p-4 border rounded-lg">
+                       <div className="flex items-center justify-between mb-2">
+                         <div className="flex-1">
+                           <h4 className="font-medium">{component.name}</h4>
+                           <p className="text-sm text-muted-foreground">
+                             {component.price_per_unit}€ / {component.unit}
+                           </p>
+                         </div>
+                         
+                         <div className="flex items-center gap-2">
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
+                           >
+                             <Minus className="h-4 w-4" />
+                           </Button>
+                           
+                           <Input
+                             type="number"
+                             min="0"
+                             className="w-20 text-center"
+                             value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
+                             onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
+                             onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
+                             onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
+                           />
+                           
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
+                           >
+                             <Plus className="h-4 w-4" />
+                           </Button>
+                           
+                           <div className="text-sm text-muted-foreground min-w-12">
+                             {component.unit}
+                           </div>
+                         </div>
+                       </div>
+
+                       {/* Product Selection Dropdown */}
+                       {filteredProducts.length > 0 && (
+                         <div className="mb-3">
+                           <Label className="text-sm font-medium">Produkt auswählen:</Label>
+                           <Select 
+                             value={component.selectedProduct?.artikelnummer || ''} 
+                             onValueChange={(value) => {
+                               const product = filteredProducts.find(p => p.artikelnummer === value);
+                               if (product) updateComponentProduct(component.id, product);
+                             }}
+                           >
+                             <SelectTrigger className="mt-1">
+                               <SelectValue placeholder="Produkt wählen..." />
+                             </SelectTrigger>
+                             <SelectContent>
+                               {filteredProducts.map((product) => (
+                                 <SelectItem key={product.artikelnummer} value={product.artikelnummer}>
+                                   <div className="flex justify-between items-center w-full">
+                                     <span className="truncate mr-2">{product.artikel_name}</span>
+                                     <span className="text-sm text-muted-foreground">
+                                       {product.artikel_preis}€
+                                     </span>
+                                   </div>
+                                 </SelectItem>
+                               ))}
+                             </SelectContent>
+                           </Select>
+                         </div>
+                       )}
                       
                       {component.anzahl_einheit > 0 && (
                         <div className="flex items-center gap-2 mt-2 text-sm">
@@ -690,9 +805,10 @@ export const ElektrosanierungConfigurator = () => {
                           />
                           <span>h</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                       )}
+                     </div>
+                   );
+                   })}
                 </div>
               </CardContent>
             </Card>
