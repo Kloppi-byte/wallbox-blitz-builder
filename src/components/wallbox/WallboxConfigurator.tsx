@@ -214,9 +214,10 @@ export function WallboxConfigurator() {
       }));
     }
 
-    // Set labor hours from wallbox data
-    const meisterStunden = parseFloat(wallbox?.stunden_meister || '0');
-    const gesellenStunden = parseFloat(wallbox?.stunden_geselle || '0');
+    // Set labor hours from wallbox data as default
+    const { totalMeisterStunden, totalGesellenstunden } = calculateTotalHours();
+    const meisterStunden = totalMeisterStunden + parseFloat(wallbox?.stunden_meister || '0');
+    const gesellenStunden = totalGesellenstunden + parseFloat(wallbox?.stunden_geselle || '0');
 
     setConfig(prev => ({
       ...prev,
@@ -314,8 +315,7 @@ export function WallboxConfigurator() {
   };
 
   const calculateLaborCosts = () => {
-    const { totalMeisterStunden, totalGesellenstunden } = calculateTotalHours();
-    return (totalMeisterStunden * config.meisterStundensatz) + (totalGesellenstunden * config.gesellenStundensatz);
+    return (config.meisterStunden * config.meisterStundensatz) + (config.gesellenStunden * config.gesellenStundensatz);
   };
 
   const calculateTotal = () => {
@@ -333,8 +333,8 @@ export function WallboxConfigurator() {
           wallbox: config.selectedWallbox,
           requiredProducts: config.requiredProducts,
           optionalProducts: config.optionalProducts,
-          meisterStunden: calculateTotalHours().totalMeisterStunden,
-          gesellenStunden: calculateTotalHours().totalGesellenstunden
+          meisterStunden: config.meisterStunden,
+          gesellenStunden: config.gesellenStunden
         },
         pricing: {
           materialCosts: calculateMaterialCosts(),
@@ -417,11 +417,10 @@ export function WallboxConfigurator() {
                                    {(() => {
                                      const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
                                      if (productData) {
-                                       const meisterStunden = parseFloat(productData.stunden_meister || '0');
-                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
-                                       const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
-                                       if (totalHours > 0) {
-                                         return ` • ${totalHours}h`;
+                                       const meisterStunden = parseFloat(productData.stunden_meister || '0') * product.quantity;
+                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0') * product.quantity;
+                                       if (meisterStunden > 0 || gesellenStunden > 0) {
+                                         return ` • M: ${meisterStunden}h, G: ${gesellenStunden}h`;
                                        }
                                      }
                                      return '';
@@ -459,11 +458,10 @@ export function WallboxConfigurator() {
                                    {(() => {
                                      const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
                                      if (productData) {
-                                       const meisterStunden = parseFloat(productData.stunden_meister || '0');
-                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
-                                       const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
-                                       if (totalHours > 0) {
-                                         return ` • ${totalHours}h`;
+                                       const meisterStunden = parseFloat(productData.stunden_meister || '0') * product.quantity;
+                                       const gesellenStunden = parseFloat(productData.stunden_geselle || '0') * product.quantity;
+                                       if (meisterStunden > 0 || gesellenStunden > 0) {
+                                         return ` • M: ${meisterStunden}h, G: ${gesellenStunden}h`;
                                        }
                                      }
                                      return '';
@@ -640,11 +638,10 @@ export function WallboxConfigurator() {
                                        {(() => {
                                          const productData = allProducts.find(p => p.artikelnummer === product.artikelnummer);
                                          if (productData) {
-                                           const meisterStunden = parseFloat(productData.stunden_meister || '0');
-                                           const gesellenStunden = parseFloat(productData.stunden_geselle || '0');
-                                           const totalHours = (meisterStunden + gesellenStunden) * product.quantity;
-                                           if (totalHours > 0) {
-                                             return <span className="text-sm text-muted-foreground">• {totalHours}h</span>;
+                                           const meisterStunden = parseFloat(productData.stunden_meister || '0') * product.quantity;
+                                           const gesellenStunden = parseFloat(productData.stunden_geselle || '0') * product.quantity;
+                                           if (meisterStunden > 0 || gesellenStunden > 0) {
+                                             return <span className="text-sm text-muted-foreground">• M: {meisterStunden}h, G: {gesellenStunden}h</span>;
                                            }
                                          }
                                          return null;
@@ -736,40 +733,30 @@ export function WallboxConfigurator() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div className="space-y-2">
                      <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
-                     <div className="relative">
-                       <Input
-                         type="number"
-                         min="0"
-                         step="0.5"
-                         value={calculateTotalHours().totalMeisterStunden}
-                         readOnly
-                         className="bg-muted cursor-not-allowed"
-                       />
-                       <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                         <span className="text-sm text-muted-foreground">Automatisch berechnet</span>
-                       </div>
-                     </div>
+                     <Input
+                       type="number"
+                       min="0"
+                       step="0.5"
+                       value={config.meisterStunden}
+                       onChange={(e) => updateLaborHours('meister', parseFloat(e.target.value) || 0)}
+                       placeholder={calculateTotalHours().totalMeisterStunden.toString()}
+                     />
                      <div className="text-sm text-muted-foreground">
-                       = {(calculateTotalHours().totalMeisterStunden * config.meisterStundensatz).toFixed(2)}€
+                       = {(config.meisterStunden * config.meisterStundensatz).toFixed(2)}€
                      </div>
                    </div>
                    <div className="space-y-2">
                      <Label>Gesellenstunden (à {config.gesellenStundensatz}€)</Label>
-                     <div className="relative">
-                       <Input
-                         type="number"
-                         min="0"
-                         step="0.5"
-                         value={calculateTotalHours().totalGesellenstunden}
-                         readOnly
-                         className="bg-muted cursor-not-allowed"
-                       />
-                       <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                         <span className="text-sm text-muted-foreground">Automatisch berechnet</span>
-                       </div>
-                     </div>
+                     <Input
+                       type="number"
+                       min="0"
+                       step="0.5"
+                       value={config.gesellenStunden}
+                       onChange={(e) => updateLaborHours('geselle', parseFloat(e.target.value) || 0)}
+                       placeholder={calculateTotalHours().totalGesellenstunden.toString()}
+                     />
                      <div className="text-sm text-muted-foreground">
-                       = {(calculateTotalHours().totalGesellenstunden * config.gesellenStundensatz).toFixed(2)}€
+                       = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
                      </div>
                    </div>
                  </div>
