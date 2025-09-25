@@ -88,7 +88,7 @@ export function WallboxConfigurator() {
       const products: WallboxProduct[] = data.map(item => ({
         artikelnummer: item['Artikelnummer'],
         name: item['Name'] || '',
-        kategorie: item['Typ'] || '',
+        kategorie: (item['Typ'] || '').trim(), // Trim whitespace from category
         beschreibung: item['Beschreibung'] || '',
         verkaufspreis: item['Verkaufspreis'] || '0',
         einheit: item['Einheit'] || 'Stück',
@@ -99,7 +99,7 @@ export function WallboxConfigurator() {
         auto_select: (item as any).auto_select || null,
         stunden_meister: (item as any).stunden_meister || '0',
         stunden_geselle: (item as any).stunden_geselle || '0',
-        typ: item['Typ'] || ''
+        typ: (item['Typ'] || '').trim() // Trim whitespace from typ as well
       }));
 
       setAllProducts(products);
