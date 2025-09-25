@@ -26,25 +26,25 @@ interface ComponentData {
   id: string;
   name: string;
   unit: string;
-  price_per_unit: number;
-  qty_formula: string;
-  labor_hours_per_unit?: number;
-  visible_if?: string;
   anzahl_einheit: number;
-  artikelnummer?: string;
-  customMeisterStunden?: number;
-  customGesellenstunden?: number;
-  customMonteurStunden?: number;
+  faktor_zimmer: number;
+  faktor_etage: number;
+  faktor_wohnflaeche: number;
+  faktor_baujahr: number;
+  faktor_unterputz_true: number;
   selectedProduct?: ProductOption;
   categoryFilter: string;
+  subcategories: ProductOption[];
 }
 
 interface ProductOption {
   artikelnummer: string;
   artikel_name: string;
   artikel_preis: number;
-  kategorie: string;
-  subkategorie: string;
+  stunden_meister: number;
+  stunden_geselle: number;
+  stunden_monteur: number;
+  typ: string;
 }
 
 interface ConfigState {
@@ -73,153 +73,85 @@ export const ElektrosanierungConfigurator = () => {
   const { toast } = useToast();
   const { addItem } = useCart();
 
-  // Article number mapping for components
-  const getComponentArticleMapping = (): Record<string, string> => ({
-    'steckdosen_tausch': '849130',
-    'schalter_tausch': '813016',
-    'lichtauslaesse': '849171',
-    'leitungsverlegung': '125101',
-    'schlitzen_schliessen': '',
-    'rcd_nachruesten': '606663',
-    'uv_erneuern': '606808',
-    'rauchmelder': '',
-    'e_check': '',
-    'zusaetzliche_stromkreise': '606819'
-  });
-
-  // Default component catalog with formulas
+  // Default component catalog with multiplication factors
   const getDefaultComponents = (): ComponentData[] => [
     {
       id: 'steckdosen_tausch',
       name: 'Steckdosen tauschen',
       unit: 'Stück',
-      price_per_unit: articlePrices['849130'] || 25,
-      qty_formula: 'globals.zimmer * 5',
-      labor_hours_per_unit: 0.25,
       anzahl_einheit: 0,
-      artikelnummer: '849130',
-      customMeisterStunden: 0.1,
-      customGesellenstunden: 0.15,
-      customMonteurStunden: 0,
-      categoryFilter: 'steckdose'
+      faktor_zimmer: 5,
+      faktor_etage: 0,
+      faktor_wohnflaeche: 0,
+      faktor_baujahr: 0,
+      faktor_unterputz_true: 0,
+      categoryFilter: 'steckdose',
+      subcategories: []
     },
     {
       id: 'schalter_tausch',
       name: 'Schalter tauschen',
       unit: 'Stück',
-      price_per_unit: articlePrices['813016'] || 15,
-      qty_formula: 'Math.max(globals.zimmer * 2, Math.ceil(globals.zimmer * 1.5))',
-      labor_hours_per_unit: 0.2,
       anzahl_einheit: 0,
-      artikelnummer: '813016',
-      customMeisterStunden: 0.08,
-      customGesellenstunden: 0.12,
-      customMonteurStunden: 0,
-      categoryFilter: 'schalter'
+      faktor_zimmer: 2,
+      faktor_etage: 0,
+      faktor_wohnflaeche: 0,
+      faktor_baujahr: 0,
+      faktor_unterputz_true: 0,
+      categoryFilter: 'schalter',
+      subcategories: []
     },
     {
       id: 'lichtauslaesse',
       name: 'Lichtauslässe erneuern',
       unit: 'Stück',
-      price_per_unit: articlePrices['849171'] || 35,
-      qty_formula: 'globals.zimmer * 1 + ((globals.wohnflaeche_qm / globals.zimmer > 20) ? Math.round(globals.zimmer * 0.2) : 0)',
-      labor_hours_per_unit: 0.4,
       anzahl_einheit: 0,
-      artikelnummer: '849171',
-      customMeisterStunden: 0.15,
-      customGesellenstunden: 0.25,
-      customMonteurStunden: 0,
-      categoryFilter: 'licht'
+      faktor_zimmer: 1,
+      faktor_etage: 0,
+      faktor_wohnflaeche: 0,
+      faktor_baujahr: 0,
+      faktor_unterputz_true: 0,
+      categoryFilter: 'licht',
+      subcategories: []
     },
     {
       id: 'leitungsverlegung',
       name: 'Leitungsverlegung',
       unit: 'Meter',
-      price_per_unit: articlePrices['125101'] || 8,
-      qty_formula: "Math.round(globals.wohnflaeche_qm * (globals.installation==='unterputz' ? 6 : 4))",
       anzahl_einheit: 0,
-      artikelnummer: '125101',
-      customMeisterStunden: 0.05,
-      customGesellenstunden: 0.1,
-      customMonteurStunden: 0.05,
-      categoryFilter: 'kabel'
-    },
-    {
-      id: 'schlitzen_schliessen',
-      name: 'Schlitzen & Schließen',
-      unit: 'Meter',
-      price_per_unit: 12,
-      qty_formula: "(globals.installation==='unterputz' ? Math.round(globals.wohnflaeche_qm * 0.6) : 0)",
-      anzahl_einheit: 0,
-      customMeisterStunden: 0.02,
-      customGesellenstunden: 0.08,
-      customMonteurStunden: 0.1,
-      categoryFilter: 'installation'
+      faktor_zimmer: 0,
+      faktor_etage: 0,
+      faktor_wohnflaeche: 4,
+      faktor_baujahr: 0,
+      faktor_unterputz_true: 2,
+      categoryFilter: 'installation',
+      subcategories: []
     },
     {
       id: 'rcd_nachruesten',
       name: 'FI/RCD nachrüsten 30mA',
       unit: 'Stück',
-      price_per_unit: articlePrices['606663'] || 120,
-      qty_formula: 'globals.etagen',
-      labor_hours_per_unit: 1.0,
       anzahl_einheit: 0,
-      artikelnummer: '606663',
-      customMeisterStunden: 0.5,
-      customGesellenstunden: 0.5,
-      customMonteurStunden: 0,
-      categoryFilter: 'fi'
+      faktor_zimmer: 0,
+      faktor_etage: 1,
+      faktor_wohnflaeche: 0,
+      faktor_baujahr: 0,
+      faktor_unterputz_true: 0,
+      categoryFilter: 'fi',
+      subcategories: []
     },
     {
       id: 'uv_erneuern',
       name: 'Unterverteilung erneuern',
       unit: 'Stück',
-      price_per_unit: articlePrices['606808'] || 800,
-      qty_formula: '(globals.baujahr < 1990) ? 1 : 0',
-      labor_hours_per_unit: 6.0,
       anzahl_einheit: 0,
-      artikelnummer: '606808',
-      customMeisterStunden: 3,
-      customGesellenstunden: 3,
-      customMonteurStunden: 0,
-      categoryFilter: 'verteiler'
-    },
-    {
-      id: 'rauchmelder',
-      name: 'Rauchwarnmelder',
-      unit: 'Stück',
-      price_per_unit: 30,
-      qty_formula: 'Math.max(3, Math.min(globals.zimmer, 12))',
-      anzahl_einheit: 0,
-      customMeisterStunden: 0,
-      customGesellenstunden: 0.2,
-      customMonteurStunden: 0.1,
-      categoryFilter: 'rauchmelder'
-    },
-    {
-      id: 'e_check',
-      name: 'E-Check / Messprotokoll',
-      unit: 'Pauschale',
-      price_per_unit: 150,
-      qty_formula: '1',
-      anzahl_einheit: 0,
-      customMeisterStunden: 1,
-      customGesellenstunden: 0,
-      customMonteurStunden: 0,
-      categoryFilter: 'pruefung'
-    },
-    {
-      id: 'zusaetzliche_stromkreise',
-      name: 'Zusätzliche Stromkreise 16A',
-      unit: 'Stück',
-      price_per_unit: articlePrices['606819'] || 180,
-      qty_formula: 'Math.max(0, Math.ceil(globals.wohnflaeche_qm/40) - 3)',
-      anzahl_einheit: 0,
-      artikelnummer: '606819',
-      customMeisterStunden: 1.5,
-      customGesellenstunden: 1.5,
-      customMonteurStunden: 0,
-      categoryFilter: 'stromkreis'
+      faktor_zimmer: 0,
+      faktor_etage: 0,
+      faktor_wohnflaeche: 0,
+      faktor_baujahr: 1,
+      faktor_unterputz_true: 0,
+      categoryFilter: 'verteiler',
+      subcategories: []
     }
   ];
 
@@ -252,53 +184,24 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   useEffect(() => {
-    // Initialize components immediately with fallback prices
-    initializeComponents();
-    // Then try to fetch real prices from database
-    fetchArticlePrices();
+    // Fetch products first, then initialize components
     fetchAvailableProducts();
   }, []);
 
   useEffect(() => {
-    // Re-initialize components when prices are fetched successfully
-    if (Object.keys(articlePrices).length > 0) {
+    // Initialize components when products are loaded
+    if (availableProducts.length > 0) {
       initializeComponents();
     }
-  }, [articlePrices]);
+  }, [availableProducts]);
 
-  const fetchArticlePrices = async () => {
-    try {
-      setLoading(true);
-      const articleNumbers = Object.values(getComponentArticleMapping()).filter(Boolean);
-      
-      const { data, error } = await supabase
-        .from('article_master')
-        .select('artikelnummer, artikel_preis')
-        .in('artikelnummer', articleNumbers);
-
-      if (error) {
-        console.log('Using fallback prices - database access restricted');
-        // Don't show error toast for permission issues, just use fallback prices
-      } else if (data) {
-        const priceMap = data.reduce((acc, item) => {
-          acc[item.artikelnummer] = item.artikel_preis;
-          return acc;
-        }, {} as Record<string, number>);
-        setArticlePrices(priceMap);
-      }
-    } catch (error) {
-      console.log('Using fallback prices - fetch error');
-      // Don't show error toast, just use fallback prices
-    } finally {
-      setLoading(false);
-    }
-  };
+  // No longer needed as prices come from wallboxen table
 
   const fetchAvailableProducts = async () => {
     try {
       const { data, error } = await supabase
         .from('wallboxen')
-        .select('Artikelnummer, Name, Verkaufspreis, Typ')
+        .select('Artikelnummer, Name, Verkaufspreis, Typ, "stunden_meister", "stunden_geselle", "stunden_monteur"')
         .ilike('Typ', '%Elektrosanierung%');
 
       if (error) {
@@ -318,8 +221,10 @@ export const ElektrosanierungConfigurator = () => {
             artikelnummer: String(row.Artikelnummer),
             artikel_name: row.Name || `Artikel ${row.Artikelnummer}`,
             artikel_preis: isNaN(numeric) ? 0 : numeric,
-            kategorie: 'Elektrosanierung',
-            subkategorie: row.Typ || ''
+            stunden_meister: parseFloat(row.stunden_meister) || 0,
+            stunden_geselle: parseFloat(row.stunden_geselle) || 0,
+            stunden_monteur: parseFloat(row.stunden_monteur) || 0,
+            typ: row.Typ || ''
           } as ProductOption;
         });
         setAvailableProducts(mapped);
@@ -333,7 +238,8 @@ export const ElektrosanierungConfigurator = () => {
     const components = getDefaultComponents();
     const componentsWithCalculatedQty = components.map(comp => ({
       ...comp,
-      anzahl_einheit: evaluateFormula(comp.qty_formula, config.globals)
+      anzahl_einheit: calculateDefaultQuantity(comp, config.globals),
+      subcategories: getFilteredProducts(comp.categoryFilter)
     }));
     
     setConfig(prev => ({
@@ -342,19 +248,29 @@ export const ElektrosanierungConfigurator = () => {
     }));
   };
 
-  // Formula evaluation function
-  const evaluateFormula = (formula: string, globals: GlobalsData): number => {
+  // Calculate default quantity using multiplication factors
+  const calculateDefaultQuantity = (comp: ComponentData, globals: GlobalsData): number => {
     try {
-      // Replace globals references in formula
-      const evalFormula = formula.replace(/globals\.(\w+)/g, (match, prop) => {
-        return String(globals[prop as keyof GlobalsData]);
-      });
+      let quantity = 0;
       
-      // Use eval for formula calculation (in production, consider using a safer parser)
-      const result = eval(evalFormula);
-      return Math.max(0, Math.round(result));
+      // Apply multiplication factors
+      quantity += globals.zimmer * comp.faktor_zimmer;
+      quantity += globals.etagen * comp.faktor_etage;
+      quantity += globals.wohnflaeche_qm * comp.faktor_wohnflaeche;
+      
+      // Add unterputz factor if installation is unterputz
+      if (globals.installation === 'unterputz') {
+        quantity += globals.wohnflaeche_qm * comp.faktor_unterputz_true;
+      }
+      
+      // Add baujahr factor if building is old
+      if (globals.baujahr < 1990) {
+        quantity += comp.faktor_baujahr;
+      }
+      
+      return Math.max(0, Math.round(quantity));
     } catch (error) {
-      console.warn('Formula evaluation error:', error);
+      console.warn('Quantity calculation error:', error);
       return 0;
     }
   };
@@ -368,7 +284,8 @@ export const ElektrosanierungConfigurator = () => {
       if (!touchedComponents.has(comp.id)) {
         return {
           ...comp,
-          anzahl_einheit: evaluateFormula(comp.qty_formula, newGlobals)
+          anzahl_einheit: calculateDefaultQuantity(comp, newGlobals),
+          subcategories: getFilteredProducts(comp.categoryFilter)
         };
       }
       return comp;
@@ -400,9 +317,7 @@ export const ElektrosanierungConfigurator = () => {
       components: prev.components.map(comp =>
         comp.id === id ? { 
           ...comp, 
-          selectedProduct: product,
-          price_per_unit: product.artikel_preis,
-          artikelnummer: product.artikelnummer
+          selectedProduct: product
         } : comp
       )
     }));
@@ -430,8 +345,8 @@ export const ElektrosanierungConfigurator = () => {
     if (!target) return [];
 
     return availableProducts.filter((product) => {
-      const sub = (product.subkategorie || '').toLowerCase();
-      return sub.includes(target);
+      const typ = (product.typ || '').toLowerCase();
+      return typ.includes(target);
     });
   };
 
@@ -446,15 +361,17 @@ export const ElektrosanierungConfigurator = () => {
   // Calculation functions
   const calculateMaterialCosts = () => {
     return config.components.reduce((total, comp) => {
-      return total + (comp.price_per_unit * comp.anzahl_einheit);
+      if (!comp.selectedProduct) return total;
+      return total + (comp.selectedProduct.artikel_preis * comp.anzahl_einheit);
     }, 0);
   };
 
   const calculateTotalLaborHours = (type: 'meister' | 'geselle' | 'monteur' = 'geselle') => {
     const baseHours = config.components.reduce((total, comp) => {
-      const hours = type === 'meister' ? comp.customMeisterStunden || 0 :
-                   type === 'geselle' ? comp.customGesellenstunden || 0 :
-                   comp.customMonteurStunden || 0;
+      if (!comp.selectedProduct) return total;
+      const hours = type === 'meister' ? comp.selectedProduct.stunden_meister :
+                   type === 'geselle' ? comp.selectedProduct.stunden_geselle :
+                   comp.selectedProduct.stunden_monteur;
       return total + (hours * comp.anzahl_einheit);
     }, 0);
     
@@ -472,28 +389,16 @@ export const ElektrosanierungConfigurator = () => {
     return materialCosts + laborCosts;
   };
 
-  // Update component hours
-  const updateComponentHours = (id: string, type: 'meister' | 'geselle' | 'monteur', hours: number) => {
-    setTouchedComponents(prev => new Set(prev).add(id));
-    setConfig(prev => ({
-      ...prev,
-      components: prev.components.map(comp =>
-        comp.id === id ? { 
-          ...comp, 
-          [`custom${type.charAt(0).toUpperCase() + type.slice(1)}Stunden`]: hours 
-        } : comp
-      )
-    }));
-  };
+  // No longer needed as hours come from selected products
 
   // Add configuration to cart
   const addToCart = () => {
-    const componentsToAdd = config.components.filter(comp => comp.anzahl_einheit > 0);
+    const componentsToAdd = config.components.filter(comp => comp.anzahl_einheit > 0 && comp.selectedProduct);
     
     if (componentsToAdd.length === 0) {
       toast({
         title: "Keine Komponenten ausgewählt",
-        description: "Bitte wählen Sie mindestens eine Komponente aus.",
+        description: "Bitte wählen Sie mindestens eine Komponente mit Produkt aus.",
         variant: "destructive",
       });
       return;
@@ -716,9 +621,9 @@ export const ElektrosanierungConfigurator = () => {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex-1">
                             <h4 className="font-medium">{component.name}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {component.price_per_unit}€ / {component.unit}
-                            </p>
+                             <p className="text-sm text-muted-foreground">
+                               {component.selectedProduct?.artikel_preis || 0}€ / {component.unit}
+                             </p>
                           </div>
                           
                           <div className="flex items-center gap-2">
@@ -793,45 +698,15 @@ export const ElektrosanierungConfigurator = () => {
                           </Select>
                         </div>
                       
-                      {component.anzahl_einheit > 0 && (
-                        <div className="flex items-center gap-2 mt-2 text-sm">
-                          <Clock className="h-4 w-4" />
-                          <span>M:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-meister`, component.customMeisterStunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-meister`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-meister`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-meister`, 0, (value) => 
-                              updateComponentHours(component.id, 'meister', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h, G:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-geselle`, component.customGesellenstunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-geselle`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-geselle`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-geselle`, 0, (value) => 
-                              updateComponentHours(component.id, 'geselle', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h, Mo:</span>
-                          <Input
-                            type="text"
-                            value={getInputValue(`${component.id}-monteur`, component.customMonteurStunden || 0)}
-                            onFocus={(e) => handleInputFocus(e, `${component.id}-monteur`)}
-                            onChange={(e) => handleInputChange(e, `${component.id}-monteur`)}
-                            onBlur={(e) => handleInputBlur(e, `${component.id}-monteur`, 0, (value) => 
-                              updateComponentHours(component.id, 'monteur', value)
-                            )}
-                            className="w-16"
-                          />
-                          <span>h</span>
-                        </div>
-                       )}
+                       {component.anzahl_einheit > 0 && component.selectedProduct && (
+                         <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                           <Clock className="h-4 w-4" />
+                           <span>Arbeitszeiten: </span>
+                           <span>M: {component.selectedProduct.stunden_meister}h</span>
+                           <span>G: {component.selectedProduct.stunden_geselle}h</span>
+                           <span>Mo: {component.selectedProduct.stunden_monteur}h</span>
+                         </div>
+                        )}
                      </div>
                    );
                    })}
