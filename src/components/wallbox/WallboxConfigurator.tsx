@@ -26,6 +26,7 @@ interface WallboxProduct {
   auto_select: string[] | null;
   stunden_meister: string;
   stunden_geselle: string;
+  stunden_monteur?: string;
   typ: string;
 }
 
@@ -41,6 +42,7 @@ interface SelectedProduct {
   einheit?: string;
   customMeisterStunden?: number;
   customGesellenstunden?: number;
+  customMonteurStunden?: number;
 }
 
 interface ConfigState {
@@ -49,8 +51,10 @@ interface ConfigState {
   optionalProducts: SelectedProduct[];
   meisterStunden: number;
   gesellenStunden: number;
+  monteurStunden: number;
   meisterStundensatz: number;
   gesellenStundensatz: number;
+  monteurStundensatz: number;
   anfahrtZone: string;
   anfahrtKosten: number;
 }
@@ -68,8 +72,10 @@ export function WallboxConfigurator() {
     optionalProducts: [],
     meisterStunden: 0,
     gesellenStunden: 0,
-    meisterStundensatz: 65,
-    gesellenStundensatz: 45,
+    monteurStunden: 0,
+    meisterStundensatz: 85,
+    gesellenStundensatz: 65,
+    monteurStundensatz: 50,
     anfahrtZone: '',
     anfahrtKosten: 0
   });
@@ -101,6 +107,7 @@ export function WallboxConfigurator() {
         auto_select: (item as any).auto_select || null,
         stunden_meister: (item as any).stunden_meister || '0',
         stunden_geselle: (item as any).stunden_geselle || '0',
+        stunden_monteur: (item as any).stunden_monteur || '0',
         typ: (item['Typ'] || '').trim() // Trim whitespace from typ as well
       }));
 
@@ -182,7 +189,8 @@ export function WallboxConfigurator() {
       quantity: product.anzahl_einheit || 1,
       einheit: product.einheit,
       customMeisterStunden: parseFloat(product.stunden_meister || '0'),
-      customGesellenstunden: parseFloat(product.stunden_geselle || '0')
+      customGesellenstunden: parseFloat(product.stunden_geselle || '0'),
+      customMonteurStunden: parseFloat(product.stunden_monteur || '0')
     };
 
     // Auto-add required products
@@ -200,7 +208,8 @@ export function WallboxConfigurator() {
         quantity: p.anzahl_einheit || 1,
         einheit: p.einheit,
         customMeisterStunden: parseFloat(p.stunden_meister || '0'),
-        customGesellenstunden: parseFloat(p.stunden_geselle || '0')
+        customGesellenstunden: parseFloat(p.stunden_geselle || '0'),
+        customMonteurStunden: parseFloat(p.stunden_monteur || '0')
       }));
     }
 
@@ -218,14 +227,16 @@ export function WallboxConfigurator() {
         quantity: p.anzahl_einheit || 1,
         einheit: p.einheit,
         customMeisterStunden: parseFloat(p.stunden_meister || '0'),
-        customGesellenstunden: parseFloat(p.stunden_geselle || '0')
+        customGesellenstunden: parseFloat(p.stunden_geselle || '0'),
+        customMonteurStunden: parseFloat(p.stunden_monteur || '0')
       }));
     }
 
     // Set labor hours from wallbox data as default
-    const { totalMeisterStunden, totalGesellenstunden } = calculateTotalHours();
+    const { totalMeisterStunden, totalGesellenstunden, totalMonteurStunden } = calculateTotalHours();
     const meisterStunden = totalMeisterStunden + parseFloat(wallbox?.stunden_meister || '0');
     const gesellenStunden = totalGesellenstunden + parseFloat(wallbox?.stunden_geselle || '0');
+    const monteurStunden = totalMonteurStunden + parseFloat(wallbox?.stunden_monteur || '0');
 
     setConfig(prev => ({
       ...prev,
@@ -233,7 +244,8 @@ export function WallboxConfigurator() {
       requiredProducts,
       optionalProducts,
       meisterStunden,
-      gesellenStunden
+      gesellenStunden,
+      monteurStunden
     }));
   };
 
@@ -251,7 +263,8 @@ export function WallboxConfigurator() {
       quantity: product.anzahl_einheit || 1,
       einheit: product.einheit,
       customMeisterStunden: parseFloat(product.stunden_meister || '0'),
-      customGesellenstunden: parseFloat(product.stunden_geselle || '0')
+      customGesellenstunden: parseFloat(product.stunden_geselle || '0'),
+      customMonteurStunden: parseFloat(product.stunden_monteur || '0')
     };
 
     setConfig(prev => ({
@@ -276,10 +289,11 @@ export function WallboxConfigurator() {
     }));
   };
 
-  const updateLaborHours = (type: 'meister' | 'geselle', hours: number) => {
+  const updateLaborHours = (type: 'meister' | 'geselle' | 'monteur', hours: number) => {
     setConfig(prev => ({
       ...prev,
-      [type === 'meister' ? 'meisterStunden' : 'gesellenStunden']: hours
+      [type === 'meister' ? 'meisterStunden' : 
+       type === 'geselle' ? 'gesellenStunden' : 'monteurStunden']: hours
     }));
   };
 
@@ -293,35 +307,42 @@ export function WallboxConfigurator() {
   const calculateTotalHours = () => {
     let totalMeisterStunden = 0;
     let totalGesellenstunden = 0;
+    let totalMonteurStunden = 0;
 
     // Add wallbox hours
     if (config.selectedWallbox) {
       totalMeisterStunden += (config.selectedWallbox.customMeisterStunden || 0) * config.selectedWallbox.quantity;
       totalGesellenstunden += (config.selectedWallbox.customGesellenstunden || 0) * config.selectedWallbox.quantity;
+      totalMonteurStunden += (config.selectedWallbox.customMonteurStunden || 0) * config.selectedWallbox.quantity;
     }
 
     // Add required product hours
     config.requiredProducts.forEach(product => {
       totalMeisterStunden += (product.customMeisterStunden || 0) * product.quantity;
       totalGesellenstunden += (product.customGesellenstunden || 0) * product.quantity;
+      totalMonteurStunden += (product.customMonteurStunden || 0) * product.quantity;
     });
 
     // Add optional product hours
     config.optionalProducts.forEach(product => {
       totalMeisterStunden += (product.customMeisterStunden || 0) * product.quantity;
       totalGesellenstunden += (product.customGesellenstunden || 0) * product.quantity;
+      totalMonteurStunden += (product.customMonteurStunden || 0) * product.quantity;
     });
 
-    return { totalMeisterStunden, totalGesellenstunden };
+    return { totalMeisterStunden, totalGesellenstunden, totalMonteurStunden };
   };
 
-  const updateProductHours = (type: 'wallbox' | 'required' | 'optional', artikelnummer: number, hourType: 'meister' | 'geselle', hours: number) => {
+  const updateProductHours = (type: 'wallbox' | 'required' | 'optional', artikelnummer: number, hourType: 'meister' | 'geselle' | 'monteur', hours: number) => {
+    const fieldName = hourType === 'meister' ? 'customMeisterStunden' : 
+                      hourType === 'geselle' ? 'customGesellenstunden' : 'customMonteurStunden';
+    
     if (type === 'wallbox' && config.selectedWallbox?.artikelnummer === artikelnummer) {
       setConfig(prev => ({
         ...prev,
         selectedWallbox: {
           ...prev.selectedWallbox!,
-          [hourType === 'meister' ? 'customMeisterStunden' : 'customGesellenstunden']: hours
+          [fieldName]: hours
         }
       }));
     } else if (type === 'required') {
@@ -329,7 +350,7 @@ export function WallboxConfigurator() {
         ...prev,
         requiredProducts: prev.requiredProducts.map(p => 
           p.artikelnummer === artikelnummer 
-            ? { ...p, [hourType === 'meister' ? 'customMeisterStunden' : 'customGesellenstunden']: hours }
+            ? { ...p, [fieldName]: hours }
             : p
         )
       }));
@@ -338,7 +359,7 @@ export function WallboxConfigurator() {
         ...prev,
         optionalProducts: prev.optionalProducts.map(p => 
           p.artikelnummer === artikelnummer 
-            ? { ...p, [hourType === 'meister' ? 'customMeisterStunden' : 'customGesellenstunden']: hours }
+            ? { ...p, [fieldName]: hours }
             : p
         )
       }));
@@ -346,7 +367,9 @@ export function WallboxConfigurator() {
   };
 
   const calculateLaborCosts = () => {
-    return (config.meisterStunden * config.meisterStundensatz) + (config.gesellenStunden * config.gesellenStundensatz);
+    return (config.meisterStunden * config.meisterStundensatz) + 
+           (config.gesellenStunden * config.gesellenStundensatz) + 
+           (config.monteurStunden * config.monteurStundensatz);
   };
 
   const calculateTotal = () => {
@@ -365,7 +388,8 @@ export function WallboxConfigurator() {
           requiredProducts: config.requiredProducts,
           optionalProducts: config.optionalProducts,
           meisterStunden: config.meisterStunden,
-          gesellenStunden: config.gesellenStunden
+          gesellenStunden: config.gesellenStunden,
+          monteurStunden: config.monteurStunden
         },
         pricing: {
           materialCosts: calculateMaterialCosts(),
@@ -430,7 +454,8 @@ export function WallboxConfigurator() {
                        <div className="text-sm">{config.selectedWallbox.name}</div>
                        <div className="text-xs text-muted-foreground mt-1">
                          M: {(config.selectedWallbox.customMeisterStunden || 0) * config.selectedWallbox.quantity}h, 
-                         G: {(config.selectedWallbox.customGesellenstunden || 0) * config.selectedWallbox.quantity}h
+                         G: {(config.selectedWallbox.customGesellenstunden || 0) * config.selectedWallbox.quantity}h,
+                         Mo: {(config.selectedWallbox.customMonteurStunden || 0) * config.selectedWallbox.quantity}h
                        </div>
                        <div className="text-right font-bold">
                          {config.selectedWallbox.price.toFixed(2)}€
@@ -450,7 +475,8 @@ export function WallboxConfigurator() {
                                  <div className="text-xs text-muted-foreground">
                                    {product.quantity} {product.einheit} • 
                                    M: {(product.customMeisterStunden || 0) * product.quantity}h, 
-                                   G: {(product.customGesellenstunden || 0) * product.quantity}h
+                                   G: {(product.customGesellenstunden || 0) * product.quantity}h,
+                                   Mo: {(product.customMonteurStunden || 0) * product.quantity}h
                                  </div>
                                </div>
                                <div className="text-sm font-medium">
@@ -473,16 +499,10 @@ export function WallboxConfigurator() {
                                <div className="text-sm flex-1">
                                  <div>{product.name}</div>
                                  <div className="text-xs text-muted-foreground">
-                                   <Input
-                                     type="number"
-                                     min="1"
-                                     value={product.quantity}
-                                     onChange={(e) => updateProductQuantity('optional', product.artikelnummer, parseInt(e.target.value) || 1)}
-                                     className="w-16 h-6 text-xs mt-1"
-                                   />
-                                   {product.einheit} • 
+                                   {product.quantity} {product.einheit} • 
                                    M: {(product.customMeisterStunden || 0) * product.quantity}h, 
-                                   G: {(product.customGesellenstunden || 0) * product.quantity}h
+                                   G: {(product.customGesellenstunden || 0) * product.quantity}h,
+                                   Mo: {(product.customMonteurStunden || 0) * product.quantity}h
                                  </div>
                                </div>
                               <div className="text-sm font-medium flex items-center gap-2">
@@ -596,6 +616,16 @@ export function WallboxConfigurator() {
                                    className="w-16"
                                    onClick={(e) => e.stopPropagation()}
                                  />
+                                 <span className="text-sm">h, Mo:</span>
+                                 <Input
+                                   type="number"
+                                   min="0"
+                                   step="0.5"
+                                   value={config.selectedWallbox?.customMonteurStunden || 0}
+                                   onChange={(e) => updateProductHours('wallbox', wallbox.artikelnummer, 'monteur', parseFloat(e.target.value) || 0)}
+                                   className="w-16"
+                                   onClick={(e) => e.stopPropagation()}
+                                 />
                                  <span className="text-sm">h</span>
                                </>
                              )}
@@ -695,6 +725,15 @@ export function WallboxConfigurator() {
                                          onChange={(e) => updateProductHours('optional', product.artikelnummer, 'geselle', parseFloat(e.target.value) || 0)}
                                          className="w-16"
                                        />
+                                       <span className="text-sm">h, Mo:</span>
+                                       <Input
+                                         type="number"
+                                         min="0"
+                                         step="0.5"
+                                         value={product.customMonteurStunden || 0}
+                                         onChange={(e) => updateProductHours('optional', product.artikelnummer, 'monteur', parseFloat(e.target.value) || 0)}
+                                         className="w-16"
+                                       />
                                        <span className="text-sm">h</span>
                                      </div>
                                   </div>
@@ -780,7 +819,7 @@ export function WallboxConfigurator() {
                 <p className="text-sm text-muted-foreground">Passen Sie die Arbeitsstunden bei Bedarf an.</p>
               </CardHeader>
                <CardContent>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    <div className="space-y-2">
                      <Label>Meisterstunden (à {config.meisterStundensatz}€)</Label>
                      <Input
@@ -807,6 +846,20 @@ export function WallboxConfigurator() {
                      />
                      <div className="text-sm text-muted-foreground">
                        = {(config.gesellenStunden * config.gesellenStundensatz).toFixed(2)}€
+                     </div>
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Monteurstunden (à {config.monteurStundensatz}€)</Label>
+                     <Input
+                       type="number"
+                       min="0"
+                       step="0.5"
+                       value={config.monteurStunden}
+                       onChange={(e) => updateLaborHours('monteur', parseFloat(e.target.value) || 0)}
+                       placeholder={calculateTotalHours().totalMonteurStunden.toString()}
+                     />
+                     <div className="text-sm text-muted-foreground">
+                       = {(config.monteurStunden * config.monteurStundensatz).toFixed(2)}€
                      </div>
                    </div>
                  </div>
