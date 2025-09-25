@@ -824,15 +824,15 @@ export const WallboxConfigurator = () => {
                         </div>
                        ))}
 
-                     {/* Add new categories - show dropdown for categories without selected products */}
-                     {getAvailableKategorien()
-                       .filter((kategorie) => {
-                         // Only show category if it has NO products currently selected
-                         return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
-                       })
-                       .map((kategorie) => (
-                        <div key={kategorie} className="space-y-3">
-                          <div className="flex items-center justify-between">
+                     {/* Show dropdown menus for categories without selected products */}
+                     <div className="space-y-3">
+                       {getAvailableKategorien()
+                         .filter((kategorie) => {
+                           // Only show category if it has NO products currently selected
+                           return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                         })
+                         .map((kategorie) => (
+                          <div key={kategorie} className="flex items-center justify-between">
                             <h3 className="font-medium text-lg">{kategorie}</h3>
                             <Select onValueChange={(value) => {
                               if (value && value !== 'none') {
@@ -855,9 +855,9 @@ export const WallboxConfigurator = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                        </div>
-                       ))}
-                  </div>
+                         ))}
+                      </div>
+                   </div>
                 </CardContent>
               </Card>
             )}
