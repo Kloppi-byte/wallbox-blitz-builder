@@ -11,6 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
 import { Building, Users, Home, Calendar, ArrowRight, ArrowLeft, Plus, Minus, Settings, Zap, Euro, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GlobalsData {
   etagen: number;
@@ -57,8 +58,23 @@ export const ElektrosanierungConfigurator = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [tempInputValues, setTempInputValues] = useState<Record<string, string>>({});
   const [touchedComponents, setTouchedComponents] = useState<Set<string>>(new Set());
+  const [articlePrices, setArticlePrices] = useState<Record<string, number>>({});
   const { toast } = useToast();
   const { addItem } = useCart();
+
+  // Article number mapping for components
+  const getComponentArticleMapping = (): Record<string, string> => ({
+    'steckdosen_tausch': '849130',
+    'schalter_tausch': '813016',
+    'lichtauslaesse': '849171',
+    'leitungsverlegung': '125101',
+    'schlitzen_schliessen': '',
+    'rcd_nachruesten': '606663',
+    'uv_erneuern': '606808',
+    'rauchmelder': '',
+    'e_check': '',
+    'zusaetzliche_stromkreise': '606819'
+  });
 
   // Default component catalog with formulas
   const getDefaultComponents = (): ComponentData[] => [
@@ -66,10 +82,11 @@ export const ElektrosanierungConfigurator = () => {
       id: 'steckdosen_tausch',
       name: 'Steckdosen tauschen',
       unit: 'Stück',
-      price_per_unit: 25,
+      price_per_unit: articlePrices['849130'] || 25,
       qty_formula: 'globals.zimmer * 5',
       labor_hours_per_unit: 0.25,
       anzahl_einheit: 0,
+      artikelnummer: '849130',
       customMeisterStunden: 0.1,
       customGesellenstunden: 0.15,
       customMonteurStunden: 0
@@ -78,10 +95,11 @@ export const ElektrosanierungConfigurator = () => {
       id: 'schalter_tausch',
       name: 'Schalter tauschen',
       unit: 'Stück',
-      price_per_unit: 15,
+      price_per_unit: articlePrices['813016'] || 15,
       qty_formula: 'Math.max(globals.zimmer * 2, Math.ceil(globals.zimmer * 1.5))',
       labor_hours_per_unit: 0.2,
       anzahl_einheit: 0,
+      artikelnummer: '813016',
       customMeisterStunden: 0.08,
       customGesellenstunden: 0.12,
       customMonteurStunden: 0
@@ -90,10 +108,11 @@ export const ElektrosanierungConfigurator = () => {
       id: 'lichtauslaesse',
       name: 'Lichtauslässe erneuern',
       unit: 'Stück',
-      price_per_unit: 35,
+      price_per_unit: articlePrices['849171'] || 35,
       qty_formula: 'globals.zimmer * 1 + ((globals.wohnflaeche_qm / globals.zimmer > 20) ? Math.round(globals.zimmer * 0.2) : 0)',
       labor_hours_per_unit: 0.4,
       anzahl_einheit: 0,
+      artikelnummer: '849171',
       customMeisterStunden: 0.15,
       customGesellenstunden: 0.25,
       customMonteurStunden: 0
@@ -102,9 +121,10 @@ export const ElektrosanierungConfigurator = () => {
       id: 'leitungsverlegung',
       name: 'Leitungsverlegung',
       unit: 'Meter',
-      price_per_unit: 8,
+      price_per_unit: articlePrices['125101'] || 8,
       qty_formula: "Math.round(globals.wohnflaeche_qm * (globals.installation==='unterputz' ? 6 : 4))",
       anzahl_einheit: 0,
+      artikelnummer: '125101',
       customMeisterStunden: 0.05,
       customGesellenstunden: 0.1,
       customMonteurStunden: 0.05
@@ -124,10 +144,11 @@ export const ElektrosanierungConfigurator = () => {
       id: 'rcd_nachruesten',
       name: 'FI/RCD nachrüsten 30mA',
       unit: 'Stück',
-      price_per_unit: 120,
+      price_per_unit: articlePrices['606663'] || 120,
       qty_formula: 'globals.etagen',
       labor_hours_per_unit: 1.0,
       anzahl_einheit: 0,
+      artikelnummer: '606663',
       customMeisterStunden: 0.5,
       customGesellenstunden: 0.5,
       customMonteurStunden: 0
@@ -136,10 +157,11 @@ export const ElektrosanierungConfigurator = () => {
       id: 'uv_erneuern',
       name: 'Unterverteilung erneuern',
       unit: 'Stück',
-      price_per_unit: 800,
+      price_per_unit: articlePrices['606808'] || 800,
       qty_formula: '(globals.baujahr < 1990) ? 1 : 0',
       labor_hours_per_unit: 6.0,
       anzahl_einheit: 0,
+      artikelnummer: '606808',
       customMeisterStunden: 3,
       customGesellenstunden: 3,
       customMonteurStunden: 0
@@ -170,9 +192,10 @@ export const ElektrosanierungConfigurator = () => {
       id: 'zusaetzliche_stromkreise',
       name: 'Zusätzliche Stromkreise 16A',
       unit: 'Stück',
-      price_per_unit: 180,
+      price_per_unit: articlePrices['606819'] || 180,
       qty_formula: 'Math.max(0, Math.ceil(globals.wohnflaeche_qm/40) - 3)',
       anzahl_einheit: 0,
+      artikelnummer: '606819',
       customMeisterStunden: 1.5,
       customGesellenstunden: 1.5,
       customMonteurStunden: 0
@@ -208,8 +231,50 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   useEffect(() => {
-    initializeComponents();
+    fetchArticlePrices();
   }, []);
+
+  useEffect(() => {
+    if (Object.keys(articlePrices).length > 0) {
+      initializeComponents();
+    }
+  }, [articlePrices]);
+
+  const fetchArticlePrices = async () => {
+    try {
+      setLoading(true);
+      const articleNumbers = Object.values(getComponentArticleMapping()).filter(Boolean);
+      
+      const { data, error } = await supabase
+        .from('article_master')
+        .select('artikelnummer, artikel_preis')
+        .in('artikelnummer', articleNumbers);
+
+      if (error) {
+        console.error('Error fetching article prices:', error);
+        toast({
+          title: "Fehler beim Laden der Preise",
+          description: "Fallback-Preise werden verwendet.",
+          variant: "destructive",
+        });
+      } else if (data) {
+        const priceMap = data.reduce((acc, item) => {
+          acc[item.artikelnummer] = item.artikel_preis;
+          return acc;
+        }, {} as Record<string, number>);
+        setArticlePrices(priceMap);
+      }
+    } catch (error) {
+      console.error('Error fetching article prices:', error);
+      toast({
+        title: "Fehler beim Laden der Preise",
+        description: "Fallback-Preise werden verwendet.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const initializeComponents = () => {
     const components = getDefaultComponents();
