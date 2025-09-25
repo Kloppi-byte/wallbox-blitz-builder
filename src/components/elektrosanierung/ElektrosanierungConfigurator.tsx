@@ -693,77 +693,86 @@ export const ElektrosanierungConfigurator = () => {
                    {config.components.map((component) => {
                      const filteredProducts = getFilteredProducts(component.categoryFilter);
                      return (
-                     <div key={component.id} className="p-4 border rounded-lg">
-                       <div className="flex items-center justify-between mb-2">
-                         <div className="flex-1">
-                           <h4 className="font-medium">{component.name}</h4>
-                           <p className="text-sm text-muted-foreground">
-                             {component.price_per_unit}€ / {component.unit}
-                           </p>
-                         </div>
-                         
-                         <div className="flex items-center gap-2">
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
-                           >
-                             <Minus className="h-4 w-4" />
-                           </Button>
-                           
-                           <Input
-                             type="number"
-                             min="0"
-                             className="w-20 text-center"
-                             value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
-                             onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
-                             onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
-                             onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
-                           />
-                           
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
-                           >
-                             <Plus className="h-4 w-4" />
-                           </Button>
-                           
-                           <div className="text-sm text-muted-foreground min-w-12">
-                             {component.unit}
-                           </div>
-                         </div>
-                       </div>
+                      <div key={component.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{component.name}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {component.price_per_unit}€ / {component.unit}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateComponentQuantity(component.id, Math.max(0, component.anzahl_einheit - 1))}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              className="w-20 text-center"
+                              value={getInputValue(`comp-${component.id}`, component.anzahl_einheit)}
+                              onFocus={(e) => handleInputFocus(e, `comp-${component.id}`)}
+                              onChange={(e) => handleInputChange(e, `comp-${component.id}`)}
+                              onBlur={(e) => handleInputBlur(e, `comp-${component.id}`, 0, (value) => updateComponentQuantity(component.id, value))}
+                            />
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateComponentQuantity(component.id, component.anzahl_einheit + 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            
+                            <div className="text-sm text-muted-foreground min-w-12">
+                              {component.unit}
+                            </div>
+                          </div>
+                        </div>
 
-                       {/* Product Selection Dropdown */}
-                       {filteredProducts.length > 0 && (
-                         <div className="mb-3">
-                           <Label className="text-sm font-medium">Produkt auswählen:</Label>
-                           <Select 
-                             value={component.selectedProduct?.artikelnummer || ''} 
-                             onValueChange={(value) => {
-                               const product = filteredProducts.find(p => p.artikelnummer === value);
-                               if (product) updateComponentProduct(component.id, product);
-                             }}
-                           >
-                             <SelectTrigger className="mt-1">
-                               <SelectValue placeholder="Produkt wählen..." />
-                             </SelectTrigger>
-                             <SelectContent>
-                               {filteredProducts.map((product) => (
-                                 <SelectItem key={product.artikelnummer} value={product.artikelnummer}>
-                                   <div className="flex justify-between items-center w-full">
-                                     <span className="truncate mr-2">{product.artikel_name}</span>
-                                     <span className="text-sm text-muted-foreground">
-                                       {product.artikel_preis}€
-                                     </span>
-                                   </div>
-                                 </SelectItem>
-                               ))}
-                             </SelectContent>
-                           </Select>
-                         </div>
-                       )}
+                        {/* Product Selection Dropdown - Always show for all components */}
+                        <div className="mb-3">
+                          <Label className="text-sm font-medium">Produkt auswählen:</Label>
+                          <Select 
+                            value={component.selectedProduct?.artikelnummer || ''} 
+                            onValueChange={(value) => {
+                              const filteredProducts = getFilteredProducts(component.categoryFilter);
+                              const product = filteredProducts.find(p => p.artikelnummer === value);
+                              if (product) updateComponentProduct(component.id, product);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder={
+                                getFilteredProducts(component.categoryFilter).length > 0 
+                                  ? "Produkt wählen..." 
+                                  : "Keine Produkte verfügbar"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getFilteredProducts(component.categoryFilter).length > 0 ? (
+                                getFilteredProducts(component.categoryFilter).map((product) => (
+                                  <SelectItem key={product.artikelnummer} value={product.artikelnummer}>
+                                    <div className="flex justify-between items-center w-full">
+                                      <span className="truncate mr-2">{product.artikel_name}</span>
+                                      <span className="text-sm text-muted-foreground">
+                                        {product.artikel_preis}€
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-products" disabled>
+                                  Keine Produkte für {component.categoryFilter} gefunden
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       
                       {component.anzahl_einheit > 0 && (
                         <div className="flex items-center gap-2 mt-2 text-sm">
