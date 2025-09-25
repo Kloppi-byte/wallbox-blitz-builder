@@ -204,7 +204,7 @@ export const ElektrosanierungConfigurator = () => {
       const { data, error } = await supabase
         .from('wallboxen')
         .select('Artikelnummer, Name, Verkaufspreis, "Überüberkategorie", "Überkategorie", Kategorie, "stunden_meister", "stunden_geselle", "stunden_monteur"')
-        .ilike('Überüberkategorie', '%Elektrosanierung%');
+        .contains('Überüberkategorie', ['Elektrosanierung']);
 
       if (error) {
         console.log('Could not fetch products from wallboxen - using fallback data');
@@ -334,15 +334,15 @@ export const ElektrosanierungConfigurator = () => {
     // Map component types to Überkategorie names in wallboxen
     const filterMap: Record<string, string> = {
       'steckdose': 'steckdose',
-      'schalter': 'schalter',
-      'licht': 'licht',
-      'kabel': 'kabel',
-      'fi': 'fi',
-      'verteiler': 'verteiler',
-      'rauchmelder': 'rauchmelder',
-      'stromkreis': 'stromkreis',
+      'schalter': 'schalter', 
+      'licht': 'lichtauslässe',
+      'kabel': 'leitungsverlegung',
+      'fi': 'unterverteilung',
+      'verteiler': 'unterverteilung',
+      'rauchmelder': 'rauchwarnmelder',
+      'stromkreis': 'schlitzen',
       'installation': 'leitungsverlegung',
-      'pruefung': 'prü'
+      'pruefung': 'e-check'
     };
 
     const target = filterMap[categoryFilter];
