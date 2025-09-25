@@ -6,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
-import { Zap, Euro, Clock, ArrowLeftRight, Trash2 } from 'lucide-react';
+import { Zap, Euro, Clock, ArrowLeftRight, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 
 interface WallboxProduct {
   artikelnummer: number;
@@ -73,6 +75,7 @@ export const WallboxConfigurator = () => {
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAlternativesOpen, setIsAlternativesOpen] = useState(false);
+  const [isComponentsOpen, setIsComponentsOpen] = useState(false);
   const { toast } = useToast();
   const { addItem } = useCart();
 
@@ -828,40 +831,66 @@ export const WallboxConfigurator = () => {
                         </div>
                        ))}
 
-                     {/* Single dropdown for all unselected categories */}
+                     {/* Single dropdown with categories and search for all unselected categories */}
                      {getAvailableKategorien().filter((kategorie) => {
                        return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
                      }).length > 0 && (
                        <div className="mt-4">
-                         <Select onValueChange={(value) => {
-                           if (value && value !== 'none') {
-                             const [kategorie, artikelnummer] = value.split('|');
-                             const product = getProductsByKategorie(kategorie).find(p => p.artikelnummer.toString() === artikelnummer);
-                             if (product) {
-                               addOptionalProduct(product);
-                             }
-                           }
-                         }}>
-                           <SelectTrigger className="w-full">
-                             <SelectValue placeholder="Zusätzliche Komponenten hinzufügen" />
-                           </SelectTrigger>
-                           <SelectContent className="max-h-60">
-                             <SelectItem value="none">Kein Produkt auswählen</SelectItem>
-                             {getAvailableKategorien()
-                               .filter((kategorie) => {
-                                 return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
-                               })
-                               .map((kategorie) => {
-                                 const products = getProductsByKategorie(kategorie);
-                                 return products.map((product) => (
-                                   <SelectItem key={`${kategorie}|${product.artikelnummer}`} value={`${kategorie}|${product.artikelnummer}`}>
-                                     <span className="font-medium">{kategorie}</span> - {product.name} ({parseFloat(product.verkaufspreis).toFixed(2)}€)
-                                   </SelectItem>
-                                 ));
-                               })
-                               .flat()}
-                           </SelectContent>
-                         </Select>
+                         <Popover open={isComponentsOpen} onOpenChange={setIsComponentsOpen}>
+                           <PopoverTrigger asChild>
+                             <Button
+                               variant="outline"
+                               role="combobox"
+                               aria-expanded={isComponentsOpen}
+                               className="w-full justify-between"
+                             >
+                               Zusätzliche Komponenten hinzufügen
+                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                             </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-full p-0" align="start">
+                             <Command>
+                               <CommandInput placeholder="Komponenten suchen..." />
+                               <CommandList className="max-h-60">
+                                 <CommandEmpty>Keine Komponenten gefunden.</CommandEmpty>
+                                 {getAvailableKategorien()
+                                   .filter((kategorie) => {
+                                     return !config.optionalProducts.some(p => p.kategorie.trim() === kategorie);
+                                   })
+                                   .map((kategorie) => {
+                                     const products = getProductsByKategorie(kategorie);
+                                     if (products.length === 0) return null;
+                                     
+                                     return (
+                                       <CommandGroup key={kategorie} heading={kategorie}>
+                                         {products.map((product) => (
+                                           <CommandItem
+                                             key={product.artikelnummer}
+                                             value={`${kategorie} ${product.name} ${product.beschreibung}`}
+                                             onSelect={() => {
+                                               addOptionalProduct(product);
+                                               setIsComponentsOpen(false);
+                                             }}
+                                             className="cursor-pointer"
+                                           >
+                                             <div className="flex flex-col w-full">
+                                               <div className="font-medium">{product.name}</div>
+                                               <div className="text-sm text-muted-foreground">
+                                                 {product.beschreibung}
+                                               </div>
+                                               <div className="text-sm font-medium text-primary mt-1">
+                                                 {parseFloat(product.verkaufspreis).toFixed(2)}€
+                                               </div>
+                                             </div>
+                                           </CommandItem>
+                                         ))}
+                                       </CommandGroup>
+                                     );
+                                   })}
+                               </CommandList>
+                             </Command>
+                           </PopoverContent>
+                         </Popover>
                        </div>
                      )}
                    </div>
