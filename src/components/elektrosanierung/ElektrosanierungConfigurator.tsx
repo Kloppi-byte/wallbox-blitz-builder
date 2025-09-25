@@ -115,7 +115,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.08,
       customGesellenstunden: 0.12,
       customMonteurStunden: 0,
-      categoryFilter: 'schalter'
+      categoryFilter: 'Schalter'
     },
     {
       id: 'lichtauslaesse',
@@ -129,7 +129,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.15,
       customGesellenstunden: 0.25,
       customMonteurStunden: 0,
-      categoryFilter: 'licht'
+      categoryFilter: 'Lichtauslässe'
     },
     {
       id: 'leitungsverlegung',
@@ -142,7 +142,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.05,
       customGesellenstunden: 0.1,
       customMonteurStunden: 0.05,
-      categoryFilter: 'kabel'
+      categoryFilter: 'Leitungsverlegung'
     },
     {
       id: 'schlitzen_schliessen',
@@ -154,7 +154,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.02,
       customGesellenstunden: 0.08,
       customMonteurStunden: 0.1,
-      categoryFilter: 'installation'
+      categoryFilter: 'Schlitzen'
     },
     {
       id: 'rcd_nachruesten',
@@ -168,7 +168,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0.5,
       customGesellenstunden: 0.5,
       customMonteurStunden: 0,
-      categoryFilter: 'fi'
+      categoryFilter: 'FI/RCD'
     },
     {
       id: 'uv_erneuern',
@@ -182,7 +182,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 3,
       customGesellenstunden: 3,
       customMonteurStunden: 0,
-      categoryFilter: 'verteiler'
+      categoryFilter: 'Unterverteilung'
     },
     {
       id: 'rauchmelder',
@@ -194,7 +194,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 0,
       customGesellenstunden: 0.2,
       customMonteurStunden: 0.1,
-      categoryFilter: 'rauchmelder'
+      categoryFilter: 'Rauchwarnmelder'
     },
     {
       id: 'e_check',
@@ -206,7 +206,7 @@ export const ElektrosanierungConfigurator = () => {
       customMeisterStunden: 1,
       customGesellenstunden: 0,
       customMonteurStunden: 0,
-      categoryFilter: 'pruefung'
+      categoryFilter: 'E-Check'
     },
     {
       id: 'zusaetzliche_stromkreise',
