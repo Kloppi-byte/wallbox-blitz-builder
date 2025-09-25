@@ -44,15 +44,20 @@ interface Product {
   auto_select?: number[];
 }
 
+interface ProductEntry {
+  id: string;
+  product: Product;
+  quantity: number;
+  isManuallyEdited: boolean;
+  defaultQuantity: number;
+}
+
 interface CategoryGroup {
   name: string;
   ueberkategorie: string;
   baseProduct?: Product;
   productOptions: Product[];
-  quantity: number;
-  selectedProduct?: Product;
-  defaultQuantity: number;
-  isManuallyEdited: boolean;
+  productEntries: ProductEntry[];
 }
 
 interface ConfiguratorState {
@@ -203,12 +208,14 @@ export const ElektrosanierungConfigurator = () => {
     let monteurHours = 0;
 
     state.categories.forEach(category => {
-      if (category.selectedProduct && category.quantity > 0) {
-        materialCosts += category.selectedProduct.verkaufspreis * category.quantity;
-        meisterHours += category.selectedProduct.stunden_meister * category.quantity;
-        geselleHours += category.selectedProduct.stunden_geselle * category.quantity;
-        monteurHours += category.selectedProduct.stunden_monteur * category.quantity;
-      }
+      category.productEntries.forEach(entry => {
+        if (entry.quantity > 0) {
+          materialCosts += entry.product.verkaufspreis * entry.quantity;
+          meisterHours += entry.product.stunden_meister * entry.quantity;
+          geselleHours += entry.product.stunden_geselle * entry.quantity;
+          monteurHours += entry.product.stunden_monteur * entry.quantity;
+        }
+      });
     });
 
     // Apply labor adjustments
@@ -257,15 +264,21 @@ export const ElektrosanierungConfigurator = () => {
       );
     }
 
+    // Create initial product entry if a product is available
+    const productEntries: ProductEntry[] = selectedProduct ? [{
+      id: `${ueberkategorie}-${Date.now()}`,
+      product: selectedProduct,
+      quantity: defaultQuantity,
+      isManuallyEdited: false,
+      defaultQuantity
+    }] : [];
+
     const newCategory: CategoryGroup = {
       name: baseProduct.name,
       ueberkategorie,
       baseProduct,
       productOptions,
-      quantity: defaultQuantity,
-      selectedProduct,
-      defaultQuantity,
-      isManuallyEdited: false
+      productEntries
     };
 
     setState(prev => ({
@@ -288,33 +301,69 @@ export const ElektrosanierungConfigurator = () => {
     }));
   };
 
-  const updateCategoryQuantity = (ueberkategorie: string, quantity: number) => {
+  const addProductToCategory = (ueberkategorie: string) => {
+    const category = state.categories.find(cat => cat.ueberkategorie === ueberkategorie);
+    if (!category || !category.baseProduct) return;
+
+    // Find cheapest available product as default
+    const defaultProduct = category.productOptions.length > 0 
+      ? category.productOptions.reduce((min, current) => 
+          current.verkaufspreis < min.verkaufspreis ? current : min
+        )
+      : null;
+
+    if (!defaultProduct) return;
+
+    const defaultQuantity = calculateQuantity(category.baseProduct, state.parameters);
+
+    const newEntry: ProductEntry = {
+      id: `${ueberkategorie}-${Date.now()}`,
+      product: defaultProduct,
+      quantity: defaultQuantity,
+      isManuallyEdited: false,
+      defaultQuantity
+    };
+
     setState(prev => ({
       ...prev,
       categories: prev.categories.map(cat =>
         cat.ueberkategorie === ueberkategorie
-          ? { 
-              ...cat, 
-              quantity, 
-              isManuallyEdited: true
-            }
+          ? { ...cat, productEntries: [...cat.productEntries, newEntry] }
           : cat
       )
     }));
   };
 
-  const updateCategoryProduct = (ueberkategorie: string, produktNummer: number) => {
-    const selectedProduct = products.find(p => p.artikelnummer === produktNummer);
-    if (!selectedProduct) return;
-
+  const removeProductFromCategory = (entryId: string) => {
     setState(prev => ({
       ...prev,
-      categories: prev.categories.map(cat =>
-        cat.ueberkategorie === ueberkategorie
-          ? { ...cat, selectedProduct }
-          : cat
-      )
+      categories: prev.categories.map(cat => ({
+        ...cat,
+        productEntries: cat.productEntries.filter(entry => entry.id !== entryId)
+      }))
     }));
+  };
+
+  const updateProductEntry = (entryId: string, updates: Partial<ProductEntry>) => {
+    setState(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat => ({
+        ...cat,
+        productEntries: cat.productEntries.map(entry =>
+          entry.id === entryId ? { ...entry, ...updates } : entry
+        )
+      }))
+    }));
+  };
+
+  const updateProductEntryQuantity = (entryId: string, quantity: number) => {
+    updateProductEntry(entryId, { quantity, isManuallyEdited: true });
+  };
+
+  const updateProductEntryProduct = (entryId: string, produktNummer: number) => {
+    const selectedProduct = products.find(p => p.artikelnummer === produktNummer);
+    if (!selectedProduct) return;
+    updateProductEntry(entryId, { product: selectedProduct });
   };
 
   const handleInputChange = (key: string, value: string) => {
@@ -332,12 +381,14 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   const addToCart = () => {
-    const selectedCategories = state.categories.filter(cat => cat.quantity > 0 && cat.selectedProduct);
+    const hasProducts = state.categories.some(cat => 
+      cat.productEntries.some(entry => entry.quantity > 0)
+    );
     
-    if (selectedCategories.length === 0) {
+    if (!hasProducts) {
       toast({
         title: "Keine Auswahl",
-        description: "Bitte wählen Sie mindestens eine Komponente aus.",
+        description: "Bitte wählen Sie mindestens ein Produkt aus.",
         variant: "destructive"
       });
       return;
@@ -348,7 +399,9 @@ export const ElektrosanierungConfigurator = () => {
       name: 'Elektrosanierung Konfiguration',
       configuration: {
         parameters: state.parameters,
-        categories: selectedCategories,
+        categories: state.categories.filter(cat => 
+          cat.productEntries.some(entry => entry.quantity > 0)
+        ),
         costs: state.costs
       },
       pricing: {
@@ -536,79 +589,101 @@ export const ElektrosanierungConfigurator = () => {
                         </Button>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-4">
-                        {/* Quantity Control */}
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateCategoryQuantity(category.ueberkategorie, Math.max(0, category.quantity - 1))}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={category.quantity}
-                              onChange={e => updateCategoryQuantity(category.ueberkategorie, parseInt(e.target.value) || 0)}
-                              className="text-center w-24"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateCategoryQuantity(category.ueberkategorie, category.quantity + 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          {!category.isManuallyEdited && (
-                            <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                              <Info className="h-3 w-3" />
-                              Automatisch berechnet ({category.defaultQuantity} Stück)
+                      {/* Product Entries */}
+                      <div className="space-y-3">
+                        {category.productEntries.map(entry => (
+                          <div key={entry.id} className="grid grid-cols-4 gap-4 items-end p-3 bg-muted/30 rounded-md">
+                            {/* Quantity Control */}
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={entry.quantity}
+                                  onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
+                                  className="text-center w-20"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {!entry.isManuallyEdited && (
+                                <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                                  <Info className="h-3 w-3" />
+                                  Auto: {entry.defaultQuantity}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        {/* Product Selection */}
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
-                          <Select
-                            value={category.selectedProduct?.artikelnummer.toString() || ''}
-                            onValueChange={value => updateCategoryProduct(category.ueberkategorie, parseInt(value))}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Produkt wählen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {category.productOptions.map(product => (
-                                <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
-                                  {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            {/* Product Selection */}
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
+                              <Select
+                                value={entry.product.artikelnummer.toString()}
+                                onValueChange={value => updateProductEntryProduct(entry.id, parseInt(value))}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {category.productOptions.map(product => (
+                                    <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                      {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        {/* Cost Information */}
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
-                          <div className="mt-1">
-                            {category.selectedProduct && category.quantity > 0 ? (
-                              <div className="space-y-1">
+                            {/* Cost Information */}
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
+                              <div className="mt-1">
                                 <div className="text-sm font-medium">
-                                  Material: {(category.selectedProduct.verkaufspreis * category.quantity).toLocaleString('de-DE')}€
+                                  Material: {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  Arbeitszeit: {((category.selectedProduct.stunden_meister + category.selectedProduct.stunden_geselle + category.selectedProduct.stunden_monteur) * category.quantity).toFixed(1)}h
+                                  Arbeitszeit: {((entry.product.stunden_meister + entry.product.stunden_geselle + entry.product.stunden_monteur) * entry.quantity).toFixed(1)}h
                                 </div>
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
+                            </div>
+
+                            {/* Remove Product Button */}
+                            <div className="flex justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeProductFromCategory(entry.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
+                        ))}
+
+                        {/* Add Product Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addProductToCategory(category.ueberkategorie)}
+                          className="w-full border-dashed"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Produkt hinzufügen
+                        </Button>
                       </div>
                     </div>
                   ))}
