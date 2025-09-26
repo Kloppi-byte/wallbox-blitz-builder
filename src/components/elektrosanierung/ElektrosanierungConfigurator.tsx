@@ -840,61 +840,60 @@ export const ElektrosanierungConfigurator = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Individual Product Hours - Editable */}
-                {state.categories.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="font-medium">Arbeitszeiten pro Position</h3>
-                    <div className="space-y-3">
-                      {state.categories.map(category => 
-                        category.productEntries.map(entry => (
-                          <div key={entry.id} className="border rounded-lg p-4 bg-muted/20">
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="font-medium text-sm">{entry.product.name}</h4>
-                                <p className="text-xs text-muted-foreground">Menge: {entry.quantity}</p>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Meister (h)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={entry.meisterHours}
-                                  onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
-                                  className="text-sm h-8 mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Geselle (h)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={entry.geselleHours}
-                                  onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
-                                  className="text-sm h-8 mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Monteur (h)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  value={entry.monteurHours}
-                                  onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
-                                  className="text-sm h-8 mt-1"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                {/* Total Hours Summary */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Gesamte Arbeitszeit</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg text-center">
+                      <div className="text-blue-600 font-medium">Meister</div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {(() => {
+                          const totalHours = state.categories.reduce((sum, cat) => 
+                            sum + cat.productEntries.reduce((entrySum, entry) => 
+                              entrySum + (entry.meisterHours * entry.quantity), 0), 0
+                          );
+                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
+                        })()}h
+                      </div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg text-center">
+                      <div className="text-green-600 font-medium">Geselle</div>
+                      <div className="text-2xl font-bold text-green-700">
+                        {(() => {
+                          const totalHours = state.categories.reduce((sum, cat) => 
+                            sum + cat.productEntries.reduce((entrySum, entry) => 
+                              entrySum + (entry.geselleHours * entry.quantity), 0), 0
+                          );
+                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
+                        })()}h
+                      </div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg text-center">
+                      <div className="text-purple-600 font-medium">Monteur</div>
+                      <div className="text-2xl font-bold text-purple-700">
+                        {(() => {
+                          const totalHours = state.categories.reduce((sum, cat) => 
+                            sum + cat.productEntries.reduce((entrySum, entry) => 
+                              entrySum + (entry.monteurHours * entry.quantity), 0), 0
+                          );
+                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
+                        })()}h
+                      </div>
                     </div>
                   </div>
-                )}
+                  <div className="text-center mt-4">
+                    <div className="text-sm text-muted-foreground">Gesamtstunden:</div>
+                    <div className="text-xl font-bold">
+                      {(() => {
+                        const totalHours = state.categories.reduce((sum, cat) => 
+                          sum + cat.productEntries.reduce((entrySum, entry) => 
+                            entrySum + ((entry.meisterHours + entry.geselleHours + entry.monteurHours) * entry.quantity), 0), 0
+                        );
+                        return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
+                      })()}h
+                    </div>
+                  </div>
+                </div>
 
                 <Separator />
 
