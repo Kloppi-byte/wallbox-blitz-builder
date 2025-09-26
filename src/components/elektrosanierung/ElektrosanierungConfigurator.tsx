@@ -32,6 +32,7 @@ interface Product {
   stunden_meister: number;
   stunden_geselle: number;
   stunden_monteur: number;
+  "anzahl_einheit"?: number;
   faktor_zimmer?: number;
   faktor_etage?: number;
   faktor_wohnflaeche?: number;
@@ -126,6 +127,7 @@ export const ElektrosanierungConfigurator = () => {
           Kategorie,
           "Überkategorie",
           "Überüberkategorie",
+          "Anzahl Einheit",
           stunden_meister,
           stunden_geselle, 
           stunden_monteur,
@@ -151,6 +153,7 @@ export const ElektrosanierungConfigurator = () => {
         kategorie: item.Kategorie || '',
         ueberkategorie: item.Überkategorie || '',
         ueberueberkategorie: item.Überüberkategorie || [],
+        "anzahl_einheit": parseFloat(item["Anzahl Einheit"] || 0),
         stunden_meister: parseFloat(item.stunden_meister || 0),
         stunden_geselle: parseFloat(item.stunden_geselle || 0),
         stunden_monteur: parseFloat(item.stunden_monteur || 0),
@@ -180,7 +183,8 @@ export const ElektrosanierungConfigurator = () => {
   };
 
   const calculateQuantity = (product: Product, parameters: ProjectParameters): number => {
-    let quantity = 1; // Base quantity
+    // Use "Anzahl Einheit" as base quantity, or 0 if not specified
+    let quantity = product["anzahl_einheit"] || 0;
 
     // Apply factorization
     if (product.faktor_zimmer) {
