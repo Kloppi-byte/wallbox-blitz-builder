@@ -418,16 +418,21 @@ export const WallboxConfigurator = () => {
 
   // Get autoselected component groups
   const autoselectedGroups = new Map<string, any[]>();
-  state.autoselectedProducts.forEach(id => {
-    const selectedProduct = state.selectedProducts.get(id);
-    if (selectedProduct) {
+  
+  // Group autoselected products by category
+  state.selectedProducts.forEach((selectedProduct, id) => {
+    if (selectedProduct.isAutoSelected) {
       const product = selectedProduct.product;
       const category = product["Überkategorie"] || product.Überkategorie;
       if (category && !category.toLowerCase().includes('wallbox')) {
         if (!autoselectedGroups.has(category)) {
           autoselectedGroups.set(category, []);
         }
-        autoselectedGroups.get(category)!.push({...selectedProduct, categoryProducts: state.componentGroups.get(category) || []});
+        const categoryProducts = state.componentGroups.get(category) || [];
+        autoselectedGroups.get(category)!.push({
+          ...selectedProduct,
+          categoryProducts: categoryProducts
+        });
       }
     }
   });
@@ -439,6 +444,9 @@ export const WallboxConfigurator = () => {
       availableGroups.set(category, products);
     }
   });
+
+  console.log('Autoselected groups:', autoselectedGroups.size, Array.from(autoselectedGroups.keys()));
+  console.log('Selected products:', state.selectedProducts.size, Array.from(state.selectedProducts.keys()));
 
   // Filter products for component adder based on search
   const filteredGroups = new Map<string, any[]>();
