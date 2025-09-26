@@ -633,7 +633,9 @@ export const WallboxConfigurator = () => {
 
             {/* Autoselected Components */}
             {Array.from(autoselectedGroups.entries()).map(([category, categoryProducts]) => {
-              const selectedProduct = categoryProducts.find(p => state.selectedProducts.has(p.Artikelnummer));
+              // Get the first autoselected product in this category
+              const selectedProductEntry = categoryProducts[0];
+              const selectedProduct = selectedProductEntry?.product;
               const allCategoryProducts = state.componentGroups.get(category) || [];
               
               return (
@@ -642,7 +644,7 @@ export const WallboxConfigurator = () => {
                     <CardTitle>{category}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {selectedProduct && (
+                    {selectedProduct && selectedProductEntry && (
                       <div className="border rounded-lg p-4">
                         <div className="flex items-start gap-4">
                           {/* Product Photo */}
@@ -684,48 +686,110 @@ export const WallboxConfigurator = () => {
                                   <div>{parseFloat(selectedProduct.stunden_monteur) || 0}h Monteur</div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <Label htmlFor={`qty-${selectedProduct.Artikelnummer}`} className="text-sm">
+                                  <Label htmlFor={`qty-${selectedProductEntry.id}`} className="text-sm">
                                     Menge:
                                   </Label>
                                   <Input
-                                    id={`qty-${selectedProduct.Artikelnummer}`}
+                                    id={`qty-${selectedProductEntry.id}`}
                                     type="number"
-                                    value={state.selectedProducts.get(selectedProduct.Artikelnummer)?.quantity || 0}
+                                    value={selectedProductEntry.quantity || 0}
                                     onChange={(e) => {
                                       const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                                      handleQuantityChange(selectedProduct.Artikelnummer, value);
+                                      handleQuantityChange(selectedProductEntry.id, value);
                                     }}
                                     onBlur={(e) => {
                                       if (e.target.value === '') {
-                                        handleQuantityChange(selectedProduct.Artikelnummer, 0);
+                                        handleQuantityChange(selectedProductEntry.id, 0);
                                       }
                                     }}
                                     className="w-20"
                                     min="0"
                                   />
                                 </div>
+                                
+                                {/* Hours editing */}
+                                <div className="grid grid-cols-3 gap-2 mt-2">
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs">Meister:</Label>
+                                    <Input
+                                      type="number"
+                                      value={selectedProductEntry.customHours?.meister ?? (parseFloat(selectedProduct.stunden_meister) || 0)}
+                                      onChange={(e) => handleHoursChange(selectedProductEntry.id, 'meister', parseFloat(e.target.value) || 0)}
+                                      className="w-16 h-8 text-xs"
+                                      min="0"
+                                      step="0.1"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs">Geselle:</Label>
+                                    <Input
+                                      type="number"
+                                      value={selectedProductEntry.customHours?.geselle ?? (parseFloat(selectedProduct.stunden_geselle) || 0)}
+                                      onChange={(e) => handleHoursChange(selectedProductEntry.id, 'geselle', parseFloat(e.target.value) || 0)}
+                                      className="w-16 h-8 text-xs"
+                                      min="0"
+                                      step="0.1"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs">Monteur:</Label>
+                                    <Input
+                                      type="number"
+                                      value={selectedProductEntry.customHours?.monteur ?? (parseFloat(selectedProduct.stunden_monteur) || 0)}
+                                      onChange={(e) => handleHoursChange(selectedProductEntry.id, 'monteur', parseFloat(e.target.value) || 0)}
+                                      className="w-16 h-8 text-xs"
+                                      min="0"
+                                      step="0.1"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                               <div className="text-right">
-                                <Select
-                                  value={selectedProduct.Artikelnummer.toString()}
-                                  onValueChange={(value) => {
-                                    const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
-                                    if (newProduct) {
-                                      handleProductSelect(category, value);
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="w-48">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {allCategoryProducts.map(product => (
-                                      <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
-                                        {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className="space-y-2">
+                                  <Select
+                                    value={selectedProduct.Artikelnummer.toString()}
+                                    onValueChange={(value) => {
+                                      const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
+                                      if (newProduct) {
+                                        handleProductSelect(category, value, selectedProductEntry.id);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-48">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {allCategoryProducts.map(product => (
+                                        <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
+                                          {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Add another product from this category
+                                      if (allCategoryProducts.length > 0) {
+                                        handleProductSelect(category, allCategoryProducts[0].Artikelnummer.toString());
+                                      }
+                                    }}
+                                    className="w-full"
+                                  >
+                                    Weitere hinzufügen
+                                  </Button>
+                                  {!selectedProductEntry.isAutoSelected && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => removeProduct(selectedProductEntry.id)}
+                                      className="w-full"
+                                    >
+                                      Entfernen
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
