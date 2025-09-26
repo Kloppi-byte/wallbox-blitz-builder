@@ -691,80 +691,101 @@ export const ElektrosanierungConfigurator = () => {
                                     </Select>
                                   </div>
 
-                                  {/* Quantity and Cost Row */}
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                      <Label className="text-sm font-medium">Menge:</Label>
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
-                                        >
-                                          <Minus className="h-4 w-4" />
-                                        </Button>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={entry.quantity}
-                                          onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
-                                          className="text-center w-16"
-                                        />
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
-                                        >
-                                          <Plus className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                      {!entry.isManuallyEdited && (
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <Info className="h-3 w-3" />
-                                          Auto: {entry.defaultQuantity}
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-4">
-                                      <div className="text-right">
-                                        <div className="text-sm font-medium">
-                                          {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                          Material
-                                        </div>
-                                      </div>
-                                      
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeProductFromCategory(entry.id)}
-                                        className="text-destructive hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
+                                   {/* Quantity and Cost Row */}
+                                   <div className="flex items-center justify-between">
+                                     <div className="flex items-center gap-3">
+                                       <Label className="text-sm font-medium">Menge:</Label>
+                                       <div className="flex items-center gap-2">
+                                         <Button
+                                           variant="outline"
+                                           size="sm"
+                                           onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
+                                         >
+                                           <Minus className="h-4 w-4" />
+                                         </Button>
+                                         <Input
+                                           type="number"
+                                           min="0"
+                                           value={entry.quantity}
+                                           onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
+                                           className="text-center w-16"
+                                         />
+                                         <Button
+                                           variant="outline"
+                                           size="sm"
+                                           onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
+                                         >
+                                           <Plus className="h-4 w-4" />
+                                         </Button>
+                                       </div>
+                                       {!entry.isManuallyEdited && (
+                                         <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                           <Info className="h-3 w-3" />
+                                           Auto: {entry.defaultQuantity}
+                                         </div>
+                                       )}
+                                     </div>
+                                     
+                                     <div className="flex items-center gap-4">
+                                       <div className="text-right">
+                                         <div className="text-sm font-medium">
+                                           {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
+                                         </div>
+                                         <div className="text-xs text-muted-foreground">
+                                           Material
+                                         </div>
+                                       </div>
+                                       
+                                       <Button
+                                         variant="ghost"
+                                         size="sm"
+                                         onClick={() => removeProductFromCategory(entry.id)}
+                                         className="text-destructive hover:text-destructive"
+                                       >
+                                         <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                     </div>
+                                   </div>
 
-                                  {/* Hidden hours inputs for calculation */}
-                                  <div className="hidden">
-                                    <Input
-                                      type="number"
-                                      value={entry.meisterHours}
-                                      onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
-                                    />
-                                    <Input
-                                      type="number"
-                                      value={entry.geselleHours}
-                                      onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
-                                    />
-                                    <Input
-                                      type="number"
-                                      value={entry.monteurHours}
-                                      onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
-                                    />
-                                  </div>
+                                   {/* Editable Hours Section */}
+                                   <div className="mt-3 p-3 bg-muted/30 rounded-md">
+                                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">Arbeitszeiten (Stunden)</Label>
+                                     <div className="grid grid-cols-3 gap-3">
+                                       <div>
+                                         <Label className="text-xs text-muted-foreground">Meister</Label>
+                                         <Input
+                                           type="number"
+                                           step="0.1"
+                                           min="0"
+                                           value={entry.meisterHours}
+                                           onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
+                                           className="text-sm h-8 mt-1"
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label className="text-xs text-muted-foreground">Geselle</Label>
+                                         <Input
+                                           type="number"
+                                           step="0.1"
+                                           min="0"
+                                           value={entry.geselleHours}
+                                           onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
+                                           className="text-sm h-8 mt-1"
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label className="text-xs text-muted-foreground">Monteur</Label>
+                                         <Input
+                                           type="number"
+                                           step="0.1"
+                                           min="0"
+                                           value={entry.monteurHours}
+                                           onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
+                                           className="text-sm h-8 mt-1"
+                                         />
+                                       </div>
+                                     </div>
+                                   </div>
                                 </div>
                               </div>
                             </div>
