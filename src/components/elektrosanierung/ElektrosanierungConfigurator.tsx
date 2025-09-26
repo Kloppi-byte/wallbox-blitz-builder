@@ -583,34 +583,34 @@ export const ElektrosanierungConfigurator = () => {
               <CardContent className="space-y-2">
                 <div className="flex justify-between">
                   <span>Materialkosten:</span>
-                  <span className="font-semibold">{state.costs.material.toLocaleString('de-DE')}€</span>
+                  <span className="font-semibold">{state.costs.material.toFixed(2).replace('.', ',')}€</span>
                 </div>
                 
                 <div className="flex justify-between text-sm">
                   <span>Meister:</span>
-                  <span>{state.costs.meister.toLocaleString('de-DE')}€</span>
+                  <span>{state.costs.meister.toFixed(2).replace('.', ',')}€</span>
                 </div>
                 
                 <div className="flex justify-between text-sm">
                   <span>Geselle:</span>
-                  <span>{state.costs.geselle.toLocaleString('de-DE')}€</span>
+                  <span>{state.costs.geselle.toFixed(2).replace('.', ',')}€</span>
                 </div>
                 
                 <div className="flex justify-between text-sm">
                   <span>Monteur:</span>
-                  <span>{state.costs.monteur.toLocaleString('de-DE')}€</span>
+                  <span>{state.costs.monteur.toFixed(2).replace('.', ',')}€</span>
                 </div>
 
                 <div className="flex justify-between text-sm">
                   <span>Anfahrtskosten:</span>
-                  <span>{state.costs.travel.toLocaleString('de-DE')}€</span>
+                  <span>{state.costs.travel.toFixed(2).replace('.', ',')}€</span>
                 </div>
 
                 <Separator />
                 
                 <div className="flex justify-between font-bold text-lg">
                   <span>Gesamtkosten:</span>
-                  <span>{state.costs.total.toLocaleString('de-DE')}€</span>
+                  <span>{state.costs.total.toFixed(2).replace('.', ',')}€</span>
                 </div>
 
                 <Button onClick={addToCart} className="w-full mt-4">
@@ -729,7 +729,7 @@ export const ElektrosanierungConfigurator = () => {
                                      <div className="flex items-center gap-4">
                                        <div className="text-right">
                                          <div className="text-sm font-medium">
-                                           {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
+                                           {(entry.product.verkaufspreis * entry.quantity).toFixed(2).replace('.', ',')}€
                                          </div>
                                          <div className="text-xs text-muted-foreground">
                                            Material
@@ -757,9 +757,9 @@ export const ElektrosanierungConfigurator = () => {
                                          <Label className="text-xs text-muted-foreground">Meister</Label>
                                          <Input
                                            type="number"
-                                           step="0.1"
+                                           step="0.01"
                                            min="0"
-                                           value={entry.meisterHours * entry.quantity}
+                                           value={(entry.meisterHours * entry.quantity).toFixed(2)}
                                            onChange={e => updateProductEntry(entry.id, { meisterHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
@@ -768,9 +768,9 @@ export const ElektrosanierungConfigurator = () => {
                                          <Label className="text-xs text-muted-foreground">Geselle</Label>
                                          <Input
                                            type="number"
-                                           step="0.1"
+                                           step="0.01"
                                            min="0"
-                                           value={entry.geselleHours * entry.quantity}
+                                           value={(entry.geselleHours * entry.quantity).toFixed(2)}
                                            onChange={e => updateProductEntry(entry.id, { geselleHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
@@ -779,9 +779,9 @@ export const ElektrosanierungConfigurator = () => {
                                          <Label className="text-xs text-muted-foreground">Monteur</Label>
                                          <Input
                                            type="number"
-                                           step="0.1"
+                                           step="0.01"
                                            min="0"
-                                           value={entry.monteurHours * entry.quantity}
+                                           value={(entry.monteurHours * entry.quantity).toFixed(2)}
                                            onChange={e => updateProductEntry(entry.id, { monteurHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
