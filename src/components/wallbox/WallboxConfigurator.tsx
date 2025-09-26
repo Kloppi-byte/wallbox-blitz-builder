@@ -24,6 +24,7 @@ interface WallboxProduct {
   "Überkategorie": string;
   Verkaufspreis: string;
   Einheit: string;
+  "Anzahl Einheit": string;
   stunden_meister: string;
   stunden_geselle: string;
   stunden_monteur: string;
@@ -37,13 +38,19 @@ interface SelectedProduct {
   product: any;
   quantity: number;
   isAutoSelected: boolean;
+  customHours?: {
+    meister?: number;
+    geselle?: number;
+    monteur?: number;
+  };
+  id: string; // unique ID for multiple products in same category
 }
 
 interface ConfiguratorState {
   products: any[];
-  selectedProducts: Map<number, SelectedProduct>;
+  selectedProducts: Map<string, SelectedProduct>; // Changed to string keys for unique IDs
   activeWallbox: any | null;
-  autoselectedProducts: Set<number>;
+  autoselectedProducts: Set<string>; // Changed to string for unique IDs
   costs: {
     material: number;
     meisterHours: number;
@@ -155,23 +162,26 @@ export const WallboxConfigurator = () => {
     
     setState(prev => {
       const newSelectedProducts = new Map(prev.selectedProducts);
-      const newAutoselectedProducts = new Set<number>();
+      const newAutoselectedProducts = new Set<string>();
 
       // Clear previous autoselected items
-      prev.autoselectedProducts.forEach(artikelnummer => {
-        if (newSelectedProducts.has(artikelnummer)) {
-          const selected = newSelectedProducts.get(artikelnummer)!;
+      prev.autoselectedProducts.forEach(id => {
+        if (newSelectedProducts.has(id)) {
+          const selected = newSelectedProducts.get(id)!;
           if (selected.isAutoSelected) {
-            newSelectedProducts.delete(artikelnummer);
+            newSelectedProducts.delete(id);
           }
         }
       });
 
       // Add the wallbox itself
-      newSelectedProducts.set(wallbox.Artikelnummer, {
+      const wallboxId = `wallbox-${wallbox.Artikelnummer}`;
+      const defaultQuantity = parseFloat(wallbox["Anzahl Einheit"]) || 1;
+      newSelectedProducts.set(wallboxId, {
         product: wallbox,
-        quantity: 1,
-        isAutoSelected: false
+        quantity: defaultQuantity,
+        isAutoSelected: false,
+        id: wallboxId
       });
 
       // Auto-select related products
@@ -179,12 +189,15 @@ export const WallboxConfigurator = () => {
         wallbox.auto_select.forEach(autoSelectId => {
           const autoProduct = products.find(p => p.Artikelnummer.toString() === autoSelectId);
           if (autoProduct) {
-            newSelectedProducts.set(autoProduct.Artikelnummer, {
+            const autoId = `auto-${autoProduct.Artikelnummer}-${Date.now()}`;
+            const autoDefaultQuantity = parseFloat(autoProduct["Anzahl Einheit"]) || 1;
+            newSelectedProducts.set(autoId, {
               product: autoProduct,
-              quantity: 1,
-              isAutoSelected: true
+              quantity: autoDefaultQuantity,
+              isAutoSelected: true,
+              id: autoId
             });
-            newAutoselectedProducts.add(autoProduct.Artikelnummer);
+            newAutoselectedProducts.add(autoId);
             console.log('Auto-selected:', autoProduct.Name);
           }
         });
@@ -199,7 +212,7 @@ export const WallboxConfigurator = () => {
     });
   };
 
-  const handleProductSelect = (category: string, produktId: string) => {
+  const handleProductSelect = (category: string, produktId: string, existingId?: string) => {
     const product = state.products.find(p => 
       (p["Überkategorie"] || p.Überkategorie) === category && p.Artikelnummer.toString() === produktId
     );
@@ -214,41 +227,93 @@ export const WallboxConfigurator = () => {
         // Regular product selection
         setState(prev => {
           const newSelectedProducts = new Map(prev.selectedProducts);
+          const newAutoselectedProducts = new Set(prev.autoselectedProducts);
           
-          if (newSelectedProducts.has(product.Artikelnummer)) {
-            newSelectedProducts.delete(product.Artikelnummer);
-          } else {
-            newSelectedProducts.set(product.Artikelnummer, {
+          if (existingId) {
+            // Replacing existing product - remove auto-selected status
+            const existing = newSelectedProducts.get(existingId);
+            if (existing && existing.isAutoSelected) {
+              newAutoselectedProducts.delete(existingId);
+            }
+            
+            const defaultQuantity = parseFloat(product["Anzahl Einheit"]) || 1;
+            newSelectedProducts.set(existingId, {
               product,
-              quantity: 1,
-              isAutoSelected: false
+              quantity: existing?.quantity || defaultQuantity,
+              isAutoSelected: false,
+              id: existingId
+            });
+          } else {
+            // Adding new product
+            const newId = `${category}-${product.Artikelnummer}-${Date.now()}`;
+            const defaultQuantity = parseFloat(product["Anzahl Einheit"]) || 1;
+            newSelectedProducts.set(newId, {
+              product,
+              quantity: defaultQuantity,
+              isAutoSelected: false,
+              id: newId
             });
           }
 
           return {
             ...prev,
-            selectedProducts: newSelectedProducts
+            selectedProducts: newSelectedProducts,
+            autoselectedProducts: newAutoselectedProducts
           };
         });
       }
     }
   };
 
-  const handleQuantityChange = (artikelnummer: number, quantity: number) => {
+  const handleQuantityChange = (id: string, quantity: number) => {
     setState(prev => {
       const newSelectedProducts = new Map(prev.selectedProducts);
-      const selected = newSelectedProducts.get(artikelnummer);
+      const selected = newSelectedProducts.get(id);
       
       if (selected) {
         if (quantity === 0) {
-          newSelectedProducts.delete(artikelnummer);
+          newSelectedProducts.delete(id);
         } else {
-          newSelectedProducts.set(artikelnummer, {
+          newSelectedProducts.set(id, {
             ...selected,
             quantity
           });
         }
       }
+
+      return {
+        ...prev,
+        selectedProducts: newSelectedProducts
+      };
+    });
+  };
+
+  const handleHoursChange = (id: string, role: 'meister' | 'geselle' | 'monteur', hours: number) => {
+    setState(prev => {
+      const newSelectedProducts = new Map(prev.selectedProducts);
+      const selected = newSelectedProducts.get(id);
+      
+      if (selected) {
+        newSelectedProducts.set(id, {
+          ...selected,
+          customHours: {
+            ...selected.customHours,
+            [role]: hours
+          }
+        });
+      }
+
+      return {
+        ...prev,
+        selectedProducts: newSelectedProducts
+      };
+    });
+  };
+
+  const removeProduct = (id: string) => {
+    setState(prev => {
+      const newSelectedProducts = new Map(prev.selectedProducts);
+      newSelectedProducts.delete(id);
 
       return {
         ...prev,
@@ -263,13 +328,17 @@ export const WallboxConfigurator = () => {
     let geselleHours = 0;
     let monteurHours = 0;
 
-    state.selectedProducts.forEach(({ product, quantity }) => {
+    state.selectedProducts.forEach(({ product, quantity, customHours }) => {
       const price = parseFloat(product.Verkaufspreis) || 0;
       materialCosts += price * quantity;
 
-      meisterHours += (parseFloat(product.stunden_meister) || 0) * quantity;
-      geselleHours += (parseFloat(product.stunden_geselle) || 0) * quantity;
-      monteurHours += (parseFloat(product.stunden_monteur) || 0) * quantity;
+      const meisterDefault = parseFloat(product.stunden_meister) || 0;
+      const geselleDefault = parseFloat(product.stunden_geselle) || 0;
+      const monteurDefault = parseFloat(product.stunden_monteur) || 0;
+
+      meisterHours += (customHours?.meister ?? meisterDefault) * quantity;
+      geselleHours += (customHours?.geselle ?? geselleDefault) * quantity;
+      monteurHours += (customHours?.monteur ?? monteurDefault) * quantity;
     });
 
     const laborCosts = 
@@ -349,15 +418,16 @@ export const WallboxConfigurator = () => {
 
   // Get autoselected component groups
   const autoselectedGroups = new Map<string, any[]>();
-  state.autoselectedProducts.forEach(artikelnummer => {
-    const product = state.products.find(p => p.Artikelnummer === artikelnummer);
-    if (product) {
+  state.autoselectedProducts.forEach(id => {
+    const selectedProduct = state.selectedProducts.get(id);
+    if (selectedProduct) {
+      const product = selectedProduct.product;
       const category = product["Überkategorie"] || product.Überkategorie;
       if (category && !category.toLowerCase().includes('wallbox')) {
         if (!autoselectedGroups.has(category)) {
           autoselectedGroups.set(category, []);
         }
-        autoselectedGroups.get(category)!.push(product);
+        autoselectedGroups.get(category)!.push({...selectedProduct, categoryProducts: state.componentGroups.get(category) || []});
       }
     }
   });
