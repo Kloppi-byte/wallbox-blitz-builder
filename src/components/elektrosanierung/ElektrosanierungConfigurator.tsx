@@ -749,7 +749,9 @@ export const ElektrosanierungConfigurator = () => {
 
                                    {/* Editable Hours Section */}
                                    <div className="mt-3 p-3 bg-muted/30 rounded-md">
-                                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">Arbeitszeiten (Stunden)</Label>
+                                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                                       Arbeitszeiten (Gesamt für {entry.quantity} Einheit{entry.quantity !== 1 ? 'en' : ''})
+                                     </Label>
                                      <div className="grid grid-cols-3 gap-3">
                                        <div>
                                          <Label className="text-xs text-muted-foreground">Meister</Label>
@@ -757,8 +759,8 @@ export const ElektrosanierungConfigurator = () => {
                                            type="number"
                                            step="0.1"
                                            min="0"
-                                           value={entry.meisterHours}
-                                           onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
+                                           value={entry.meisterHours * entry.quantity}
+                                           onChange={e => updateProductEntry(entry.id, { meisterHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
                                        </div>
@@ -768,8 +770,8 @@ export const ElektrosanierungConfigurator = () => {
                                            type="number"
                                            step="0.1"
                                            min="0"
-                                           value={entry.geselleHours}
-                                           onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
+                                           value={entry.geselleHours * entry.quantity}
+                                           onChange={e => updateProductEntry(entry.id, { geselleHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
                                        </div>
@@ -779,8 +781,8 @@ export const ElektrosanierungConfigurator = () => {
                                            type="number"
                                            step="0.1"
                                            min="0"
-                                           value={entry.monteurHours}
-                                           onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
+                                           value={entry.monteurHours * entry.quantity}
+                                           onChange={e => updateProductEntry(entry.id, { monteurHours: (parseFloat(e.target.value) || 0) / entry.quantity })}
                                            className="text-sm h-8 mt-1"
                                          />
                                        </div>
