@@ -749,10 +749,7 @@ export const WallboxConfigurator = () => {
                                   <Select
                                     value={selectedProduct.Artikelnummer.toString()}
                                     onValueChange={(value) => {
-                                      const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
-                                      if (newProduct) {
-                                        handleProductSelect(category, value, selectedProductEntry.id);
-                                      }
+                                      handleProductSelect(category, value, selectedProductEntry.id);
                                     }}
                                   >
                                     <SelectTrigger className="w-48">
@@ -800,6 +797,187 @@ export const WallboxConfigurator = () => {
                 </Card>
               );
             })}
+
+            {/* Regular Components (non-autoselected) */}
+            {Array.from(state.selectedProducts.entries())
+              .filter(([id, selectedProduct]) => 
+                !selectedProduct.isAutoSelected && 
+                !selectedProduct.product["Überkategorie"]?.toLowerCase().includes('wallbox')
+              )
+              .reduce((acc, [id, selectedProduct]) => {
+                const category = selectedProduct.product["Überkategorie"] || selectedProduct.product.Überkategorie;
+                if (!acc.has(category)) {
+                  acc.set(category, []);
+                }
+                acc.get(category)!.push({ ...selectedProduct, id });
+                return acc;
+              }, new Map<string, any[]>())
+              .size > 0 && (
+                <>
+                  {Array.from(
+                    Array.from(state.selectedProducts.entries())
+                      .filter(([id, selectedProduct]) => 
+                        !selectedProduct.isAutoSelected && 
+                        !selectedProduct.product["Überkategorie"]?.toLowerCase().includes('wallbox')
+                      )
+                      .reduce((acc, [id, selectedProduct]) => {
+                        const category = selectedProduct.product["Überkategorie"] || selectedProduct.product.Überkategorie;
+                        if (!acc.has(category)) {
+                          acc.set(category, []);
+                        }
+                        acc.get(category)!.push({ ...selectedProduct, id });
+                        return acc;
+                      }, new Map<string, any[]>())
+                      .entries()
+                  ).map(([category, categoryProducts]) => {
+                    const allCategoryProducts = state.componentGroups.get(category) || [];
+                    
+                    return (
+                      <Card key={category}>
+                        <CardHeader>
+                          <CardTitle>{category}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {categoryProducts.map((selectedProductEntry) => {
+                            const selectedProduct = selectedProductEntry.product;
+                            
+                            return (
+                              <div key={selectedProductEntry.id} className="border rounded-lg p-4">
+                                <div className="flex items-start gap-4">
+                                  {/* Product Photo */}
+                                  <div className="w-16 h-16 flex-shrink-0">
+                                    {selectedProduct.foto ? (
+                                      <img
+                                        src={selectedProduct.foto}
+                                        alt={selectedProduct.Name}
+                                        className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => setSelectedPhoto(selectedProduct.foto)}
+                                        onError={(e) => {
+                                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyOEwzMiA0MEw0NCAyOFY0OEgyMFYyOFoiIGZpbGw9IiNEMUQ1REIiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSIyMiIgcj0iMiIgZmlsbD0iI0QxRDVEQiIvPgo8L3N2Zz4K';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
+                                        <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <rect width="64" height="64" fill="#F3F4F6"/>
+                                          <path d="M20 28L32 40L44 28V48H20V28Z" fill="#D1D5DB"/>
+                                          <circle cx="26" cy="22" r="2" fill="#D1D5DB"/>
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <h4 className="font-medium">{selectedProduct.Name}</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground mb-3">
+                                          <div>€{(parseFloat(selectedProduct.Verkaufspreis) || 0).toFixed(2)}/{selectedProduct.Einheit}</div>
+                                          <div>{parseFloat(selectedProduct.stunden_meister) || 0}h Meister</div>
+                                          <div>{parseFloat(selectedProduct.stunden_geselle) || 0}h Geselle</div>
+                                          <div>{parseFloat(selectedProduct.stunden_monteur) || 0}h Monteur</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Label htmlFor={`qty-${selectedProductEntry.id}`} className="text-sm">
+                                            Menge:
+                                          </Label>
+                                          <Input
+                                            id={`qty-${selectedProductEntry.id}`}
+                                            type="number"
+                                            value={selectedProductEntry.quantity || 0}
+                                            onChange={(e) => {
+                                              const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                              handleQuantityChange(selectedProductEntry.id, value);
+                                            }}
+                                            onBlur={(e) => {
+                                              if (e.target.value === '') {
+                                                handleQuantityChange(selectedProductEntry.id, 0);
+                                              }
+                                            }}
+                                            className="w-20"
+                                            min="0"
+                                          />
+                                        </div>
+                                        
+                                        {/* Hours editing */}
+                                        <div className="grid grid-cols-3 gap-2 mt-2">
+                                          <div className="flex items-center gap-1">
+                                            <Label className="text-xs">Meister:</Label>
+                                            <Input
+                                              type="number"
+                                              value={selectedProductEntry.customHours?.meister ?? (parseFloat(selectedProduct.stunden_meister) || 0)}
+                                              onChange={(e) => handleHoursChange(selectedProductEntry.id, 'meister', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs"
+                                              min="0"
+                                              step="0.1"
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <Label className="text-xs">Geselle:</Label>
+                                            <Input
+                                              type="number"
+                                              value={selectedProductEntry.customHours?.geselle ?? (parseFloat(selectedProduct.stunden_geselle) || 0)}
+                                              onChange={(e) => handleHoursChange(selectedProductEntry.id, 'geselle', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs"
+                                              min="0"
+                                              step="0.1"
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <Label className="text-xs">Monteur:</Label>
+                                            <Input
+                                              type="number"
+                                              value={selectedProductEntry.customHours?.monteur ?? (parseFloat(selectedProduct.stunden_monteur) || 0)}
+                                              onChange={(e) => handleHoursChange(selectedProductEntry.id, 'monteur', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs"
+                                              min="0"
+                                              step="0.1"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="space-y-2">
+                                          <Select
+                                            value={selectedProduct.Artikelnummer.toString()}
+                                            onValueChange={(value) => {
+                                              handleProductSelect(category, value, selectedProductEntry.id);
+                                            }}
+                                          >
+                                            <SelectTrigger className="w-48">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {allCategoryProducts.map(product => (
+                                                <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
+                                                  {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => removeProduct(selectedProductEntry.id)}
+                                            className="w-full"
+                                          >
+                                            Entfernen
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </>
+              )}
 
             {/* Add Components Button */}
             <Card>
