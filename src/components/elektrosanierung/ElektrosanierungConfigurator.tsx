@@ -105,10 +105,10 @@ export const ElektrosanierungConfigurator = () => {
     fetchProducts();
   }, []);
 
-  // Calculate costs when parameters or selections change
+  // Initialize preselected categories when products are loaded
   useEffect(() => {
-    if (products.length > 0) {
-      calculateCosts();
+    if (products.length > 0 && state.categories.length === 0) {
+      initializePreselectedCategories();
       // Extract available categories from products
       const categories = [...new Set(products
         .filter(p => !p.kategorie.includes('Produkt') && p.kategorie.trim() === '')
@@ -116,6 +116,13 @@ export const ElektrosanierungConfigurator = () => {
         .filter(Boolean)
       )];
       setAvailableCategories(categories);
+    }
+  }, [products]);
+
+  // Calculate costs when parameters or selections change
+  useEffect(() => {
+    if (products.length > 0) {
+      calculateCosts();
     }
   }, [products, state.parameters, state.categories]);
 
@@ -186,6 +193,18 @@ export const ElektrosanierungConfigurator = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const initializePreselectedCategories = () => {
+    // Find all preselected products
+    const preselectedProducts = products.filter(p => p.preselect);
+    
+    // Group by ueberkategorie
+    const preselectedCategories = [...new Set(preselectedProducts.map(p => p.ueberkategorie))];
+    
+    preselectedCategories.forEach(ueberkategorie => {
+      addCategory(ueberkategorie);
+    });
   };
 
   const calculateQuantity = (product: Product, parameters: ProjectParameters): number => {
@@ -623,157 +642,132 @@ export const ElektrosanierungConfigurator = () => {
                         </Button>
                       </div>
                       
-                      {/* Product Entries */}
-                      <div className="space-y-3">
-                        {category.productEntries.map(entry => (
-                           <div key={entry.id} className="border rounded-lg p-4 bg-background">
-                             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-                               {/* Product Image */}
-                               <div className="lg:col-span-1">
-                                 <div className="aspect-square w-full max-w-[120px] mx-auto">
-                                   {entry.product.foto ? (
-                                     <img 
-                                       src={entry.product.foto} 
-                                       alt={entry.product.name}
-                                       className="w-full h-full object-cover rounded-md"
-                                       onError={(e) => {
-                                         e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEg4MFY4MEg0MFY0MFoiIGZpbGw9IiNEMUQ1REIiLz4KPHN2Zz4K';
-                                       }}
-                                     />
-                                   ) : (
-                                     <div className="w-full h-full bg-muted rounded-md flex items-center justify-center">
-                                       <div className="text-muted-foreground text-xs text-center">
-                                         Kein Bild
-                                       </div>
-                                     </div>
-                                   )}
-                                 </div>
-                               </div>
+                       {/* Product Entries */}
+                       <div className="space-y-3">
+                         {category.productEntries.map(entry => (
+                            <div key={entry.id} className="border rounded-lg p-4 bg-background">
+                              <div className="flex gap-4 items-start">
+                                {/* Product Image */}
+                                <div className="flex-shrink-0">
+                                  <div className="w-20 h-20">
+                                    {entry.product.foto ? (
+                                      <img 
+                                        src={entry.product.foto} 
+                                        alt={entry.product.name}
+                                        className="w-full h-full object-cover rounded-md"
+                                        onError={(e) => {
+                                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zMCAzMEg1MFY1MEgzMFYzMFoiIGZpbGw9IiNEMUQ1REIiLz4KPHN2Zz4K';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full bg-muted rounded-md flex items-center justify-center">
+                                        <div className="text-muted-foreground text-xs text-center">
+                                          Kein Bild
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
 
-                               {/* Product Details */}
-                               <div className="lg:col-span-2 space-y-3">
-                                 {/* Product Selection */}
-                                 <div>
-                                   <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
-                                   <Select
-                                     value={entry.product.artikelnummer.toString()}
-                                     onValueChange={value => updateProductEntryProduct(entry.id, parseInt(value))}
-                                   >
-                                     <SelectTrigger className="mt-1">
-                                       <SelectValue />
-                                     </SelectTrigger>
-                                     <SelectContent className="bg-background border z-50">
-                                       {category.productOptions.map(product => (
-                                         <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
-                                           {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
-                                         </SelectItem>
-                                       ))}
-                                     </SelectContent>
-                                   </Select>
-                                 </div>
+                                {/* Product Details */}
+                                <div className="flex-grow space-y-3">
+                                  {/* Product Selection */}
+                                  <div>
+                                    <Label className="text-sm font-medium">Produktvariante</Label>
+                                    <Select
+                                      value={entry.product.artikelnummer.toString()}
+                                      onValueChange={value => updateProductEntryProduct(entry.id, parseInt(value))}
+                                    >
+                                      <SelectTrigger className="mt-1">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-background border z-50">
+                                        {category.productOptions.map(product => (
+                                          <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                            {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
 
-                                 {/* Quantity Control */}
-                                 <div>
-                                   <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
-                                   <div className="flex items-center gap-2 mt-1">
-                                     <Button
-                                       variant="outline"
-                                       size="sm"
-                                       onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
-                                     >
-                                       <Minus className="h-4 w-4" />
-                                     </Button>
-                                     <Input
-                                       type="number"
-                                       min="0"
-                                       value={entry.quantity}
-                                       onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
-                                       className="text-center w-20"
-                                     />
-                                     <Button
-                                       variant="outline"
-                                       size="sm"
-                                       onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
-                                     >
-                                       <Plus className="h-4 w-4" />
-                                     </Button>
-                                   </div>
-                                   {!entry.isManuallyEdited && (
-                                     <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                                       <Info className="h-3 w-3" />
-                                       Auto: {entry.defaultQuantity}
-                                     </div>
-                                   )}
-                                 </div>
-                               </div>
+                                  {/* Quantity and Cost Row */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <Label className="text-sm font-medium">Menge:</Label>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
+                                        >
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={entry.quantity}
+                                          onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
+                                          className="text-center w-16"
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
+                                        >
+                                          <Plus className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                      {!entry.isManuallyEdited && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <Info className="h-3 w-3" />
+                                          Auto: {entry.defaultQuantity}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4">
+                                      <div className="text-right">
+                                        <div className="text-sm font-medium">
+                                          {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Material
+                                        </div>
+                                      </div>
+                                      
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeProductFromCategory(entry.id)}
+                                        className="text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
 
-                               {/* Hours Section */}
-                               <div className="lg:col-span-1 space-y-2">
-                                 <Label className="text-sm font-medium text-muted-foreground">Arbeitsstunden</Label>
-                                 
-                                 <div>
-                                   <Label className="text-xs text-muted-foreground">Meister</Label>
-                                   <Input
-                                     type="number"
-                                     step="0.1"
-                                     min="0"
-                                     value={entry.meisterHours}
-                                     onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
-                                     className="text-sm h-8"
-                                   />
-                                 </div>
-                                 
-                                 <div>
-                                   <Label className="text-xs text-muted-foreground">Geselle</Label>
-                                   <Input
-                                     type="number"
-                                     step="0.1"
-                                     min="0"
-                                     value={entry.geselleHours}
-                                     onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
-                                     className="text-sm h-8"
-                                   />
-                                 </div>
-                                 
-                                 <div>
-                                   <Label className="text-xs text-muted-foreground">Monteur</Label>
-                                   <Input
-                                     type="number"
-                                     step="0.1"
-                                     min="0"
-                                     value={entry.monteurHours}
-                                     onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
-                                     className="text-sm h-8"
-                                   />
-                                 </div>
-                               </div>
-
-                               {/* Cost Information and Remove Button */}
-                               <div className="lg:col-span-1 space-y-2">
-                                 <div>
-                                   <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
-                                   <div className="mt-1">
-                                     <div className="text-sm font-medium">
-                                       Material: {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
-                                     </div>
-                                     <div className="text-xs text-muted-foreground">
-                                       Gesamt: {((entry.meisterHours + entry.geselleHours + entry.monteurHours) * entry.quantity).toFixed(1)}h
-                                     </div>
-                                   </div>
-                                 </div>
-                                 
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   onClick={() => removeProductFromCategory(entry.id)}
-                                   className="text-destructive hover:text-destructive w-full"
-                                 >
-                                   <Trash2 className="h-4 w-4 mr-1" />
-                                   Entfernen
-                                 </Button>
-                               </div>
-                             </div>
-                           </div>
+                                  {/* Hidden hours inputs for calculation */}
+                                  <div className="hidden">
+                                    <Input
+                                      type="number"
+                                      value={entry.meisterHours}
+                                      onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
+                                    />
+                                    <Input
+                                      type="number"
+                                      value={entry.geselleHours}
+                                      onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
+                                    />
+                                    <Input
+                                      type="number"
+                                      value={entry.monteurHours}
+                                      onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                         ))}
 
                         {/* Add Product Button */}
@@ -819,58 +813,68 @@ export const ElektrosanierungConfigurator = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Stunden-Aufstellung & Anfahrtskosten
+                  Arbeitszeiten & Anfahrtskosten
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Hours Breakdown */}
-                <div className="space-y-2">
-                  <h3 className="font-medium">Arbeitszeiten (Summe aller Positionen)</h3>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="bg-muted/30 p-3 rounded-md">
-                      <div className="font-medium text-center">Meister</div>
-                      <div className="text-lg font-bold text-center mt-1">
-                        {state.categories.reduce((total, cat) => 
-                          total + cat.productEntries.reduce((entryTotal, entry) => 
-                            entryTotal + (entry.product.stunden_meister * entry.quantity), 0), 0
-                        ).toFixed(1)}h
-                      </div>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded-md">
-                      <div className="font-medium text-center">Geselle</div>
-                      <div className="text-lg font-bold text-center mt-1">
-                        {state.categories.reduce((total, cat) => 
-                          total + cat.productEntries.reduce((entryTotal, entry) => 
-                            entryTotal + (entry.product.stunden_geselle * entry.quantity), 0), 0
-                        ).toFixed(1)}h
-                      </div>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded-md">
-                      <div className="font-medium text-center">Monteur</div>
-                      <div className="text-lg font-bold text-center mt-1">
-                        {state.categories.reduce((total, cat) => 
-                          total + cat.productEntries.reduce((entryTotal, entry) => 
-                            entryTotal + (entry.product.stunden_monteur * entry.quantity), 0), 0
-                        ).toFixed(1)}h
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="space-y-6">
+                 {/* Hours Summary */}
+                 <div className="space-y-4">
+                   <h3 className="font-medium">Gesamte Arbeitszeit</h3>
+                   <div className="grid grid-cols-3 gap-4">
+                     <div className="bg-primary/10 p-4 rounded-lg text-center">
+                       <div className="font-medium text-primary">Meister</div>
+                       <div className="text-2xl font-bold text-primary mt-1">
+                         {state.categories.reduce((total, cat) => 
+                           total + cat.productEntries.reduce((entryTotal, entry) => 
+                             entryTotal + (entry.meisterHours * entry.quantity), 0), 0
+                         ).toFixed(1)}h
+                       </div>
+                     </div>
+                     <div className="bg-secondary/10 p-4 rounded-lg text-center">
+                       <div className="font-medium text-secondary-foreground">Geselle</div>
+                       <div className="text-2xl font-bold text-secondary-foreground mt-1">
+                         {state.categories.reduce((total, cat) => 
+                           total + cat.productEntries.reduce((entryTotal, entry) => 
+                             entryTotal + (entry.geselleHours * entry.quantity), 0), 0
+                         ).toFixed(1)}h
+                       </div>
+                     </div>
+                     <div className="bg-accent/10 p-4 rounded-lg text-center">
+                       <div className="font-medium text-accent-foreground">Monteur</div>
+                       <div className="text-2xl font-bold text-accent-foreground mt-1">
+                         {state.categories.reduce((total, cat) => 
+                           total + cat.productEntries.reduce((entryTotal, entry) => 
+                             entryTotal + (entry.monteurHours * entry.quantity), 0), 0
+                         ).toFixed(1)}h
+                       </div>
+                     </div>
+                   </div>
+                   <div className="text-center text-sm text-muted-foreground border-t pt-3">
+                     <strong>Gesamtstunden: {
+                       state.categories.reduce((total, cat) => 
+                         total + cat.productEntries.reduce((entryTotal, entry) => 
+                           entryTotal + ((entry.meisterHours + entry.geselleHours + entry.monteurHours) * entry.quantity), 0), 0
+                       ).toFixed(1)
+                     }h</strong>
+                   </div>
+                 </div>
 
-                {/* Travel Costs */}
-                <div className="space-y-2">
-                  <Label htmlFor="anfahrtskosten">Anfahrtskosten (€)</Label>
-                  <Input
-                    id="anfahrtskosten"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={state.costs.travel}
-                    onChange={e => updateTravelCosts(parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                    className="max-w-40"
-                  />
-                </div>
+                 <Separator />
+
+                 {/* Travel Costs */}
+                 <div className="space-y-3">
+                   <Label htmlFor="anfahrtskosten" className="text-base font-medium">Anfahrtskosten</Label>
+                   <Input
+                     id="anfahrtskosten"
+                     type="number"
+                     min="0"
+                     step="0.01"
+                     value={state.costs.travel}
+                     onChange={e => updateTravelCosts(parseFloat(e.target.value) || 0)}
+                     placeholder="0.00"
+                     className="max-w-48"
+                   />
+                 </div>
                </CardContent>
              </Card>
            </div>
