@@ -437,16 +437,17 @@ export const WallboxConfigurator = () => {
     }
   });
 
-  // Get available component groups for adding
+  // Get available component groups for adding (include all categories, not just unused ones)
   const availableGroups = new Map<string, any[]>();
   Array.from(state.componentGroups.entries()).forEach(([category, products]) => {
-    if (!category.toLowerCase().includes('wallbox') && !autoselectedGroups.has(category)) {
+    if (!category.toLowerCase().includes('wallbox')) {
       availableGroups.set(category, products);
     }
   });
 
   console.log('Autoselected groups:', autoselectedGroups.size, Array.from(autoselectedGroups.keys()));
   console.log('Selected products:', state.selectedProducts.size, Array.from(state.selectedProducts.keys()));
+  console.log('Available groups for adding:', availableGroups.size, Array.from(availableGroups.keys()));
 
   // Filter products for component adder based on search
   const filteredGroups = new Map<string, any[]>();
