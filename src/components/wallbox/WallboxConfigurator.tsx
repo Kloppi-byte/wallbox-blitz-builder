@@ -11,10 +11,8 @@ import { CartIcon } from '@/components/cart/CartIcon';
 import { CartSheet } from '@/components/cart/CartSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Zap, 
   Euro, 
   Clock, 
-  ShoppingCart,
   CheckCircle,
   Info
 } from 'lucide-react';
@@ -32,6 +30,7 @@ interface WallboxProduct {
   preselect: boolean;
   auto_select: string[] | null;
   "Überüberkategorie": string[];
+  foto: string;
 }
 
 interface SelectedProduct {
@@ -78,6 +77,7 @@ export const WallboxConfigurator = () => {
   const [showWallboxSelector, setShowWallboxSelector] = useState(false);
   const [showComponentAdder, setShowComponentAdder] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { addItem } = useCart();
@@ -335,7 +335,7 @@ export const WallboxConfigurator = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Zap className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse" />
+          <div className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse bg-primary/20 rounded-full"></div>
           <p className="text-muted-foreground">Lade Wallbox-Konfiguration...</p>
         </div>
       </div>
@@ -395,7 +395,7 @@ export const WallboxConfigurator = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-primary" />
+              <div className="w-8 h-8 bg-primary rounded-full"></div>
               <div>
                 <h1 className="text-2xl font-bold">Wallbox Konfigurator</h1>
                 <p className="text-muted-foreground">Konfiguriere deine perfekte Wallbox-Lösung</p>
@@ -413,39 +413,62 @@ export const WallboxConfigurator = () => {
             {/* Wallbox Selection */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5" />
-                  Wallbox
-                </CardTitle>
+                <CardTitle>Wallbox</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {state.activeWallbox && (
                   <div className="border rounded-lg p-4 bg-primary/5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start gap-4">
+                      {/* Product Photo */}
+                      <div className="w-20 h-20 flex-shrink-0">
+                        {state.activeWallbox.foto ? (
+                          <img
+                            src={state.activeWallbox.foto}
+                            alt={state.activeWallbox.Name}
+                            className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setSelectedPhoto(state.activeWallbox.foto)}
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNSAzNUw0MCA1MEw1NSAzNVY2MEgyNVYzNVoiIGZpbGw9IiNEMUQ1REIiLz4KPGNpcmNsZSBjeD0iMzIuNSIgY3k9IjI3LjUiIHI9IjIuNSIgZmlsbD0iI0QxRDVEQiIvPgo8L3N2Zz4K';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
+                            <svg width="40" height="40" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <rect width="80" height="80" fill="#F3F4F6"/>
+                              <path d="M25 35L40 50L55 35V60H25V35Z" fill="#D1D5DB"/>
+                              <circle cx="32.5" cy="27.5" r="2.5" fill="#D1D5DB"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium">{state.activeWallbox.Name}</h4>
-                          {state.activeWallbox.preselect && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                              <CheckCircle className="w-3 h-3" />
-                              Empfohlen
-                            </span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
-                          <div>€{(parseFloat(state.activeWallbox.Verkaufspreis) || 0).toFixed(2)}/{state.activeWallbox.Einheit}</div>
-                          <div>{parseFloat(state.activeWallbox.stunden_meister) || 0}h Meister</div>
-                          <div>{parseFloat(state.activeWallbox.stunden_geselle) || 0}h Geselle</div>
-                          <div>{parseFloat(state.activeWallbox.stunden_monteur) || 0}h Monteur</div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-medium">{state.activeWallbox.Name}</h4>
+                              {state.activeWallbox.preselect && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                  <CheckCircle className="w-3 h-3" />
+                                  Empfohlen
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                              <div>€{(parseFloat(state.activeWallbox.Verkaufspreis) || 0).toFixed(2)}/{state.activeWallbox.Einheit}</div>
+                              <div>{parseFloat(state.activeWallbox.stunden_meister) || 0}h Meister</div>
+                              <div>{parseFloat(state.activeWallbox.stunden_geselle) || 0}h Geselle</div>
+                              <div>{parseFloat(state.activeWallbox.stunden_monteur) || 0}h Monteur</div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowWallboxSelector(true)}
+                          >
+                            Andere Wallbox auswählen
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowWallboxSelector(true)}
-                      >
-                        Andere Wallbox auswählen
-                      </Button>
                     </div>
                   </div>
                 )}
@@ -477,20 +500,49 @@ export const WallboxConfigurator = () => {
                         }}
                       >
                         <CardContent className="p-3">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-medium">{wallbox.Name}</h4>
-                            {wallbox.preselect && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                                <CheckCircle className="w-3 h-3" />
-                                Empfohlen
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
-                            <div>€{(parseFloat(wallbox.Verkaufspreis) || 0).toFixed(2)}/{wallbox.Einheit}</div>
-                            <div>{parseFloat(wallbox.stunden_meister) || 0}h Meister</div>
-                            <div>{parseFloat(wallbox.stunden_geselle) || 0}h Geselle</div>
-                            <div>{parseFloat(wallbox.stunden_monteur) || 0}h Monteur</div>
+                          <div className="flex items-start gap-3">
+                            {/* Product Photo */}
+                            <div className="w-16 h-16 flex-shrink-0">
+                              {wallbox.foto ? (
+                                <img
+                                  src={wallbox.foto}
+                                  alt={wallbox.Name}
+                                  className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPhoto(wallbox.foto);
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyOEwzMiA0MEw0NCAyOFY0OEgyMFYyOFoiIGZpbGw9IiNEMUQ1REIiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSIyMiIgcj0iMiIgZmlsbD0iI0QxRDVEQiIvPgo8L3N2Zz4K';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
+                                  <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="64" height="64" fill="#F3F4F6"/>
+                                    <path d="M20 28L32 40L44 28V48H20V28Z" fill="#D1D5DB"/>
+                                    <circle cx="26" cy="22" r="2" fill="#D1D5DB"/>
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-medium">{wallbox.Name}</h4>
+                                {wallbox.preselect && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Empfohlen
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                                <div>€{(parseFloat(wallbox.Verkaufspreis) || 0).toFixed(2)}/{wallbox.Einheit}</div>
+                                <div>{parseFloat(wallbox.stunden_meister) || 0}h Meister</div>
+                                <div>{parseFloat(wallbox.stunden_geselle) || 0}h Geselle</div>
+                                <div>{parseFloat(wallbox.stunden_monteur) || 0}h Monteur</div>
+                              </div>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -508,72 +560,95 @@ export const WallboxConfigurator = () => {
               return (
                 <Card key={category}>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
-                      {category}
-                    </CardTitle>
+                    <CardTitle>{category}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {selectedProduct && (
                       <div className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="font-medium">{selectedProduct.Name}</h4>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                <Info className="w-3 h-3" />
-                                Auto-gewählt
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground mb-3">
-                              <div>€{(parseFloat(selectedProduct.Verkaufspreis) || 0).toFixed(2)}/{selectedProduct.Einheit}</div>
-                              <div>{parseFloat(selectedProduct.stunden_meister) || 0}h Meister</div>
-                              <div>{parseFloat(selectedProduct.stunden_geselle) || 0}h Geselle</div>
-                              <div>{parseFloat(selectedProduct.stunden_monteur) || 0}h Monteur</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Label htmlFor={`qty-${selectedProduct.Artikelnummer}`} className="text-sm">
-                                Menge:
-                              </Label>
-                              <Input
-                                id={`qty-${selectedProduct.Artikelnummer}`}
-                                type="number"
-                                value={state.selectedProducts.get(selectedProduct.Artikelnummer)?.quantity || 0}
-                                onChange={(e) => {
-                                  const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                                  handleQuantityChange(selectedProduct.Artikelnummer, value);
+                        <div className="flex items-start gap-4">
+                          {/* Product Photo */}
+                          <div className="w-16 h-16 flex-shrink-0">
+                            {selectedProduct.foto ? (
+                              <img
+                                src={selectedProduct.foto}
+                                alt={selectedProduct.Name}
+                                className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => setSelectedPhoto(selectedProduct.foto)}
+                                onError={(e) => {
+                                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyOEwzMiA0MEw0NCAyOFY0OEgyMFYyOFoiIGZpbGw9IiNEMUQ1REIiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSIyMiIgcj0iMiIgZmlsbD0iI0QxRDVEQiIvPgo8L3N2Zz4K';
                                 }}
-                                onBlur={(e) => {
-                                  if (e.target.value === '') {
-                                    handleQuantityChange(selectedProduct.Artikelnummer, 0);
-                                  }
-                                }}
-                                className="w-20"
-                                min="0"
                               />
-                            </div>
+                            ) : (
+                              <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors">
+                                <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect width="64" height="64" fill="#F3F4F6"/>
+                                  <path d="M20 28L32 40L44 28V48H20V28Z" fill="#D1D5DB"/>
+                                  <circle cx="26" cy="22" r="2" fill="#D1D5DB"/>
+                                </svg>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-right">
-                            <Select
-                              value={selectedProduct.Artikelnummer.toString()}
-                              onValueChange={(value) => {
-                                const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
-                                if (newProduct) {
-                                  handleProductSelect(category, value);
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-48">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {allCategoryProducts.map(product => (
-                                  <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
-                                    {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h4 className="font-medium">{selectedProduct.Name}</h4>
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                    <Info className="w-3 h-3" />
+                                    Auto-gewählt
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground mb-3">
+                                  <div>€{(parseFloat(selectedProduct.Verkaufspreis) || 0).toFixed(2)}/{selectedProduct.Einheit}</div>
+                                  <div>{parseFloat(selectedProduct.stunden_meister) || 0}h Meister</div>
+                                  <div>{parseFloat(selectedProduct.stunden_geselle) || 0}h Geselle</div>
+                                  <div>{parseFloat(selectedProduct.stunden_monteur) || 0}h Monteur</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label htmlFor={`qty-${selectedProduct.Artikelnummer}`} className="text-sm">
+                                    Menge:
+                                  </Label>
+                                  <Input
+                                    id={`qty-${selectedProduct.Artikelnummer}`}
+                                    type="number"
+                                    value={state.selectedProducts.get(selectedProduct.Artikelnummer)?.quantity || 0}
+                                    onChange={(e) => {
+                                      const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                      handleQuantityChange(selectedProduct.Artikelnummer, value);
+                                    }}
+                                    onBlur={(e) => {
+                                      if (e.target.value === '') {
+                                        handleQuantityChange(selectedProduct.Artikelnummer, 0);
+                                      }
+                                    }}
+                                    className="w-20"
+                                    min="0"
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <Select
+                                  value={selectedProduct.Artikelnummer.toString()}
+                                  onValueChange={(value) => {
+                                    const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
+                                    if (newProduct) {
+                                      handleProductSelect(category, value);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-48">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {allCategoryProducts.map(product => (
+                                      <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
+                                        {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -591,7 +666,6 @@ export const WallboxConfigurator = () => {
                   className="w-full"
                   onClick={() => setShowComponentAdder(true)}
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
                   Komponenten hinzufügen
                 </Button>
 
@@ -625,14 +699,39 @@ export const WallboxConfigurator = () => {
                             {products.map(product => (
                               <div 
                                 key={product.Artikelnummer}
-                                className="flex items-center justify-between p-2 hover:bg-muted/50 rounded cursor-pointer"
+                                className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded cursor-pointer"
                                 onClick={() => {
                                   handleProductSelect(category, product.Artikelnummer.toString());
                                   setShowComponentAdder(false);
                                   setSearchTerm('');
                                 }}
                               >
-                                <div>
+                                {/* Product Photo */}
+                                <div className="w-12 h-12 flex-shrink-0">
+                                  {product.foto ? (
+                                    <img
+                                      src={product.foto}
+                                      alt={product.Name}
+                                      className="w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPhoto(product.foto);
+                                      }}
+                                      onError={(e) => {
+                                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNSAyMUwyNCAzMEwzMyAyMVYzNkgxNVYyMVoiIGZpbGw9IiNEMUQ1REIiLz4KPGNpcmNsZSBjeD0iMTkuNSIgY3k9IjE2LjUiIHI9IjEuNSIgZmlsbD0iI0QxRDVEQiIvPgo8L3N2Zz4K';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-muted rounded flex items-center justify-center">
+                                      <svg width="24" height="24" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect width="48" height="48" fill="#F3F4F6"/>
+                                        <path d="M15 21L24 30L33 21V36H15V21Z" fill="#D1D5DB"/>
+                                        <circle cx="19.5" cy="16.5" r="1.5" fill="#D1D5DB"/>
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1">
                                   <div className="font-medium text-sm">{product.Name}</div>
                                   <div className="text-xs text-muted-foreground">
                                     €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}/{product.Einheit}
@@ -722,7 +821,6 @@ export const WallboxConfigurator = () => {
                     className="w-full"
                     disabled={state.selectedProducts.size === 0}
                   >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
                     In den Warenkorb
                   </Button>
                 </CardContent>
@@ -731,6 +829,23 @@ export const WallboxConfigurator = () => {
           </div>
         </div>
       </div>
+
+      {/* Photo Modal */}
+      {selectedPhoto && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="max-w-4xl max-h-full bg-white rounded-lg overflow-hidden">
+            <img
+              src={selectedPhoto}
+              alt="Product"
+              className="w-full h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
 
       <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
