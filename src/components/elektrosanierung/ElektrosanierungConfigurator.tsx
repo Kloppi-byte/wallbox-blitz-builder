@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
-import { Building, Users, Home, Calendar, Plus, Minus, Euro, Clock, Info, X, ChevronDown } from 'lucide-react';
+import { Building, Users, Home, Calendar, Plus, Minus, Euro, Clock, Info, X, ChevronDown, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 // Types
@@ -29,6 +29,7 @@ interface Product {
   kategorie: string;
   ueberkategorie: string;
   ueberueberkategorie: string[];
+  foto?: string;
   stunden_meister: number;
   stunden_geselle: number;
   stunden_monteur: number;
@@ -49,6 +50,9 @@ interface ProductEntry {
   id: string;
   product: Product;
   quantity: number;
+  meisterHours: number;
+  geselleHours: number;
+  monteurHours: number;
   isManuallyEdited: boolean;
   defaultQuantity: number;
 }
@@ -128,6 +132,7 @@ export const ElektrosanierungConfigurator = () => {
           "Überkategorie",
           "Überüberkategorie",
           "Anzahl Einheit",
+          foto,
           stunden_meister,
           stunden_geselle, 
           stunden_monteur,
@@ -153,6 +158,7 @@ export const ElektrosanierungConfigurator = () => {
         kategorie: item.Kategorie || '',
         ueberkategorie: item.Überkategorie || '',
         ueberueberkategorie: item.Überüberkategorie || [],
+        foto: item.foto || '',
         "anzahl_einheit": parseFloat(item["Anzahl Einheit"] || 0),
         stunden_meister: parseFloat(item.stunden_meister || 0),
         stunden_geselle: parseFloat(item.stunden_geselle || 0),
@@ -216,9 +222,9 @@ export const ElektrosanierungConfigurator = () => {
       category.productEntries.forEach(entry => {
         if (entry.quantity > 0) {
           materialCosts += entry.product.verkaufspreis * entry.quantity;
-          meisterHours += entry.product.stunden_meister * entry.quantity;
-          geselleHours += entry.product.stunden_geselle * entry.quantity;
-          monteurHours += entry.product.stunden_monteur * entry.quantity;
+          meisterHours += entry.meisterHours * entry.quantity;
+          geselleHours += entry.geselleHours * entry.quantity;
+          monteurHours += entry.monteurHours * entry.quantity;
         }
       });
     });
@@ -275,6 +281,9 @@ export const ElektrosanierungConfigurator = () => {
       id: `${ueberkategorie}-${Date.now()}`,
       product: selectedProduct,
       quantity: defaultQuantity,
+      meisterHours: selectedProduct.stunden_meister,
+      geselleHours: selectedProduct.stunden_geselle,
+      monteurHours: selectedProduct.stunden_monteur,
       isManuallyEdited: false,
       defaultQuantity
     }] : [];
@@ -326,6 +335,9 @@ export const ElektrosanierungConfigurator = () => {
       id: `${ueberkategorie}-${Date.now()}`,
       product: defaultProduct,
       quantity: defaultQuantity,
+      meisterHours: defaultProduct.stunden_meister,
+      geselleHours: defaultProduct.stunden_geselle,
+      monteurHours: defaultProduct.stunden_monteur,
       isManuallyEdited: false,
       defaultQuantity
     };
@@ -614,86 +626,154 @@ export const ElektrosanierungConfigurator = () => {
                       {/* Product Entries */}
                       <div className="space-y-3">
                         {category.productEntries.map(entry => (
-                          <div key={entry.id} className="grid grid-cols-4 gap-4 items-end p-3 bg-muted/30 rounded-md">
-                            {/* Quantity Control */}
-                            <div>
-                              <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={entry.quantity}
-                                  onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
-                                  className="text-center w-20"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              {!entry.isManuallyEdited && (
-                                <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                                  <Info className="h-3 w-3" />
-                                  Auto: {entry.defaultQuantity}
-                                </div>
-                              )}
-                            </div>
+                           <div key={entry.id} className="border rounded-lg p-4 bg-background">
+                             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+                               {/* Product Image */}
+                               <div className="lg:col-span-1">
+                                 <div className="aspect-square w-full max-w-[120px] mx-auto">
+                                   {entry.product.foto ? (
+                                     <img 
+                                       src={entry.product.foto} 
+                                       alt={entry.product.name}
+                                       className="w-full h-full object-cover rounded-md"
+                                       onError={(e) => {
+                                         e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCA0MEg4MFY4MEg0MFY0MFoiIGZpbGw9IiNEMUQ1REIiLz4KPHN2Zz4K';
+                                       }}
+                                     />
+                                   ) : (
+                                     <div className="w-full h-full bg-muted rounded-md flex items-center justify-center">
+                                       <div className="text-muted-foreground text-xs text-center">
+                                         Kein Bild
+                                       </div>
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
 
-                            {/* Product Selection */}
-                            <div>
-                              <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
-                              <Select
-                                value={entry.product.artikelnummer.toString()}
-                                onValueChange={value => updateProductEntryProduct(entry.id, parseInt(value))}
-                              >
-                                <SelectTrigger className="mt-1">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {category.productOptions.map(product => (
-                                    <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
-                                      {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                               {/* Product Details */}
+                               <div className="lg:col-span-2 space-y-3">
+                                 {/* Product Selection */}
+                                 <div>
+                                   <Label className="text-sm font-medium text-muted-foreground">Produktvariante</Label>
+                                   <Select
+                                     value={entry.product.artikelnummer.toString()}
+                                     onValueChange={value => updateProductEntryProduct(entry.id, parseInt(value))}
+                                   >
+                                     <SelectTrigger className="mt-1">
+                                       <SelectValue />
+                                     </SelectTrigger>
+                                     <SelectContent className="bg-background border z-50">
+                                       {category.productOptions.map(product => (
+                                         <SelectItem key={product.artikelnummer} value={product.artikelnummer.toString()}>
+                                           {product.name} - {product.verkaufspreis.toLocaleString('de-DE')}€
+                                         </SelectItem>
+                                       ))}
+                                     </SelectContent>
+                                   </Select>
+                                 </div>
 
-                            {/* Cost Information */}
-                            <div>
-                              <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
-                              <div className="mt-1">
-                                <div className="text-sm font-medium">
-                                  Material: {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Arbeitszeit: {((entry.product.stunden_meister + entry.product.stunden_geselle + entry.product.stunden_monteur) * entry.quantity).toFixed(1)}h
-                                </div>
-                              </div>
-                            </div>
+                                 {/* Quantity Control */}
+                                 <div>
+                                   <Label className="text-sm font-medium text-muted-foreground">Menge</Label>
+                                   <div className="flex items-center gap-2 mt-1">
+                                     <Button
+                                       variant="outline"
+                                       size="sm"
+                                       onClick={() => updateProductEntryQuantity(entry.id, Math.max(0, entry.quantity - 1))}
+                                     >
+                                       <Minus className="h-4 w-4" />
+                                     </Button>
+                                     <Input
+                                       type="number"
+                                       min="0"
+                                       value={entry.quantity}
+                                       onChange={e => updateProductEntryQuantity(entry.id, parseInt(e.target.value) || 0)}
+                                       className="text-center w-20"
+                                     />
+                                     <Button
+                                       variant="outline"
+                                       size="sm"
+                                       onClick={() => updateProductEntryQuantity(entry.id, entry.quantity + 1)}
+                                     >
+                                       <Plus className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                   {!entry.isManuallyEdited && (
+                                     <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                                       <Info className="h-3 w-3" />
+                                       Auto: {entry.defaultQuantity}
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
 
-                            {/* Remove Product Button */}
-                            <div className="flex justify-end">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeProductFromCategory(entry.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
+                               {/* Hours Section */}
+                               <div className="lg:col-span-1 space-y-2">
+                                 <Label className="text-sm font-medium text-muted-foreground">Arbeitsstunden</Label>
+                                 
+                                 <div>
+                                   <Label className="text-xs text-muted-foreground">Meister</Label>
+                                   <Input
+                                     type="number"
+                                     step="0.1"
+                                     min="0"
+                                     value={entry.meisterHours}
+                                     onChange={e => updateProductEntry(entry.id, { meisterHours: parseFloat(e.target.value) || 0 })}
+                                     className="text-sm h-8"
+                                   />
+                                 </div>
+                                 
+                                 <div>
+                                   <Label className="text-xs text-muted-foreground">Geselle</Label>
+                                   <Input
+                                     type="number"
+                                     step="0.1"
+                                     min="0"
+                                     value={entry.geselleHours}
+                                     onChange={e => updateProductEntry(entry.id, { geselleHours: parseFloat(e.target.value) || 0 })}
+                                     className="text-sm h-8"
+                                   />
+                                 </div>
+                                 
+                                 <div>
+                                   <Label className="text-xs text-muted-foreground">Monteur</Label>
+                                   <Input
+                                     type="number"
+                                     step="0.1"
+                                     min="0"
+                                     value={entry.monteurHours}
+                                     onChange={e => updateProductEntry(entry.id, { monteurHours: parseFloat(e.target.value) || 0 })}
+                                     className="text-sm h-8"
+                                   />
+                                 </div>
+                               </div>
+
+                               {/* Cost Information and Remove Button */}
+                               <div className="lg:col-span-1 space-y-2">
+                                 <div>
+                                   <Label className="text-sm font-medium text-muted-foreground">Kosten</Label>
+                                   <div className="mt-1">
+                                     <div className="text-sm font-medium">
+                                       Material: {(entry.product.verkaufspreis * entry.quantity).toLocaleString('de-DE')}€
+                                     </div>
+                                     <div className="text-xs text-muted-foreground">
+                                       Gesamt: {((entry.meisterHours + entry.geselleHours + entry.monteurHours) * entry.quantity).toFixed(1)}h
+                                     </div>
+                                   </div>
+                                 </div>
+                                 
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={() => removeProductFromCategory(entry.id)}
+                                   className="text-destructive hover:text-destructive w-full"
+                                 >
+                                   <Trash2 className="h-4 w-4 mr-1" />
+                                   Entfernen
+                                 </Button>
+                               </div>
+                             </div>
+                           </div>
                         ))}
 
                         {/* Add Product Button */}
