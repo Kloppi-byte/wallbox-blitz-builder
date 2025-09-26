@@ -75,6 +75,9 @@ export const WallboxConfigurator = () => {
   const [travelCosts, setTravelCosts] = useState(50);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showWallboxSelector, setShowWallboxSelector] = useState(false);
+  const [showComponentAdder, setShowComponentAdder] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { toast } = useToast();
   const { addItem } = useCart();
@@ -339,6 +342,52 @@ export const WallboxConfigurator = () => {
     );
   }
 
+  // Get wallboxes (Überkategorie containing "wallbox")
+  const wallboxes = state.products.filter(p => 
+    (p["Überkategorie"] || p.Überkategorie)?.toLowerCase().includes('wallbox')
+  );
+
+  // Get autoselected component groups
+  const autoselectedGroups = new Map<string, any[]>();
+  state.autoselectedProducts.forEach(artikelnummer => {
+    const product = state.products.find(p => p.Artikelnummer === artikelnummer);
+    if (product) {
+      const category = product["Überkategorie"] || product.Überkategorie;
+      if (category && !category.toLowerCase().includes('wallbox')) {
+        if (!autoselectedGroups.has(category)) {
+          autoselectedGroups.set(category, []);
+        }
+        autoselectedGroups.get(category)!.push(product);
+      }
+    }
+  });
+
+  // Get available component groups for adding
+  const availableGroups = new Map<string, any[]>();
+  Array.from(state.componentGroups.entries()).forEach(([category, products]) => {
+    if (!category.toLowerCase().includes('wallbox') && !autoselectedGroups.has(category)) {
+      availableGroups.set(category, products);
+    }
+  });
+
+  // Filter products for component adder based on search
+  const filteredGroups = new Map<string, any[]>();
+  if (searchTerm) {
+    availableGroups.forEach((products, category) => {
+      const filtered = products.filter(p => 
+        p.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      if (filtered.length > 0) {
+        filteredGroups.set(category, filtered);
+      }
+    });
+  } else {
+    availableGroups.forEach((products, category) => {
+      filteredGroups.set(category, products);
+    });
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -361,111 +410,247 @@ export const WallboxConfigurator = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Configuration Area */}
           <div className="lg:col-span-2 space-y-6">
-            {Array.from(state.componentGroups.entries()).map(([category, products]) => (
-              <Card key={category}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {category.toLowerCase().includes('wallbox') ? <Zap className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                    {category}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    {products.map(product => {
-                      const isSelected = state.selectedProducts.has(product.Artikelnummer);
-                      const selectedData = state.selectedProducts.get(product.Artikelnummer);
-                      const isAutoSelected = state.autoselectedProducts.has(product.Artikelnummer);
-                      const price = parseFloat(product.Verkaufspreis) || 0;
-                      const meisterHours = parseFloat(product.stunden_meister) || 0;
-                      const geselleHours = parseFloat(product.stunden_geselle) || 0;
-                      const monteurHours = parseFloat(product.stunden_monteur) || 0;
-
-                      return (
-                        <Card 
-                          key={product.Artikelnummer}
-                          className={`transition-all duration-200 ${
-                            isSelected ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                          }`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h4 className="font-medium">{product.Name}</h4>
-                                  {product.preselect && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                                      <CheckCircle className="w-3 h-3" />
-                                      Empfohlen
-                                    </span>
-                                  )}
-                                  {isAutoSelected && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                      <Info className="w-3 h-3" />
-                                      Auto-gewählt
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground mb-3">
-                                  <div>€{price.toFixed(2)}/{product.Einheit}</div>
-                                  <div>{meisterHours}h Meister</div>
-                                  <div>{geselleHours}h Geselle</div>
-                                  <div>{monteurHours}h Monteur</div>
-                                </div>
-
-                                {isSelected && (
-                                  <div className="flex items-center gap-2">
-                                    <Label htmlFor={`qty-${product.Artikelnummer}`} className="text-sm">
-                                      Menge:
-                                    </Label>
-                                    <Input
-                                      id={`qty-${product.Artikelnummer}`}
-                                      type="number"
-                                      value={selectedData?.quantity || 0}
-                                      onChange={(e) => {
-                                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                                        handleQuantityChange(product.Artikelnummer, value);
-                                      }}
-                                      onBlur={(e) => {
-                                        if (e.target.value === '') {
-                                          handleQuantityChange(product.Artikelnummer, 0);
-                                        }
-                                      }}
-                                      className="w-20"
-                                      min="0"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="text-right">
-                                <Select
-                                  value={isSelected ? product.Artikelnummer.toString() : ''}
-                                  onValueChange={(value) => {
-                                    if (value === product.Artikelnummer.toString()) {
-                                      handleProductSelect(category, value);
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="w-32">
-                                    <SelectValue placeholder="Auswählen" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={product.Artikelnummer.toString()}>
-                                      {isSelected ? 'Entfernen' : 'Hinzufügen'}
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+            {/* Wallbox Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  Wallbox
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {state.activeWallbox && (
+                  <div className="border rounded-lg p-4 bg-primary/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-medium">{state.activeWallbox.Name}</h4>
+                          {state.activeWallbox.preselect && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                              <CheckCircle className="w-3 h-3" />
+                              Empfohlen
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                          <div>€{(parseFloat(state.activeWallbox.Verkaufspreis) || 0).toFixed(2)}/{state.activeWallbox.Einheit}</div>
+                          <div>{parseFloat(state.activeWallbox.stunden_meister) || 0}h Meister</div>
+                          <div>{parseFloat(state.activeWallbox.stunden_geselle) || 0}h Geselle</div>
+                          <div>{parseFloat(state.activeWallbox.stunden_monteur) || 0}h Monteur</div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowWallboxSelector(true)}
+                      >
+                        Andere Wallbox auswählen
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                )}
+
+                {/* Wallbox Selector Dialog */}
+                {showWallboxSelector && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium">Wallbox auswählen:</h5>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowWallboxSelector(false)}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    {wallboxes.map(wallbox => (
+                      <Card 
+                        key={wallbox.Artikelnummer}
+                        className={`cursor-pointer transition-all duration-200 ${
+                          state.activeWallbox?.Artikelnummer === wallbox.Artikelnummer 
+                            ? 'border-primary bg-primary/5' 
+                            : 'hover:border-primary/50'
+                        }`}
+                        onClick={() => {
+                          selectWallbox(wallbox);
+                          setShowWallboxSelector(false);
+                        }}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="font-medium">{wallbox.Name}</h4>
+                            {wallbox.preselect && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                <CheckCircle className="w-3 h-3" />
+                                Empfohlen
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                            <div>€{(parseFloat(wallbox.Verkaufspreis) || 0).toFixed(2)}/{wallbox.Einheit}</div>
+                            <div>{parseFloat(wallbox.stunden_meister) || 0}h Meister</div>
+                            <div>{parseFloat(wallbox.stunden_geselle) || 0}h Geselle</div>
+                            <div>{parseFloat(wallbox.stunden_monteur) || 0}h Monteur</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Autoselected Components */}
+            {Array.from(autoselectedGroups.entries()).map(([category, categoryProducts]) => {
+              const selectedProduct = categoryProducts.find(p => state.selectedProducts.has(p.Artikelnummer));
+              const allCategoryProducts = state.componentGroups.get(category) || [];
+              
+              return (
+                <Card key={category}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5" />
+                      {category}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {selectedProduct && (
+                      <div className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-medium">{selectedProduct.Name}</h4>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                <Info className="w-3 h-3" />
+                                Auto-gewählt
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground mb-3">
+                              <div>€{(parseFloat(selectedProduct.Verkaufspreis) || 0).toFixed(2)}/{selectedProduct.Einheit}</div>
+                              <div>{parseFloat(selectedProduct.stunden_meister) || 0}h Meister</div>
+                              <div>{parseFloat(selectedProduct.stunden_geselle) || 0}h Geselle</div>
+                              <div>{parseFloat(selectedProduct.stunden_monteur) || 0}h Monteur</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor={`qty-${selectedProduct.Artikelnummer}`} className="text-sm">
+                                Menge:
+                              </Label>
+                              <Input
+                                id={`qty-${selectedProduct.Artikelnummer}`}
+                                type="number"
+                                value={state.selectedProducts.get(selectedProduct.Artikelnummer)?.quantity || 0}
+                                onChange={(e) => {
+                                  const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                  handleQuantityChange(selectedProduct.Artikelnummer, value);
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    handleQuantityChange(selectedProduct.Artikelnummer, 0);
+                                  }
+                                }}
+                                className="w-20"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Select
+                              value={selectedProduct.Artikelnummer.toString()}
+                              onValueChange={(value) => {
+                                const newProduct = allCategoryProducts.find(p => p.Artikelnummer.toString() === value);
+                                if (newProduct) {
+                                  handleProductSelect(category, value);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-48">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allCategoryProducts.map(product => (
+                                  <SelectItem key={product.Artikelnummer} value={product.Artikelnummer.toString()}>
+                                    {product.Name} - €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {/* Add Components Button */}
+            <Card>
+              <CardContent className="p-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowComponentAdder(true)}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Komponenten hinzufügen
+                </Button>
+
+                {/* Component Adder */}
+                {showComponentAdder && (
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Input
+                        placeholder="Komponenten suchen..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowComponentAdder(false);
+                          setSearchTerm('');
+                        }}
+                        className="ml-2"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {Array.from(filteredGroups.entries()).map(([category, products]) => (
+                        <div key={category} className="border rounded-lg p-3">
+                          <h5 className="font-medium mb-2">{category}</h5>
+                          <div className="space-y-2">
+                            {products.map(product => (
+                              <div 
+                                key={product.Artikelnummer}
+                                className="flex items-center justify-between p-2 hover:bg-muted/50 rounded cursor-pointer"
+                                onClick={() => {
+                                  handleProductSelect(category, product.Artikelnummer.toString());
+                                  setShowComponentAdder(false);
+                                  setSearchTerm('');
+                                }}
+                              >
+                                <div>
+                                  <div className="font-medium text-sm">{product.Name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    €{(parseFloat(product.Verkaufspreis) || 0).toFixed(2)}/{product.Einheit}
+                                  </div>
+                                </div>
+                                <Button size="sm" variant="outline">
+                                  Hinzufügen
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Travel Costs */}
             <Card>
