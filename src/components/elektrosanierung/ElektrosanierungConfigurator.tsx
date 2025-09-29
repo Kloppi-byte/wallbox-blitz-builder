@@ -18,8 +18,7 @@ interface ProjectParameters {
   zimmer: number;
   wohnflaeche: number;
   baujahr: number;
-  unterputz: boolean;
-  bewohnt: boolean;
+  komplexitaetsaufschlag: number; // Percentage for complexity surcharge on labor
 }
 
 interface Product {
@@ -85,8 +84,7 @@ export const ElektrosanierungConfigurator = () => {
       zimmer: 4,
       wohnflaeche: 80,
       baujahr: 1975,
-      unterputz: true,
-      bewohnt: false
+      komplexitaetsaufschlag: 0
     },
     categories: [], // Start with empty categories
     costs: { material: 0, meister: 0, geselle: 0, monteur: 0, travel: 0, total: 0 }
@@ -224,9 +222,6 @@ export const ElektrosanierungConfigurator = () => {
     if (product.faktor_baujahr && parameters.baujahr < 1990) {
       quantity += product.faktor_baujahr;
     }
-    if (product.faktor_unterputz && parameters.unterputz) {
-      quantity *= product.faktor_unterputz;
-    }
 
     return Math.ceil(Math.max(0, quantity));
   };
@@ -248,11 +243,11 @@ export const ElektrosanierungConfigurator = () => {
       });
     });
 
-    // Apply labor adjustments
-    const laborAdjustment = (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1);
-    meisterHours *= laborAdjustment;
-    geselleHours *= laborAdjustment;
-    monteurHours *= laborAdjustment;
+    // Apply complexity surcharge to labor hours
+    const complexityMultiplier = 1 + (state.parameters.komplexitaetsaufschlag / 100);
+    meisterHours *= complexityMultiplier;
+    geselleHours *= complexityMultiplier;
+    monteurHours *= complexityMultiplier;
 
     const laborCosts = meisterHours * 95 + geselleHours * 85 + monteurHours * 65;
 
@@ -552,22 +547,18 @@ export const ElektrosanierungConfigurator = () => {
                   />
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="unterputz"
-                    checked={state.parameters.unterputz}
-                    onCheckedChange={checked => updateParameters({ unterputz: !!checked })}
+                <div>
+                  <Label htmlFor="komplexitaetsaufschlag">Aufschlag wegen erhöhter Komplexität in Prozent (nur auf Arbeitszeit)</Label>
+                  <Input
+                    id="komplexitaetsaufschlag"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={tempInputs.komplexitaetsaufschlag ?? state.parameters.komplexitaetsaufschlag}
+                    onChange={e => handleInputChange('komplexitaetsaufschlag', e.target.value)}
+                    onBlur={e => handleInputBlur('komplexitaetsaufschlag', e.target.value)}
+                    placeholder="0"
                   />
-                  <Label htmlFor="unterputz">Unterputz Installation</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="bewohnt"
-                    checked={state.parameters.bewohnt}
-                    onCheckedChange={checked => updateParameters({ bewohnt: !!checked })}
-                  />
-                  <Label htmlFor="bewohnt">Wohnung bewohnt (+15% Arbeitszeit)</Label>
                 </div>
               </CardContent>
             </Card>
