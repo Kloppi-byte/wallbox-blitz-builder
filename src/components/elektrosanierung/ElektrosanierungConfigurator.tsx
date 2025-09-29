@@ -605,12 +605,16 @@ export const ElektrosanierungConfigurator = () => {
                         return acc;
                       }, {} as Record<string, number>);
 
-                      return Object.entries(categoryCosts).map(([categoryName, cost]) => (
-                        <div key={categoryName} className="flex justify-between text-sm">
-                          <span>{categoryName}:</span>
-                          <span>{cost.toFixed(2).replace('.', ',')}€</span>
+                      return (
+                        <div className="space-y-2">
+                          {Object.entries(categoryCosts).map(([categoryName, cost]) => (
+                            <div key={categoryName} className="flex justify-between text-sm">
+                              <span>{categoryName}:</span>
+                              <span>{cost.toFixed(2).replace('.', ',')}€</span>
+                            </div>
+                          ))}
                         </div>
-                      ));
+                      );
                     })()}
                   </div>
                 </div>
