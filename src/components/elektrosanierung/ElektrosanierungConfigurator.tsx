@@ -580,37 +580,87 @@ export const ElektrosanierungConfigurator = () => {
                   Kostenzusammenfassung
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Materialkosten:</span>
-                  <span className="font-semibold">{state.costs.material.toFixed(2).replace('.', ',')}€</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span>Meister:</span>
-                  <span>{state.costs.meister.toFixed(2).replace('.', ',')}€</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span>Geselle:</span>
-                  <span>{state.costs.geselle.toFixed(2).replace('.', ',')}€</span>
-                </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span>Monteur:</span>
-                  <span>{state.costs.monteur.toFixed(2).replace('.', ',')}€</span>
+              <CardContent className="space-y-6">
+                {/* Material Cost Breakdown by Category */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Materialkosten nach Kategorien</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(() => {
+                      const categoryColors = [
+                        { bg: 'bg-blue-50', text: 'text-blue-600', textBold: 'text-blue-700' },
+                        { bg: 'bg-green-50', text: 'text-green-600', textBold: 'text-green-700' },
+                        { bg: 'bg-purple-50', text: 'text-purple-600', textBold: 'text-purple-700' },
+                        { bg: 'bg-orange-50', text: 'text-orange-600', textBold: 'text-orange-700' },
+                        { bg: 'bg-red-50', text: 'text-red-600', textBold: 'text-red-700' },
+                        { bg: 'bg-cyan-50', text: 'text-cyan-600', textBold: 'text-cyan-700' },
+                      ];
+                      
+                      const categoryCosts = state.categories.reduce((acc, category) => {
+                        const categoryTotal = category.productEntries.reduce((sum, entry) => 
+                          sum + (entry.product.verkaufspreis * entry.quantity), 0
+                        );
+                        if (categoryTotal > 0) {
+                          acc[category.name] = categoryTotal;
+                        }
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(categoryCosts).map(([categoryName, cost], index) => {
+                        const colors = categoryColors[index % categoryColors.length];
+                        return (
+                          <div key={categoryName} className={`${colors.bg} p-3 rounded-lg text-center`}>
+                            <div className={`${colors.text} font-medium text-sm`}>{categoryName}</div>
+                            <div className={`text-lg font-bold ${colors.textBold}`}>
+                              {cost.toFixed(2).replace('.', ',')}€
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
 
-                <div className="flex justify-between text-sm">
-                  <span>Anfahrtskosten:</span>
-                  <span>{state.costs.travel.toFixed(2).replace('.', ',')}€</span>
+                <Separator />
+
+                {/* Labor Costs Summary */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Meister:</span>
+                    <span>{state.costs.meister.toFixed(2).replace('.', ',')}€</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span>Geselle:</span>
+                    <span>{state.costs.geselle.toFixed(2).replace('.', ',')}€</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span>Monteur:</span>
+                    <span>{state.costs.monteur.toFixed(2).replace('.', ',')}€</span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span>Anfahrtskosten:</span>
+                    <span>{state.costs.travel.toFixed(2).replace('.', ',')}€</span>
+                  </div>
                 </div>
 
                 <Separator />
                 
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Gesamtkosten:</span>
-                  <span>{state.costs.total.toFixed(2).replace('.', ',')}€</span>
+                {/* Balance Sheet Summary */}
+                <div className="space-y-3">
+                  <div className="flex justify-between font-semibold">
+                    <span>Materialkosten gesamt:</span>
+                    <span>{state.costs.material.toFixed(2).replace('.', ',')}€</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Arbeitskosten gesamt:</span>
+                    <span>{(state.costs.meister + state.costs.geselle + state.costs.monteur).toFixed(2).replace('.', ',')}€</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Gesamtkosten:</span>
+                    <span>{state.costs.total.toFixed(2).replace('.', ',')}€</span>
+                  </div>
                 </div>
 
                 <Button onClick={addToCart} className="w-full mt-4">
