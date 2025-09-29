@@ -840,62 +840,6 @@ export const ElektrosanierungConfigurator = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Total Hours Summary */}
-                <div className="space-y-4">
-                  <h3 className="font-medium">Gesamte Arbeitszeit</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-blue-50 p-4 rounded-lg text-center">
-                      <div className="text-blue-600 font-medium">Meister</div>
-                      <div className="text-2xl font-bold text-blue-700">
-                        {(() => {
-                          const totalHours = state.categories.reduce((sum, cat) => 
-                            sum + cat.productEntries.reduce((entrySum, entry) => 
-                              entrySum + (entry.meisterHours * entry.quantity), 0), 0
-                          );
-                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
-                        })()}h
-                      </div>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg text-center">
-                      <div className="text-green-600 font-medium">Geselle</div>
-                      <div className="text-2xl font-bold text-green-700">
-                        {(() => {
-                          const totalHours = state.categories.reduce((sum, cat) => 
-                            sum + cat.productEntries.reduce((entrySum, entry) => 
-                              entrySum + (entry.geselleHours * entry.quantity), 0), 0
-                          );
-                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
-                        })()}h
-                      </div>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg text-center">
-                      <div className="text-purple-600 font-medium">Monteur</div>
-                      <div className="text-2xl font-bold text-purple-700">
-                        {(() => {
-                          const totalHours = state.categories.reduce((sum, cat) => 
-                            sum + cat.productEntries.reduce((entrySum, entry) => 
-                              entrySum + (entry.monteurHours * entry.quantity), 0), 0
-                          );
-                          return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
-                        })()}h
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-center mt-4">
-                    <div className="text-sm text-muted-foreground">Gesamtstunden:</div>
-                    <div className="text-xl font-bold">
-                      {(() => {
-                        const totalHours = state.categories.reduce((sum, cat) => 
-                          sum + cat.productEntries.reduce((entrySum, entry) => 
-                            entrySum + ((entry.meisterHours + entry.geselleHours + entry.monteurHours) * entry.quantity), 0), 0
-                        );
-                        return (totalHours * (state.parameters.bewohnt ? 1.15 : 1) * (state.parameters.baujahr < 1960 ? 1.2 : 1)).toFixed(1);
-                      })()}h
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
 
                 {/* Hours Summary */}
                 <div className="space-y-4">
