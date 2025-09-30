@@ -1,52 +1,50 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useToast } from '@/hooks/use-toast';
-import { useCart } from '@/contexts/CartContext';
-import { CartIcon } from '@/components/cart/CartIcon';
-import { Building, Users, Home, Calendar, Package, CheckCircle, Plus, Minus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+// src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
 
-// Define types for our new data structures
-interface SanierungPackage {
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+// Import necessary UI components from '@/components/ui/...'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
+// --- TYPE DEFINITIONS ---
+// This type matches the structure of your 'offers_packages' table
+type OfferPackage = {
   id: number;
   name: string;
-  category: string;
-  description?: string;
-  quality_level?: string;
-  is_optional?: boolean;
-}
+  description: string | null;
+  category: string | null;
+  is_optional: boolean | null;
+};
 
-interface SelectedPackage {
+// This type defines how we store a package the user has selected
+type SelectedPackage = {
   package_id: number;
   name: string;
   quantity: number;
-}
+};
 
-export const ElektrosanierungConfigurator = () => {
-  // State for the global project parameters
-  const [projectParams, setProjectParams] = useState({
-    wohnflaeche: 80,
-    raeume: 4,
-    etagen: 1,
-    baujahr: 2000,
-    qualitaetsstufe: 'Standard', // Default quality level
-  });
+// --- COMPONENT STATE ---
+export function ElektrosanierungConfigurator() {
+  // Global Parameters state
+  const [baujahr, setBaujahr] = useState<number>(2000);
+  const [qualitaetsstufe, setQualitaetsstufe] = useState<string>('Standard');
 
-  // State to hold the packages loaded from the database
-  const [availablePackages, setAvailablePackages] = useState<SanierungPackage[]>([]);
-
-  // State for the packages the user has selected for the offer
+  // State to hold packages fetched from Supabase
+  const [availablePackages, setAvailablePackages] = useState<OfferPackage[]>([]);
+  
+  // State to hold the packages the user has selected
   const [selectedPackages, setSelectedPackages] = useState<SelectedPackage[]>([]);
 
-  // State to manage loading and errors
+  // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ... rest of the component
 
   const { toast } = useToast();
   const { addItem } = useCart();
@@ -56,6 +54,26 @@ export const ElektrosanierungConfigurator = () => {
     const fetchPackages = async () => {
       try {
         setLoading(true);
+  // src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('offers_packages')
+        .select('id, name, description, category, is_optional');
+
+      if (error) {
+        setError(error.message);
+        console.error("Error fetching packages:", error);
+      } else {
+        setAvailablePackages(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchPackages();
+  }, []);
         
         // Mock data for demonstration - replace with actual database call when offers_packages table exists
         const mockPackages: SanierungPackage[] = [
