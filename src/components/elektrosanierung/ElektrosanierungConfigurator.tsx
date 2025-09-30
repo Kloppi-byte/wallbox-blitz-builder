@@ -276,9 +276,9 @@ export function ElektrosanierungConfigurator() {
             category: product.category,
             produkt_gruppe: product.produkt_gruppe,
             qualitaetsstufe: product.qualitaetsstufe,
-            stunden_meister: product.stunden_meister,
-            stunden_geselle: product.stunden_geselle,
-            stunden_monteur: product.stunden_monteur,
+            stunden_meister: product.stunden_meister * calculatedQuantity,
+            stunden_geselle: product.stunden_geselle * calculatedQuantity,
+            stunden_monteur: product.stunden_monteur * calculatedQuantity,
             quantity: Math.round(calculatedQuantity * 100) / 100, // Round to 2 decimals
             image: product.image
           });
