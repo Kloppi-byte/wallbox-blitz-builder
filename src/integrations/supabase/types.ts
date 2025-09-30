@@ -136,240 +136,6 @@ export type Database = {
           },
         ]
       }
-      crm_invoice_payment_matches: {
-        Row: {
-          confidence: number
-          created_at: string | null
-          direction: string
-          id: string
-          invoice_id: string
-          matched_amount: number
-          payment_id: string
-          rule: string
-        }
-        Insert: {
-          confidence: number
-          created_at?: string | null
-          direction: string
-          id?: string
-          invoice_id: string
-          matched_amount: number
-          payment_id: string
-          rule: string
-        }
-        Update: {
-          confidence?: number
-          created_at?: string | null
-          direction?: string
-          id?: string
-          invoice_id?: string
-          matched_amount?: number
-          payment_id?: string
-          rule?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_invoice_payment_matches_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "crm_payments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_invoices_in: {
-        Row: {
-          amount_gross: number
-          amount_net: number | null
-          currency: string | null
-          due_date: string | null
-          id: string
-          invoice_number: string | null
-          is_credit_note: boolean | null
-          issue_date: string | null
-          meta: Json | null
-          partner_id: string | null
-          partner_name: string | null
-          source: string
-          source_id: string
-          tags: Json | null
-          vat_rate: number | null
-        }
-        Insert: {
-          amount_gross: number
-          amount_net?: number | null
-          currency?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_number?: string | null
-          is_credit_note?: boolean | null
-          issue_date?: string | null
-          meta?: Json | null
-          partner_id?: string | null
-          partner_name?: string | null
-          source: string
-          source_id: string
-          tags?: Json | null
-          vat_rate?: number | null
-        }
-        Update: {
-          amount_gross?: number
-          amount_net?: number | null
-          currency?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_number?: string | null
-          is_credit_note?: boolean | null
-          issue_date?: string | null
-          meta?: Json | null
-          partner_id?: string | null
-          partner_name?: string | null
-          source?: string
-          source_id?: string
-          tags?: Json | null
-          vat_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_invoices_in_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "crm_partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_invoices_out: {
-        Row: {
-          amount_gross: number
-          amount_net: number | null
-          currency: string | null
-          due_date: string | null
-          id: string
-          invoice_number: string | null
-          is_credit_note: boolean | null
-          issue_date: string | null
-          meta: Json | null
-          partner_id: string | null
-          partner_name: string | null
-          source: string
-          source_id: string
-          tags: Json | null
-          vat_rate: number | null
-        }
-        Insert: {
-          amount_gross: number
-          amount_net?: number | null
-          currency?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_number?: string | null
-          is_credit_note?: boolean | null
-          issue_date?: string | null
-          meta?: Json | null
-          partner_id?: string | null
-          partner_name?: string | null
-          source: string
-          source_id: string
-          tags?: Json | null
-          vat_rate?: number | null
-        }
-        Update: {
-          amount_gross?: number
-          amount_net?: number | null
-          currency?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_number?: string | null
-          is_credit_note?: boolean | null
-          issue_date?: string | null
-          meta?: Json | null
-          partner_id?: string | null
-          partner_name?: string | null
-          source?: string
-          source_id?: string
-          tags?: Json | null
-          vat_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_invoices_out_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "crm_partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_partners: {
-        Row: {
-          created_at: string | null
-          iban: string | null
-          id: string
-          name: string
-          partner_type: string | null
-          tax_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          iban?: string | null
-          id?: string
-          name: string
-          partner_type?: string | null
-          tax_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          iban?: string | null
-          id?: string
-          name?: string
-          partner_type?: string | null
-          tax_id?: string | null
-        }
-        Relationships: []
-      }
-      crm_payments: {
-        Row: {
-          amount: number
-          booking_date: string | null
-          counterpart_iban: string | null
-          counterpart_name: string | null
-          currency: string | null
-          id: string
-          meta: Json | null
-          purpose: string | null
-          source: string
-          source_id: string
-          valuta_date: string | null
-        }
-        Insert: {
-          amount: number
-          booking_date?: string | null
-          counterpart_iban?: string | null
-          counterpart_name?: string | null
-          currency?: string | null
-          id?: string
-          meta?: Json | null
-          purpose?: string | null
-          source: string
-          source_id: string
-          valuta_date?: string | null
-        }
-        Update: {
-          amount?: number
-          booking_date?: string | null
-          counterpart_iban?: string | null
-          counterpart_name?: string | null
-          currency?: string | null
-          id?: string
-          meta?: Json | null
-          purpose?: string | null
-          source?: string
-          source_id?: string
-          valuta_date?: string | null
-        }
-        Relationships: []
-      }
       hero_nutzer: {
         Row: {
           created_at: string
@@ -597,6 +363,60 @@ export type Database = {
           },
         ]
       }
+      offers_package_parameter_definitions: {
+        Row: {
+          default_value: string | null
+          label: string
+          param_key: string
+          param_type: string
+          unit: string | null
+        }
+        Insert: {
+          default_value?: string | null
+          label: string
+          param_key: string
+          param_type: string
+          unit?: string | null
+        }
+        Update: {
+          default_value?: string | null
+          label?: string
+          param_key?: string
+          param_type?: string
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      offers_package_parameter_links: {
+        Row: {
+          package_id: number
+          param_key: string
+        }
+        Insert: {
+          package_id: number
+          param_key: string
+        }
+        Update: {
+          package_id?: number
+          param_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_package_parameter_links_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "offers_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_package_parameter_links_param_key_fkey"
+            columns: ["param_key"]
+            isOneToOne: false
+            referencedRelation: "offers_package_parameter_definitions"
+            referencedColumns: ["param_key"]
+          },
+        ]
+      }
       offers_packages: {
         Row: {
           category: string | null
@@ -647,6 +467,7 @@ export type Database = {
           category: string | null
           created_at: string | null
           description: string | null
+          image: string | null
           name: string
           product_id: string
           produkt_gruppe: string | null
@@ -661,6 +482,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          image?: string | null
           name: string
           product_id: string
           produkt_gruppe?: string | null
@@ -675,6 +497,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          image?: string | null
           name?: string
           product_id?: string
           produkt_gruppe?: string | null
@@ -1153,6 +976,39 @@ export type Database = {
           },
         ]
       }
+      task_status: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          partner_id: string
+          status: string
+          subpage: string
+          task_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          status?: string
+          subpage: string
+          task_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          status?: string
+          subpage?: string
+          task_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       template_articles: {
         Row: {
           artikelnummer: string | null
@@ -1381,68 +1237,7 @@ export type Database = {
       }
     }
     Views: {
-      crm_v_invoices_in_status: {
-        Row: {
-          amount_gross: number | null
-          amount_net: number | null
-          currency: string | null
-          due_date: string | null
-          id: string | null
-          invoice_number: string | null
-          is_credit_note: boolean | null
-          issue_date: string | null
-          meta: Json | null
-          open_amount: number | null
-          partner_id: string | null
-          partner_name: string | null
-          settled_amount: number | null
-          source: string | null
-          source_id: string | null
-          status: string | null
-          tags: Json | null
-          vat_rate: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_invoices_in_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "crm_partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_v_invoices_out_status: {
-        Row: {
-          amount_gross: number | null
-          amount_net: number | null
-          currency: string | null
-          due_date: string | null
-          id: string | null
-          invoice_number: string | null
-          is_credit_note: boolean | null
-          issue_date: string | null
-          meta: Json | null
-          open_amount: number | null
-          paid_amount: number | null
-          partner_id: string | null
-          partner_name: string | null
-          source: string | null
-          source_id: string | null
-          status: string | null
-          tags: Json | null
-          vat_rate: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_invoices_out_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "crm_partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       ensure_user_profile: {
