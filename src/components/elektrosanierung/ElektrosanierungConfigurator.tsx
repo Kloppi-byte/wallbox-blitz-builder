@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
@@ -61,7 +62,7 @@ export function ElektrosanierungConfigurator() {
         setLoading(true);
         
         const { data, error } = await supabase
-          .from('offers_packages')
+          .from('offers_packages' as any)
           .select('*')
           .order('category', { ascending: true })
           .order('name', { ascending: true });
@@ -71,7 +72,7 @@ export function ElektrosanierungConfigurator() {
         }
 
         if (data) {
-          setAvailablePackages(data);
+          setAvailablePackages(data as unknown as OfferPackage[]);
         }
       } catch (err: any) {
         setError(err.message);

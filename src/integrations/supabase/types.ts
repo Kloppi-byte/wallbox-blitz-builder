@@ -549,6 +549,144 @@ export type Database = {
         }
         Relationships: []
       }
+      offers_package_items: {
+        Row: {
+          created_at: string | null
+          id: number
+          package_id: number
+          produkt_gruppe_id: string
+          quantity_base: number | null
+          quantity_per_floor: number | null
+          quantity_per_room: number | null
+          quantity_per_sqm: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          package_id: number
+          produkt_gruppe_id: string
+          quantity_base?: number | null
+          quantity_per_floor?: number | null
+          quantity_per_room?: number | null
+          quantity_per_sqm?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          package_id?: number
+          produkt_gruppe_id?: string
+          quantity_base?: number | null
+          quantity_per_floor?: number | null
+          quantity_per_room?: number | null
+          quantity_per_sqm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "offers_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_package_items_produkt_gruppe_id_fkey"
+            columns: ["produkt_gruppe_id"]
+            isOneToOne: false
+            referencedRelation: "offers_product_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      offers_packages: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: number
+          is_optional: boolean | null
+          name: string
+          quality_level: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_optional?: boolean | null
+          name: string
+          quality_level?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_optional?: boolean | null
+          name?: string
+          quality_level?: string | null
+        }
+        Relationships: []
+      }
+      offers_product_groups: {
+        Row: {
+          description: string | null
+          group_id: string
+        }
+        Insert: {
+          description?: string | null
+          group_id: string
+        }
+        Update: {
+          description?: string | null
+          group_id?: string
+        }
+        Relationships: []
+      }
+      offers_products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          name: string
+          product_id: string
+          produkt_gruppe: string | null
+          qualitaetsstufe: string | null
+          stunden_geselle: number | null
+          stunden_meister: number | null
+          stunden_monteur: number | null
+          unit: string
+          unit_price: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          name: string
+          product_id: string
+          produkt_gruppe?: string | null
+          qualitaetsstufe?: string | null
+          stunden_geselle?: number | null
+          stunden_meister?: number | null
+          stunden_monteur?: number | null
+          unit: string
+          unit_price: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          name?: string
+          product_id?: string
+          produkt_gruppe?: string | null
+          qualitaetsstufe?: string | null
+          stunden_geselle?: number | null
+          stunden_meister?: number | null
+          stunden_monteur?: number | null
+          unit?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
       onboarding_locs: {
         Row: {
           besprechungstermin: string | null
@@ -633,23 +771,29 @@ export type Database = {
         Row: {
           adresse: string | null
           "Anfragen@ Account": string | null
+          "API Key Hero Account": string | null
           api_keys_getmika: string | null
           betriebsnummer: string | null
           contact_person: string | null
           email_address_contact: string | null
           email_belegemanagement: string | null
           email_getmika: string | null
-          getmika_buchhaltungs_mail_hinterlegt: string | null
+          "Gewerbeanmeldung Link": string | null
+          Gewerk: string | null
+          "Handwerkskarte Link": string | null
           hrb_nr: string | null
           iban: string | null
           id: string
+          Leistungsbeschreibung: string | null
           logo_link: string | null
           partner_id: string | null
           partnerbetrieb: string | null
+          "Personalausweis Link": string | null
           phone_number: string | null
-          plz: string | null
+          plz: string[] | null
           "Private Mail LOC Gründer": string | null
           rechtsform: string | null
+          "SMTP Key Google <> Offpaper": string | null
           steuernummer: string | null
           ust_id: string | null
           Website: string | null
@@ -657,23 +801,29 @@ export type Database = {
         Insert: {
           adresse?: string | null
           "Anfragen@ Account"?: string | null
+          "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
           contact_person?: string | null
           email_address_contact?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
-          getmika_buchhaltungs_mail_hinterlegt?: string | null
+          "Gewerbeanmeldung Link"?: string | null
+          Gewerk?: string | null
+          "Handwerkskarte Link"?: string | null
           hrb_nr?: string | null
           iban?: string | null
           id?: string
+          Leistungsbeschreibung?: string | null
           logo_link?: string | null
           partner_id?: string | null
           partnerbetrieb?: string | null
+          "Personalausweis Link"?: string | null
           phone_number?: string | null
-          plz?: string | null
+          plz?: string[] | null
           "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
+          "SMTP Key Google <> Offpaper"?: string | null
           steuernummer?: string | null
           ust_id?: string | null
           Website?: string | null
@@ -681,23 +831,29 @@ export type Database = {
         Update: {
           adresse?: string | null
           "Anfragen@ Account"?: string | null
+          "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
           contact_person?: string | null
           email_address_contact?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
-          getmika_buchhaltungs_mail_hinterlegt?: string | null
+          "Gewerbeanmeldung Link"?: string | null
+          Gewerk?: string | null
+          "Handwerkskarte Link"?: string | null
           hrb_nr?: string | null
           iban?: string | null
           id?: string
+          Leistungsbeschreibung?: string | null
           logo_link?: string | null
           partner_id?: string | null
           partnerbetrieb?: string | null
+          "Personalausweis Link"?: string | null
           phone_number?: string | null
-          plz?: string | null
+          plz?: string[] | null
           "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
+          "SMTP Key Google <> Offpaper"?: string | null
           steuernummer?: string | null
           ust_id?: string | null
           Website?: string | null
@@ -1091,28 +1247,79 @@ export type Database = {
       }
       wallboxen: {
         Row: {
+          "Anzahl Einheit": string | null
           Artikelnummer: number
+          auto_select: string[] | null
           Beschreibung: string | null
+          Einheit: string | null
+          exclude: string[] | null
+          "Faktor Baujahr < 1990": number | null
+          "Faktor Etage": number | null
+          "Faktor Unterputz==true": number | null
+          "Faktor Wohnfläche": number | null
+          "Faktor Zimmer": number | null
+          foto: string | null
           Kategorie: string | null
-          "Lieferanten Nr.": string | null
           Name: string | null
-          "VK VK30": string | null
+          optional: string[] | null
+          preselect: boolean | null
+          required: string[] | null
+          stunden_geselle: string | null
+          stunden_meister: string | null
+          stunden_monteur: string | null
+          Überkategorie: string | null
+          Überüberkategorie: string[] | null
+          Verkaufspreis: string | null
         }
         Insert: {
+          "Anzahl Einheit"?: string | null
           Artikelnummer?: number
+          auto_select?: string[] | null
           Beschreibung?: string | null
+          Einheit?: string | null
+          exclude?: string[] | null
+          "Faktor Baujahr < 1990"?: number | null
+          "Faktor Etage"?: number | null
+          "Faktor Unterputz==true"?: number | null
+          "Faktor Wohnfläche"?: number | null
+          "Faktor Zimmer"?: number | null
+          foto?: string | null
           Kategorie?: string | null
-          "Lieferanten Nr."?: string | null
           Name?: string | null
-          "VK VK30"?: string | null
+          optional?: string[] | null
+          preselect?: boolean | null
+          required?: string[] | null
+          stunden_geselle?: string | null
+          stunden_meister?: string | null
+          stunden_monteur?: string | null
+          Überkategorie?: string | null
+          Überüberkategorie?: string[] | null
+          Verkaufspreis?: string | null
         }
         Update: {
+          "Anzahl Einheit"?: string | null
           Artikelnummer?: number
+          auto_select?: string[] | null
           Beschreibung?: string | null
+          Einheit?: string | null
+          exclude?: string[] | null
+          "Faktor Baujahr < 1990"?: number | null
+          "Faktor Etage"?: number | null
+          "Faktor Unterputz==true"?: number | null
+          "Faktor Wohnfläche"?: number | null
+          "Faktor Zimmer"?: number | null
+          foto?: string | null
           Kategorie?: string | null
-          "Lieferanten Nr."?: string | null
           Name?: string | null
-          "VK VK30"?: string | null
+          optional?: string[] | null
+          preselect?: boolean | null
+          required?: string[] | null
+          stunden_geselle?: string | null
+          stunden_meister?: string | null
+          stunden_monteur?: string | null
+          Überkategorie?: string | null
+          Überüberkategorie?: string[] | null
+          Verkaufspreis?: string | null
         }
         Relationships: []
       }
@@ -1171,33 +1378,6 @@ export type Database = {
             referencedColumns: ["partner_id"]
           },
         ]
-      }
-      zählerschränke: {
-        Row: {
-          Artikelnummer: number
-          Beschreibung: string | null
-          Kategorie: string | null
-          "Lieferanten Nr.": string | null
-          Name: string | null
-          "VK VK30": string | null
-        }
-        Insert: {
-          Artikelnummer?: number
-          Beschreibung?: string | null
-          Kategorie?: string | null
-          "Lieferanten Nr."?: string | null
-          Name?: string | null
-          "VK VK30"?: string | null
-        }
-        Update: {
-          Artikelnummer?: number
-          Beschreibung?: string | null
-          Kategorie?: string | null
-          "Lieferanten Nr."?: string | null
-          Name?: string | null
-          "VK VK30"?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {
@@ -1276,6 +1456,22 @@ export type Database = {
       get_current_user_role_secure: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_hero_onboarding_status: {
+        Args: { p_partner_id: string }
+        Returns: string
+      }
+      get_steuerberater_onboarding_status: {
+        Args: { p_partner_id: string }
+        Returns: string
+      }
+      get_strauss_bestellung_status: {
+        Args: { p_partner_id: string }
+        Returns: {
+          bestelldetails: Json
+          bestellstatus: string
+          updated_on: string
+        }[]
       }
       is_admin_user: {
         Args: Record<PropertyKey, never>
