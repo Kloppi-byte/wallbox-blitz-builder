@@ -164,14 +164,9 @@ export function ElektrosanierungConfigurator() {
 
   // Handler function for package selection
   const handlePackageSelection = (packageData: OfferPackage, checked: boolean) => {
-    console.log('Package selection called:', { packageData, checked });
-    console.log('Package items available:', packageItems.length);
-    console.log('Products available:', products.length);
-    
     if (checked) {
       // Resolve all products for this package and add to offer line items
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
-      console.log('Package items for package:', packageItemsForPackage);
       
       const newLineItems: OfferLineItem[] = [];
       packageItemsForPackage.forEach(item => {
@@ -179,7 +174,6 @@ export function ElektrosanierungConfigurator() {
           prod.produkt_gruppe === item.produkt_gruppe_id && 
           prod.qualitaetsstufe === projectParams.qualitaetsstufe
         );
-        console.log('Found product for item:', { item, product });
         if (product) {
           newLineItems.push({
             id: `${packageData.id}-${product.product_id}-${Date.now()}`,
@@ -201,7 +195,6 @@ export function ElektrosanierungConfigurator() {
         }
       });
       
-      console.log('New line items to add:', newLineItems);
       setOfferLineItems(prev => [...prev, ...newLineItems]);
     } else {
       // Remove all line items for this package
