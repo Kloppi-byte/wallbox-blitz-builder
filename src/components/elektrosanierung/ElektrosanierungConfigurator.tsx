@@ -822,25 +822,30 @@ export function ElektrosanierungConfigurator() {
                                          </Button>
                                        </PopoverTrigger>
                                        <PopoverContent className="w-80 p-0" align="start">
-                                         <Command>
-                                           <div className="flex items-center border-b px-3">
+                                         <div className="flex flex-col">
+                                           {/* Search Input */}
+                                           <div className="flex items-center border-b px-3 py-2">
                                              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                             <CommandInput
+                                             <Input
                                                placeholder="Produkte durchsuchen..."
                                                value={productSearchQuery}
-                                               onValueChange={setProductSearchQuery}
-                                               className="flex-1"
+                                               onChange={(e) => setProductSearchQuery(e.target.value)}
+                                               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                                              />
                                            </div>
-                                           <CommandList className="max-h-60 overflow-y-auto">
-                                             <CommandEmpty>Keine Produkte gefunden.</CommandEmpty>
-                                             <CommandGroup>
-                                               {getFilteredProducts().map((product) => (
-                                                 <CommandItem
+                                           
+                                           {/* Product List */}
+                                           <div className="max-h-60 overflow-y-auto">
+                                             {getFilteredProducts().length === 0 ? (
+                                               <div className="p-4 text-center text-sm text-muted-foreground">
+                                                 Keine Produkte gefunden.
+                                               </div>
+                                             ) : (
+                                               getFilteredProducts().map((product) => (
+                                                 <div
                                                    key={product.product_id}
-                                                   value={product.product_id}
-                                                   onSelect={() => handleAddProduct(pkg.id, product.product_id)}
-                                                   className="flex items-center gap-3 p-3 cursor-pointer"
+                                                   onClick={() => handleAddProduct(pkg.id, product.product_id)}
+                                                   className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
                                                  >
                                                    <div className="w-10 h-10 flex-shrink-0">
                                                      {product.image ? (
@@ -865,11 +870,11 @@ export function ElektrosanierungConfigurator() {
                                                        <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
                                                      </div>
                                                    </div>
-                                                 </CommandItem>
-                                               ))}
-                                             </CommandGroup>
-                                           </CommandList>
-                                         </Command>
+                                                 </div>
+                                               ))
+                                             )}
+                                           </div>
+                                         </div>
                                        </PopoverContent>
                                      </Popover>
                                    </div>
