@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 // Import lucide icons
@@ -58,6 +59,16 @@ type OfferProduct = {
   created_at: string;
   image: string | null;
 };
+type OfferPackageParameterDefinition = {
+  param_key: string;
+  label: string;
+  param_type: string;
+  unit?: string | null;
+  default_value?: string | null;
+  is_global?: boolean;
+  maps_to_factor_column?: string | null;
+  'true/false'?: string | null;
+};
 
 // Application state types
 type OfferLineItem = {
@@ -95,7 +106,7 @@ export function ElektrosanierungConfigurator() {
 
   // State for dynamic parameters
   const [paramLinks, setParamLinks] = useState<any[]>([]);
-  const [paramDefs, setParamDefs] = useState<any[]>([]);
+  const [paramDefs, setParamDefs] = useState<OfferPackageParameterDefinition[]>([]);
 
   // State to track selected packages with their parameters
   const [selectedPackages, setSelectedPackages] = useState<{
@@ -223,7 +234,11 @@ export function ElektrosanierungConfigurator() {
             Object.entries(multipliers).forEach(([key, value]) => {
               // Check if this multiplier key exists in global params
               if (globalParams[key] !== undefined) {
-                calculatedQuantity *= (globalParams[key] * value);
+                // Convert boolean to 1/0 for calculations
+                const paramValue = typeof globalParams[key] === 'boolean' 
+                  ? (globalParams[key] ? 1 : 0) 
+                  : globalParams[key];
+                calculatedQuantity *= (paramValue * value);
               }
             });
           }
@@ -493,9 +508,34 @@ export function ElektrosanierungConfigurator() {
 
             {/* Dynamically render other global parameters */}
             {globalParamDefs.filter(def => def.param_key !== 'qualitaetsstufe').map(def => {
-              const currentValue = globalParams[def.param_key] || def.default_value || '';
+              // Initialize default value based on param_type
+              let defaultValue: any = def.default_value;
+              if (def.param_type === 'boolean') {
+                // For boolean, default to false (0 in calculations)
+                defaultValue = false;
+              }
+              
+              const currentValue = globalParams[def.param_key] !== undefined 
+                ? globalParams[def.param_key] 
+                : defaultValue;
               
               // Render based on param_type
+              if (def.param_type === 'boolean' && def['true/false']) {
+                const [trueText, falseText] = def['true/false'].split('/').map(t => t.trim());
+                return (
+                  <div key={def.param_key} className="flex items-center space-x-2">
+                    <Switch
+                      id={`global-${def.param_key}`}
+                      checked={currentValue === true}
+                      onCheckedChange={(checked) => handleGlobalParamChange(def.param_key, checked)}
+                    />
+                    <Label htmlFor={`global-${def.param_key}`} className="cursor-pointer">
+                      {currentValue ? trueText : falseText}
+                    </Label>
+                  </div>
+                );
+              }
+              
               if (def.param_type === 'select') {
                 return (
                   <div key={def.param_key}>
@@ -527,7 +567,7 @@ export function ElektrosanierungConfigurator() {
                   <Input
                     id={`global-${def.param_key}`}
                     type={def.param_type}
-                    value={currentValue}
+                    value={currentValue || ''}
                     onChange={e => handleGlobalParamChange(def.param_key, e.target.value)}
                     placeholder={`${def.label} eingeben...`}
                   />
