@@ -756,26 +756,49 @@ export function ElektrosanierungConfigurator() {
                                              <div>
                                                <Label className="text-sm font-medium mb-2 block">Meister (h)</Label>
                                                <div className="flex items-center gap-2">
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_meister', Math.max(0, (item.stunden_meister || 0) - 0.1))}>
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_meister_per_unit - 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_meister_per_unit: newPerUnit,
+                                           stunden_meister: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Minus className="h-3 w-3" />
                                                  </Button>
-                                                 <Input type="number" step="0.1" min="0" value={item.stunden_meister ? parseFloat(item.stunden_meister.toString()).toFixed(2) : ''} placeholder="0.00" onChange={e => {
-                                        const value = e.target.value;
-                                        if (value === '') {
-                                          setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                            ...lineItem,
-                                            stunden_meister: '' as any
-                                          } : lineItem));
-                                        } else {
-                                          const num = parseFloat(value) || 0;
-                                          handleHoursChange(item.id, 'stunden_meister', num);
-                                        }
-                                      }} onBlur={e => {
-                                        if (e.target.value === '') {
-                                          handleHoursChange(item.id, 'stunden_meister', 0);
-                                        }
-                                      }} className="flex-1 h-8 text-center text-sm" />
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_meister', (item.stunden_meister || 0) + 0.1)}>
+                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
+                                         const value = e.target.value;
+                                         if (value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_meister_per_unit: 0
+                                           } : lineItem));
+                                         } else {
+                                           const totalHours = parseFloat(value) || 0;
+                                           const perUnitHours = totalHours / (item.quantity || 1);
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_meister_per_unit: perUnitHours,
+                                             stunden_meister: totalHours
+                                           } : lineItem));
+                                         }
+                                       }} onBlur={e => {
+                                         if (e.target.value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_meister_per_unit: 0,
+                                             stunden_meister: 0
+                                           } : lineItem));
+                                         }
+                                       }} className="flex-1 h-8 text-center text-sm" />
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_meister_per_unit + 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_meister_per_unit: newPerUnit,
+                                           stunden_meister: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
                                                 </div>
@@ -788,26 +811,49 @@ export function ElektrosanierungConfigurator() {
                                              <div>
                                                <Label className="text-sm font-medium mb-2 block">Geselle (h)</Label>
                                                <div className="flex items-center gap-2">
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_geselle', Math.max(0, (item.stunden_geselle || 0) - 0.1))}>
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_geselle_per_unit - 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_geselle_per_unit: newPerUnit,
+                                           stunden_geselle: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Minus className="h-3 w-3" />
                                                  </Button>
-                                                 <Input type="number" step="0.1" min="0" value={item.stunden_geselle ? parseFloat(item.stunden_geselle.toString()).toFixed(2) : ''} placeholder="0.00" onChange={e => {
-                                        const value = e.target.value;
-                                        if (value === '') {
-                                          setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                            ...lineItem,
-                                            stunden_geselle: '' as any
-                                          } : lineItem));
-                                        } else {
-                                          const num = parseFloat(value) || 0;
-                                          handleHoursChange(item.id, 'stunden_geselle', num);
-                                        }
-                                      }} onBlur={e => {
-                                        if (e.target.value === '') {
-                                          handleHoursChange(item.id, 'stunden_geselle', 0);
-                                        }
-                                      }} className="flex-1 h-8 text-center text-sm" />
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_geselle', (item.stunden_geselle || 0) + 0.1)}>
+                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
+                                         const value = e.target.value;
+                                         if (value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_geselle_per_unit: 0
+                                           } : lineItem));
+                                         } else {
+                                           const totalHours = parseFloat(value) || 0;
+                                           const perUnitHours = totalHours / (item.quantity || 1);
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_geselle_per_unit: perUnitHours,
+                                             stunden_geselle: totalHours
+                                           } : lineItem));
+                                         }
+                                       }} onBlur={e => {
+                                         if (e.target.value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_geselle_per_unit: 0,
+                                             stunden_geselle: 0
+                                           } : lineItem));
+                                         }
+                                       }} className="flex-1 h-8 text-center text-sm" />
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_geselle_per_unit + 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_geselle_per_unit: newPerUnit,
+                                           stunden_geselle: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
                                                 </div>
@@ -820,26 +866,49 @@ export function ElektrosanierungConfigurator() {
                                              <div>
                                                <Label className="text-sm font-medium mb-2 block">Monteur (h)</Label>
                                                <div className="flex items-center gap-2">
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_monteur', Math.max(0, (item.stunden_monteur || 0) - 0.1))}>
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_monteur_per_unit - 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_monteur_per_unit: newPerUnit,
+                                           stunden_monteur: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Minus className="h-3 w-3" />
                                                  </Button>
-                                                 <Input type="number" step="0.1" min="0" value={item.stunden_monteur ? parseFloat(item.stunden_monteur.toString()).toFixed(2) : ''} placeholder="0.00" onChange={e => {
-                                        const value = e.target.value;
-                                        if (value === '') {
-                                          setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                            ...lineItem,
-                                            stunden_monteur: '' as any
-                                          } : lineItem));
-                                        } else {
-                                          const num = parseFloat(value) || 0;
-                                          handleHoursChange(item.id, 'stunden_monteur', num);
-                                        }
-                                      }} onBlur={e => {
-                                        if (e.target.value === '') {
-                                          handleHoursChange(item.id, 'stunden_monteur', 0);
-                                        }
-                                      }} className="flex-1 h-8 text-center text-sm" />
-                                                 <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_monteur', (item.stunden_monteur || 0) + 0.1)}>
+                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
+                                         const value = e.target.value;
+                                         if (value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_monteur_per_unit: 0
+                                           } : lineItem));
+                                         } else {
+                                           const totalHours = parseFloat(value) || 0;
+                                           const perUnitHours = totalHours / (item.quantity || 1);
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_monteur_per_unit: perUnitHours,
+                                             stunden_monteur: totalHours
+                                           } : lineItem));
+                                         }
+                                       }} onBlur={e => {
+                                         if (e.target.value === '') {
+                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                             ...lineItem,
+                                             stunden_monteur_per_unit: 0,
+                                             stunden_monteur: 0
+                                           } : lineItem));
+                                         }
+                                       }} className="flex-1 h-8 text-center text-sm" />
+                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                         const newPerUnit = Math.max(0, item.stunden_monteur_per_unit + 0.1);
+                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
+                                           ...lineItem,
+                                           stunden_monteur_per_unit: newPerUnit,
+                                           stunden_monteur: newPerUnit * item.quantity
+                                         } : lineItem));
+                                       }}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
                                                 </div>
