@@ -82,6 +82,9 @@ export function ElektrosanierungConfigurator() {
   // State to hold the packages the user has selected
   const [selectedPackages, setSelectedPackages] = useState<SelectedPackage[]>([]);
 
+  // State for detail view
+  const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
+
   // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +192,26 @@ export function ElektrosanierungConfigurator() {
   const getSelectedQuantity = (packageId: number) => {
     const selected = selectedPackages.find(p => p.package_id === packageId);
     return selected ? selected.quantity : 0;
+  };
+
+  // Helper function to get products for a package (client-side join)
+  const getProductsForPackage = (packageId: number, qualitaetsstufe: string) => {
+    // 1. Find all package items for this package
+    const packageItemsForPackage = packageItems.filter(item => item.package_id === packageId);
+    
+    // 2. For each package item, find the corresponding product
+    const productNames: string[] = [];
+    packageItemsForPackage.forEach(item => {
+      const product = products.find(prod => 
+        prod.produkt_gruppe === item.produkt_gruppe_id && 
+        prod.qualitaetsstufe === qualitaetsstufe
+      );
+      if (product) {
+        productNames.push(product.name);
+      }
+    });
+    
+    return productNames;
   };
 
   // Get unique categories from available packages, filter out null values
@@ -338,22 +361,42 @@ export function ElektrosanierungConfigurator() {
                   <AccordionContent>
                     <div className="space-y-4">
                       {getPackagesByCategory(category).map((pkg) => (
-                        <div key={pkg.id} className="flex items-center space-x-3 p-4 border rounded-lg">
-                          <Checkbox
-                            checked={isPackageSelected(pkg.id)}
-                            onCheckedChange={(checked) => handlePackageSelection(pkg, checked as boolean)}
-                          />
-                          <div className="flex-1">
-                            <h4 className="font-medium">{pkg.name}</h4>
-                            {pkg.description && (
-                              <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                            )}
-                            {pkg.quality_level && (
-                              <span className="text-xs bg-secondary px-2 py-1 rounded">
-                                {pkg.quality_level}
-                              </span>
-                            )}
+                        <div key={pkg.id}>
+                          <div className="flex items-center space-x-3 p-4 border rounded-lg">
+                            <Checkbox
+                              checked={isPackageSelected(pkg.id)}
+                              onCheckedChange={(checked) => handlePackageSelection(pkg, checked as boolean)}
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-medium">{pkg.name}</h4>
+                              {pkg.description && (
+                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                              )}
+                              {pkg.quality_level && (
+                                <span className="text-xs bg-secondary px-2 py-1 rounded">
+                                  {pkg.quality_level}
+                                </span>
+                              )}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}
+                            >
+                              Details
+                            </Button>
                           </div>
+                          {/* Package details view */}
+                          {detailsPackageId === pkg.id && (
+                            <div className="pl-8 mt-2 text-sm text-muted-foreground">
+                              <strong>Inhalt für '{projectParams.qualitaetsstufe}':</strong>
+                              <ul className="mt-1 space-y-1">
+                                {getProductsForPackage(pkg.id, projectParams.qualitaetsstufe).map(productName => (
+                                  <li key={productName}>- {productName}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
