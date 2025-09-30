@@ -149,20 +149,53 @@ async function calculateOffer(
       console.log(`Rule for product group ${rule.produkt_gruppe_id}:`);
       console.log(`  Base quantity: ${totalQuantity}`);
 
-      // Apply multipliers dynamically
+      // Combine global and package-specific parameters
+      const allParams: Record<string, any> = {
+        ...offerRequest.global_params,
+        ...selectedPackage.parameters,
+      };
+
+      console.log('  Combined parameters:', allParams);
+
+      // Apply multipliers dynamically with formula parser
       if (rule.multipliers && typeof rule.multipliers === 'object') {
         console.log('  Applying multipliers:', rule.multipliers);
         
-        for (const [paramKey, multiplier] of Object.entries(rule.multipliers)) {
-          // Check if this parameter exists in the selected package's parameters
-          const paramValue = selectedPackage.parameters[paramKey];
+        for (const formulaKey in rule.multipliers) {
+          const factor = rule.multipliers[formulaKey];
           
-          if (paramValue !== undefined && paramValue !== null) {
-            const additionalQuantity = multiplier * paramValue;
+          // Split the formula key by '*' to get individual parameter names
+          const paramNames = formulaKey.split('*').map(name => name.trim());
+          
+          console.log(`    Processing formula: "${formulaKey}" with factor ${factor}`);
+          console.log(`      Parameter names: [${paramNames.join(', ')}]`);
+          
+          // Calculate the term value by multiplying all parameter values
+          let termValue = 1.0;
+          let allParamsFound = true;
+          
+          for (const paramName of paramNames) {
+            if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+              // Convert boolean to 1/0 for calculations
+              const paramValue = typeof allParams[paramName] === 'boolean'
+                ? (allParams[paramName] ? 1 : 0)
+                : allParams[paramName];
+              
+              termValue *= paramValue;
+              console.log(`        ${paramName} = ${allParams[paramName]} (${paramValue}) -> termValue = ${termValue}`);
+            } else {
+              console.log(`        ${paramName}: not found in parameters, skipping this term`);
+              allParamsFound = false;
+              termValue = 0;
+              break;
+            }
+          }
+          
+          // Add the final term (termValue * factor) to total quantity
+          if (allParamsFound || termValue !== 0) {
+            const additionalQuantity = termValue * factor;
             totalQuantity += additionalQuantity;
-            console.log(`    ${paramKey}: ${paramValue} * ${multiplier} = +${additionalQuantity}`);
-          } else {
-            console.log(`    ${paramKey}: not provided in package parameters`);
+            console.log(`      Term result: ${termValue} * ${factor} = +${additionalQuantity}`);
           }
         }
       } else {
