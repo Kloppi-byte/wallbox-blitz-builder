@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Building, Package, CheckCircle, Minus, Plus } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
-// This type matches the structure of your 'offers_packages' table
+// Database table types
 type OfferPackage = {
   id: number;
   name: string;
@@ -27,7 +27,38 @@ type OfferPackage = {
   created_at: string;
 };
 
-// This type defines how we store a package the user has selected
+type OfferPackageItem = {
+  id: number;
+  package_id: number;
+  produkt_gruppe_id: string;
+  quantity_base: number;
+  quantity_per_room: number;
+  quantity_per_floor: number;
+  quantity_per_sqm: number;
+  created_at: string;
+};
+
+type OfferProductGroup = {
+  group_id: string;
+  description: string | null;
+};
+
+type OfferProduct = {
+  product_id: string;
+  name: string;
+  description: string | null;
+  unit: string;
+  unit_price: number;
+  category: string | null;
+  produkt_gruppe: string | null;
+  qualitaetsstufe: string | null;
+  stunden_meister: number;
+  stunden_geselle: number;
+  stunden_monteur: number;
+  created_at: string;
+};
+
+// Application state types
 type SelectedPackage = {
   package_id: number;
   name: string;
@@ -42,8 +73,11 @@ export function ElektrosanierungConfigurator() {
     qualitaetsstufe: 'Standard',
   });
 
-  // State to hold packages fetched from Supabase
+  // State for data from all four tables
   const [availablePackages, setAvailablePackages] = useState<OfferPackage[]>([]);
+  const [packageItems, setPackageItems] = useState<OfferPackageItem[]>([]);
+  const [productGroups, setProductGroups] = useState<OfferProductGroup[]>([]);
+  const [products, setProducts] = useState<OfferProduct[]>([]);
   
   // State to hold the packages the user has selected
   const [selectedPackages, setSelectedPackages] = useState<SelectedPackage[]>([]);
@@ -55,33 +89,57 @@ export function ElektrosanierungConfigurator() {
   const { toast } = useToast();
   const { addItem } = useCart();
 
-  // Data fetching from Supabase offers_packages table
+  // Data fetching from all four Supabase tables
   useEffect(() => {
-    const fetchPackages = async () => {
+    const fetchAllData = async () => {
       try {
         setLoading(true);
+        setError(null);
         
-        const { data, error } = await supabase
-          .from('offers_packages')
-          .select('*')
-          .order('category', { ascending: true })
-          .order('name', { ascending: true });
+        // Fetch data from all four tables concurrently using Promise.all
+        const [packagesResult, packageItemsResult, productGroupsResult, productsResult] = await Promise.all([
+          supabase
+            .from('offers_packages')
+            .select('*')
+            .order('category', { ascending: true })
+            .order('name', { ascending: true }),
+          
+          supabase
+            .from('offers_package_items')
+            .select('*'),
+          
+          supabase
+            .from('offers_product_groups')
+            .select('*'),
+          
+          supabase
+            .from('offers_products')
+            .select('*')
+            .order('category', { ascending: true })
+            .order('name', { ascending: true })
+        ]);
 
-        if (error) {
-          throw error;
-        }
+        // Check for errors in any of the requests
+        if (packagesResult.error) throw packagesResult.error;
+        if (packageItemsResult.error) throw packageItemsResult.error;
+        if (productGroupsResult.error) throw productGroupsResult.error;
+        if (productsResult.error) throw productsResult.error;
 
-        if (data) {
-          setAvailablePackages(data);
-        }
+        // Update state with fetched data
+        if (packagesResult.data) setAvailablePackages(packagesResult.data);
+        if (packageItemsResult.data) setPackageItems(packageItemsResult.data);
+        if (productGroupsResult.data) setProductGroups(productGroupsResult.data);
+        if (productsResult.data) setProducts(productsResult.data);
+
       } catch (err: any) {
         setError(err.message);
+        console.error('Error fetching configuration data:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPackages();
+    fetchAllData();
   }, []);
 
   // Helper function to update project parameters
