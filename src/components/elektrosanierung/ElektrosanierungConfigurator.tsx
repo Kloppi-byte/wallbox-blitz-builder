@@ -927,7 +927,7 @@ export function ElektrosanierungConfigurator() {
                           {packageItems.map(item => (
                             <div key={item.id} className="flex justify-between">
                               <span>{item.name}</span>
-                              <span>{item.quantity} {item.unit}</span>
+                              <span>{((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)} €</span>
                             </div>
                           ))}
                         </div>
