@@ -225,22 +225,43 @@ export function ElektrosanierungConfigurator() {
       packageItemsForPackage.forEach(item => {
         const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
         if (product) {
-          // Calculate quantity: start with quantity_base and apply multipliers
+          // Calculate quantity: start with quantity_base and ADD multiplier terms
           let calculatedQuantity = item.quantity_base || 0;
           
-          // Apply multipliers if they exist
+          // Apply multipliers with formula parser (supports "param" and "param1 * param2")
           if (item.multipliers && typeof item.multipliers === 'object') {
             const multipliers = item.multipliers as Record<string, number>;
-            Object.entries(multipliers).forEach(([key, value]) => {
-              // Check if this multiplier key exists in global params
-              if (globalParams[key] !== undefined) {
-                // Convert boolean to 1/0 for calculations
-                const paramValue = typeof globalParams[key] === 'boolean' 
-                  ? (globalParams[key] ? 1 : 0) 
-                  : globalParams[key];
-                calculatedQuantity *= (paramValue * value);
+            
+            for (const formulaKey in multipliers) {
+              const factor = multipliers[formulaKey];
+              
+              // Split the formula key by '*' to get individual parameter names
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              
+              // Calculate the term value by multiplying all parameter values
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                  // Convert boolean to 1/0 for calculations
+                  const paramValue = typeof globalParams[paramName] === 'boolean'
+                    ? (globalParams[paramName] ? 1 : 0)
+                    : globalParams[paramName];
+                  
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
               }
-            });
+              
+              // ADD the final term (termValue * factor) to total quantity
+              if (allParamsFound || termValue !== 0) {
+                calculatedQuantity += termValue * factor;
+              }
+            }
           }
           
           newLineItems.push({
