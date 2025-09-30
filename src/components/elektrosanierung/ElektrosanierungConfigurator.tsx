@@ -74,6 +74,48 @@ export function ElektrosanierungConfigurator() {
 
     fetchPackages();
   }, []);
+
+      // src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
+
+  const handleSubmit = async () => {
+    const offerRequestPayload = {
+      global_params: {
+        baujahr,
+        qualitaetsstufe,
+      },
+      selected_packages: selectedPackages,
+    };
+
+    console.log("Sending to webhook:", JSON.stringify(offerRequestPayload, null, 2));
+
+    try {
+      // IMPORTANT: Replace with your actual Supabase Edge Function URL
+      const response = await fetch('YOUR_SUPABASE_WEBHOOK_URL', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // You might need an Authorization header depending on your function's settings
+        },
+        body: JSON.stringify(offerRequestPayload),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Webhook failed with status ${response.status}: ${errorBody}`);
+      }
+
+      alert('Angebot erfolgreich angefordert! Wir melden uns in Kürze bei Ihnen.');
+      // Handle success - e.g., redirect or show a success message
+      
+    } catch (err: any) {
+      console.error("Error submitting offer request:", err);
+      alert(`Es ist ein Fehler aufgetreten: ${err.message}`);
+      // Handle error - e.g., show an error toast
+    }
+  };
+
+  // Make sure to add the onClick handler to the submit button:
+  // <Button onClick={handleSubmit}>Angebot anfordern</Button>
         
         // Mock data for demonstration - replace with actual database call when offers_packages table exists
         const mockPackages: SanierungPackage[] = [
