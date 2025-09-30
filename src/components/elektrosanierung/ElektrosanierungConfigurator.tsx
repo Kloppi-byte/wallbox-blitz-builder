@@ -95,7 +95,19 @@ export function ElektrosanierungConfigurator() {
   const [productGroups, setProductGroups] = useState<OfferProductGroup[]>([]);
   const [products, setProducts] = useState<OfferProduct[]>([]);
   
-  // State to hold the offer line items (replaces selectedPackages)
+  // State for dynamic parameters
+  const [paramLinks, setParamLinks] = useState<any[]>([]);
+  const [paramDefs, setParamDefs] = useState<any[]>([]);
+  
+  // State to track selected packages with their parameters
+  const [selectedPackages, setSelectedPackages] = useState<{
+    instanceId: string;
+    package_id: number;
+    name: string;
+    parameters: Record<string, any>;
+  }[]>([]);
+  
+  // State to hold the offer line items
   const [offerLineItems, setOfferLineItems] = useState<OfferLineItem[]>([]);
 
   // State for detail view
@@ -110,15 +122,22 @@ export function ElektrosanierungConfigurator() {
   const { toast } = useToast();
   const { addItem } = useCart();
 
-  // Data fetching from all four Supabase tables
+  // Data fetching from all tables including parameter tables
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Fetch data from all four tables concurrently using Promise.all
-        const [packagesResult, packageItemsResult, productGroupsResult, productsResult] = await Promise.all([
+        // Fetch data from all six tables concurrently using Promise.all
+        const [
+          packagesResult, 
+          packageItemsResult, 
+          productGroupsResult, 
+          productsResult, 
+          paramLinksResult, 
+          paramDefsResult
+        ] = await Promise.all([
           supabase
             .from('offers_packages')
             .select('*')
@@ -137,7 +156,15 @@ export function ElektrosanierungConfigurator() {
             .from('offers_products')
             .select('*')
             .order('category', { ascending: true })
-            .order('name', { ascending: true })
+            .order('name', { ascending: true }),
+          
+          supabase
+            .from('offers_package_parameter_links')
+            .select('*'),
+          
+          supabase
+            .from('offers_package_parameter_definitions')
+            .select('*')
         ]);
 
         // Check for errors in any of the requests
@@ -145,6 +172,8 @@ export function ElektrosanierungConfigurator() {
         if (packageItemsResult.error) throw packageItemsResult.error;
         if (productGroupsResult.error) throw productGroupsResult.error;
         if (productsResult.error) throw productsResult.error;
+        if (paramLinksResult.error) throw paramLinksResult.error;
+        if (paramDefsResult.error) throw paramDefsResult.error;
 
         // Update state with fetched data
         if (packagesResult.data) setAvailablePackages(packagesResult.data);
@@ -159,6 +188,14 @@ export function ElektrosanierungConfigurator() {
             ...product,
             image: (product as any).image || null
           })));
+        }
+        if (paramLinksResult.data) {
+          console.log('Parameter links data:', paramLinksResult.data);
+          setParamLinks(paramLinksResult.data);
+        }
+        if (paramDefsResult.data) {
+          console.log('Parameter definitions data:', paramDefsResult.data);
+          setParamDefs(paramDefsResult.data);
         }
 
         // Log the package IDs and package item package IDs to check relationship
@@ -186,6 +223,17 @@ export function ElektrosanierungConfigurator() {
   // Handler function for package selection
   const handlePackageSelection = (packageData: OfferPackage, checked: boolean) => {
     if (checked) {
+      // Create a new selected package instance with parameters
+      const instanceId = `${packageData.id}-${Date.now()}`;
+      const newSelectedPackage = {
+        instanceId,
+        package_id: packageData.id,
+        name: packageData.name,
+        parameters: {} as Record<string, any>
+      };
+      
+      setSelectedPackages(prev => [...prev, newSelectedPackage]);
+      
       // Resolve all products for this package and add to offer line items
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       
@@ -219,9 +267,21 @@ export function ElektrosanierungConfigurator() {
       
       setOfferLineItems(prev => [...prev, ...newLineItems]);
     } else {
-      // Remove all line items for this package
+      // Remove selected package and all line items for this package
+      setSelectedPackages(prev => prev.filter(p => p.package_id !== packageData.id));
       setOfferLineItems(prev => prev.filter(item => item.package_id !== packageData.id));
     }
+  };
+
+  // Handler function for parameter changes
+  const handleParameterChange = (packageId: number, paramKey: string, value: any) => {
+    setSelectedPackages(prev =>
+      prev.map(pkg =>
+        pkg.package_id === packageId
+          ? { ...pkg, parameters: { ...pkg.parameters, [paramKey]: value } }
+          : pkg
+      )
+    );
   };
 
   // Handler function for quantity changes
@@ -500,32 +560,67 @@ export function ElektrosanierungConfigurator() {
                   <AccordionTrigger>{category}</AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4">
-                      {getPackagesByCategory(category).map((pkg) => (
-                        <div key={pkg.id}>
-                          <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                            <Checkbox
-                              checked={isPackageSelected(pkg.id)}
-                              onCheckedChange={(checked) => handlePackageSelection(pkg, checked as boolean)}
-                            />
-                            <div className="flex-1">
-                              <h4 className="font-medium">{pkg.name}</h4>
-                              {pkg.description && (
-                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                              )}
-                              {pkg.quality_level && (
-                                <span className="text-xs bg-secondary px-2 py-1 rounded">
-                                  {pkg.quality_level}
-                                </span>
-                              )}
+                      {getPackagesByCategory(category).map((pkg) => {
+                        const isSelected = isPackageSelected(pkg.id);
+                        const requiredParams = paramLinks.filter(link => link.package_id === pkg.id);
+                        
+                        return (
+                          <div key={pkg.id}>
+                            <div className="flex items-center space-x-3 p-4 border rounded-lg">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handlePackageSelection(pkg, checked as boolean)}
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-medium">{pkg.name}</h4>
+                                {pkg.description && (
+                                  <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                                )}
+                                {pkg.quality_level && (
+                                  <span className="text-xs bg-secondary px-2 py-1 rounded">
+                                    {pkg.quality_level}
+                                  </span>
+                                )}
+                              </div>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}
+                              >
+                                Details
+                              </Button>
                             </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}
-                            >
-                              Details
-                            </Button>
-                          </div>
+
+                            {/* Conditionally render parameter inputs ONLY if package is selected */}
+                            {isSelected && requiredParams.length > 0 && (
+                              <div className="pl-8 mt-2 space-y-3 p-4 bg-muted/50 rounded-lg border">
+                                <h5 className="text-sm font-semibold text-foreground">Parameter für dieses Paket:</h5>
+                                {requiredParams.map(link => {
+                                  const def = paramDefs.find(d => d.param_key === link.param_key);
+                                  if (!def) return null;
+
+                                  const currentPackage = selectedPackages.find(p => p.package_id === pkg.id);
+                                  const currentValue = currentPackage?.parameters[def.param_key] || def.default_value || '';
+
+                                  return (
+                                    <div key={def.param_key} className="space-y-1">
+                                      <Label htmlFor={`param-${pkg.id}-${def.param_key}`} className="text-sm font-medium">
+                                        {def.label}
+                                        {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
+                                      </Label>
+                                      <Input
+                                        id={`param-${pkg.id}-${def.param_key}`}
+                                        type={def.param_type}
+                                        value={currentValue}
+                                        onChange={(e) => handleParameterChange(pkg.id, def.param_key, e.target.value)}
+                                        placeholder={`${def.label} eingeben...`}
+                                        className="max-w-xs"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           {/* Package details view */}
                           {detailsPackageId === pkg.id && (
                             <div className="pl-8 mt-2">
@@ -891,8 +986,9 @@ export function ElektrosanierungConfigurator() {
                               )}
                             </div>
                           )}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
