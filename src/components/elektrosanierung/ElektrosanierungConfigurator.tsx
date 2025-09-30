@@ -86,6 +86,9 @@ type OfferLineItem = {
   stunden_meister: number;
   stunden_geselle: number;
   stunden_monteur: number;
+  stunden_meister_per_unit: number;
+  stunden_geselle_per_unit: number;
+  stunden_monteur_per_unit: number;
   quantity: number;
   image: string | null;
 };
@@ -279,6 +282,9 @@ export function ElektrosanierungConfigurator() {
             stunden_meister: product.stunden_meister * calculatedQuantity,
             stunden_geselle: product.stunden_geselle * calculatedQuantity,
             stunden_monteur: product.stunden_monteur * calculatedQuantity,
+            stunden_meister_per_unit: product.stunden_meister,
+            stunden_geselle_per_unit: product.stunden_geselle,
+            stunden_monteur_per_unit: product.stunden_monteur,
             quantity: Math.round(calculatedQuantity * 100) / 100, // Round to 2 decimals
             image: product.image
           });
@@ -325,9 +331,12 @@ export function ElektrosanierungConfigurator() {
       unit_price: newProduct.unit_price,
       category: newProduct.category,
       qualitaetsstufe: newProduct.qualitaetsstufe,
-      stunden_meister: newProduct.stunden_meister,
-      stunden_geselle: newProduct.stunden_geselle,
-      stunden_monteur: newProduct.stunden_monteur
+      stunden_meister: newProduct.stunden_meister * item.quantity,
+      stunden_geselle: newProduct.stunden_geselle * item.quantity,
+      stunden_monteur: newProduct.stunden_monteur * item.quantity,
+      stunden_meister_per_unit: newProduct.stunden_meister,
+      stunden_geselle_per_unit: newProduct.stunden_geselle,
+      stunden_monteur_per_unit: newProduct.stunden_monteur
     } : item));
   };
 
@@ -363,13 +372,15 @@ export function ElektrosanierungConfigurator() {
       stunden_meister: product.stunden_meister,
       stunden_geselle: product.stunden_geselle,
       stunden_monteur: product.stunden_monteur,
+      stunden_meister_per_unit: product.stunden_meister,
+      stunden_geselle_per_unit: product.stunden_geselle,
+      stunden_monteur_per_unit: product.stunden_monteur,
       quantity: 1,
-      // Default quantity
       image: product.image
     };
     setOfferLineItems(prev => [...prev, newLineItem]);
-    setShowAddProduct(null); // Close the dropdown
-    setProductSearchQuery(''); // Reset search
+    setShowAddProduct(null);
+    setProductSearchQuery('');
   };
 
   // Helper function to get packages by category
@@ -769,7 +780,7 @@ export function ElektrosanierungConfigurator() {
                                                  </Button>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {((item.stunden_meister || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_meister || 0).toFixed(2)} h
+                                                  {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
                                                 </span>
                                               </div>
 
@@ -801,7 +812,7 @@ export function ElektrosanierungConfigurator() {
                                                  </Button>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {((item.stunden_geselle || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_geselle || 0).toFixed(2)} h
+                                                  {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
                                                 </span>
                                               </div>
 
@@ -833,7 +844,7 @@ export function ElektrosanierungConfigurator() {
                                                  </Button>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {((item.stunden_monteur || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_monteur || 0).toFixed(2)} h
+                                                  {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
                                                 </span>
                                               </div>
                                            </div>
