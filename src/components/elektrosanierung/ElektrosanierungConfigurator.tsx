@@ -36,6 +36,7 @@ type OfferPackageItem = {
   quantity_per_room: number;
   quantity_per_floor: number;
   quantity_per_sqm: number;
+  multipliers?: Record<string, number> | null;
   created_at: string;
 };
 type OfferProductGroup = {
@@ -213,6 +214,20 @@ export function ElektrosanierungConfigurator() {
       packageItemsForPackage.forEach(item => {
         const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
         if (product) {
+          // Calculate quantity: start with quantity_base and apply multipliers
+          let calculatedQuantity = item.quantity_base || 0;
+          
+          // Apply multipliers if they exist
+          if (item.multipliers && typeof item.multipliers === 'object') {
+            const multipliers = item.multipliers as Record<string, number>;
+            Object.entries(multipliers).forEach(([key, value]) => {
+              // Check if this multiplier key exists in global params
+              if (globalParams[key] !== undefined) {
+                calculatedQuantity *= (globalParams[key] * value);
+              }
+            });
+          }
+          
           newLineItems.push({
             id: `${packageData.id}-${product.product_id}-${Date.now()}`,
             package_id: packageData.id,
@@ -228,8 +243,7 @@ export function ElektrosanierungConfigurator() {
             stunden_meister: product.stunden_meister,
             stunden_geselle: product.stunden_geselle,
             stunden_monteur: product.stunden_monteur,
-            quantity: item.quantity_base + item.quantity_per_room + item.quantity_per_floor + item.quantity_per_sqm,
-            // Simple default calculation
+            quantity: Math.round(calculatedQuantity * 100) / 100, // Round to 2 decimals
             image: product.image
           });
         }
