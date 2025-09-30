@@ -80,8 +80,8 @@ type OfferLineItem = {
 
 // --- COMPONENT STATE ---
 export function ElektrosanierungConfigurator() {
-  // State for the global project parameters
-  const [projectParams, setProjectParams] = useState({
+  // State for global parameters (dynamically populated from database)
+  const [globalParams, setGlobalParams] = useState<Record<string, any>>({
     baujahr: 2000,
     qualitaetsstufe: 'Standard'
   });
@@ -186,11 +186,11 @@ export function ElektrosanierungConfigurator() {
     fetchAllData();
   }, []);
 
-  // Helper function to update project parameters
-  const updateProjectParams = (updates: Partial<typeof projectParams>) => {
-    setProjectParams(prev => ({
-      ...prev,
-      ...updates
+  // Generic handler for global parameter changes
+  const handleGlobalParamChange = (paramKey: string, value: any) => {
+    setGlobalParams(prevParams => ({
+      ...prevParams,
+      [paramKey]: value,
     }));
   };
 
@@ -211,7 +211,7 @@ export function ElektrosanierungConfigurator() {
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       const newLineItems: OfferLineItem[] = [];
       packageItemsForPackage.forEach(item => {
-        const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === projectParams.qualitaetsstufe);
+        const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
         if (product) {
           newLineItems.push({
             id: `${packageData.id}-${product.product_id}-${Date.now()}`,
@@ -364,6 +364,10 @@ export function ElektrosanierungConfigurator() {
     return productNames;
   };
 
+  // Filter parameter definitions into global and local
+  const globalParamDefs = paramDefs.filter(p => p.is_global);
+  const localParamDefs = paramDefs.filter(p => !p.is_global);
+
   // Get unique categories from available packages, filter out null values
   const categories = [...new Set(availablePackages.map(pkg => pkg.category))].filter(Boolean);
 
@@ -379,8 +383,8 @@ export function ElektrosanierungConfigurator() {
     }
     try {
       const payload = {
-        global_parameters: projectParams,
-        line_items: offerLineItems
+        global_params: globalParams,
+        selected_packages: selectedPackages
       };
 
       // Send to backend webhook for calculation
@@ -399,8 +403,8 @@ export function ElektrosanierungConfigurator() {
         productType: 'elektrosanierung',
         name: 'Elektrosanierung Konfiguration',
         configuration: {
-          projectParams,
-          offerLineItems
+          globalParams,
+          selectedPackages
         },
         pricing: data?.pricing || {
           materialCosts: 0,
@@ -455,27 +459,48 @@ export function ElektrosanierungConfigurator() {
             <CardDescription>Geben Sie die Eckdaten des Gebäudes an.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="baujahr">Baujahr</Label>
-              <Input id="baujahr" type="number" min="1800" max="2024" value={projectParams.baujahr} onChange={e => updateProjectParams({
-              baujahr: parseInt(e.target.value) || 0
-            })} />
-            </div>
-
-            <div>
-              <Label htmlFor="qualitaetsstufe">Qualitätsstufe</Label>
-              <Select value={projectParams.qualitaetsstufe} onValueChange={value => updateProjectParams({
-              qualitaetsstufe: value
-            })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Standard">Standard</SelectItem>
-                  <SelectItem value="Premium">Premium</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {globalParamDefs.map(def => {
+              const currentValue = globalParams[def.param_key] || def.default_value || '';
+              
+              // Render based on param_type
+              if (def.param_type === 'select') {
+                return (
+                  <div key={def.param_key}>
+                    <Label htmlFor={`global-${def.param_key}`}>{def.label}</Label>
+                    <Select 
+                      value={String(currentValue)} 
+                      onValueChange={value => handleGlobalParamChange(def.param_key, value)}
+                    >
+                      <SelectTrigger id={`global-${def.param_key}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Basic">Basic</SelectItem>
+                        <SelectItem value="Standard">Standard</SelectItem>
+                        <SelectItem value="Premium">Premium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+              
+              // Default: render as input
+              return (
+                <div key={def.param_key}>
+                  <Label htmlFor={`global-${def.param_key}`}>
+                    {def.label}
+                    {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
+                  </Label>
+                  <Input
+                    id={`global-${def.param_key}`}
+                    type={def.param_type}
+                    value={currentValue}
+                    onChange={e => handleGlobalParamChange(def.param_key, e.target.value)}
+                    placeholder={`${def.label} eingeben...`}
+                  />
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -519,7 +544,7 @@ export function ElektrosanierungConfigurator() {
                             {isSelected && requiredParams.length > 0 && <div className="pl-8 mt-2 space-y-3 p-4 bg-muted/50 rounded-lg border">
                                 <h5 className="text-sm font-semibold text-foreground">Parameter für dieses Paket:</h5>
                                 {requiredParams.map(link => {
-                          const def = paramDefs.find(d => d.param_key === link.param_key);
+                          const def = localParamDefs.find(d => d.param_key === link.param_key);
                           if (!def) return null;
                           const currentPackage = selectedPackages.find(p => p.package_id === pkg.id);
                           const currentValue = currentPackage?.parameters[def.param_key] || def.default_value || '';
@@ -534,7 +559,7 @@ export function ElektrosanierungConfigurator() {
                               </div>}
                           {/* Package details view */}
                           {detailsPackageId === pkg.id && <div className="pl-8 mt-2">
-                              <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{projectParams.qualitaetsstufe}':</strong>
+                              <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{globalParams.qualitaetsstufe}':</strong>
                               {isPackageSelected(pkg.id) ? <div className="space-y-3">
                                    {getLineItemsForPackage(pkg.id).map(item => <div key={item.id} className="p-4 bg-background border rounded-lg">
                                        <div className="flex items-start gap-4">
@@ -754,10 +779,10 @@ export function ElektrosanierungConfigurator() {
                                        </PopoverContent>
                                      </Popover>
                                    </div>
-                                </div> : <div className="text-sm text-muted-foreground">
+                                 </div> : <div className="text-sm text-muted-foreground">
                                   <p>Paket auswählen, um Inhalte zu bearbeiten.</p>
                                   <ul className="mt-1 space-y-1">
-                                    {getProductsForPackage(pkg.id, projectParams.qualitaetsstufe).map(productName => <li key={productName}>- {productName}</li>)}
+                                    {getProductsForPackage(pkg.id, globalParams.qualitaetsstufe).map(productName => <li key={productName}>- {productName}</li>)}
                                   </ul>
                                 </div>}
                             </div>}
