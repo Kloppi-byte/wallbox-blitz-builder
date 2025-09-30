@@ -22,7 +22,8 @@ type OfferPackage = {
   description: string | null;
   category: string | null;
   is_optional: boolean | null;
-  quality_level?: string | null;
+  quality_level: string | null;
+  created_at: string;
 };
 
 // This type defines how we store a package the user has selected
@@ -36,12 +37,8 @@ type SelectedPackage = {
 export function ElektrosanierungConfigurator() {
   // State for the global project parameters
   const [projectParams, setProjectParams] = useState({
-    wohnflaeche: 80,
-    raeume: 4,
-    etagen: 1,
     baujahr: 2000,
     qualitaetsstufe: 'Standard',
-    aufschlagKomplexitaet: 0, // percentage for labor time surcharge
   });
 
   // State to hold packages fetched from Supabase
@@ -57,57 +54,25 @@ export function ElektrosanierungConfigurator() {
   const { toast } = useToast();
   const { addItem } = useCart();
 
-  // Data fetching from the new tables
+  // Data fetching from Supabase offers_packages table
   useEffect(() => {
     const fetchPackages = async () => {
       try {
         setLoading(true);
         
-        // Since offers_packages table doesn't exist yet, use mock data
-        const mockPackages: OfferPackage[] = [
-          {
-            id: 1,
-            name: "Basis Elektroinstallation",
-            category: "Projekt-Basispakete",
-            description: "Grundlegende Elektroinstallation für Sanierungsprojekte",
-            quality_level: "Standard",
-            is_optional: false
-          },
-          {
-            id: 2,
-            name: "Premium Elektroinstallation",
-            category: "Projekt-Basispakete", 
-            description: "Hochwertige Elektroinstallation mit modernen Komponenten",
-            quality_level: "Premium",
-            is_optional: false
-          },
-          {
-            id: 3,
-            name: "Wohnzimmer Ausstattung",
-            category: "Räume",
-            description: "Elektroausstattung für Wohnzimmer",
-            quality_level: "Standard",
-            is_optional: true
-          },
-          {
-            id: 4,
-            name: "Küche Ausstattung", 
-            category: "Räume",
-            description: "Spezielle Elektroausstattung für Küche",
-            quality_level: "Standard",
-            is_optional: true
-          },
-          {
-            id: 5,
-            name: "Smart Home Paket",
-            category: "Zusatzoptionen",
-            description: "Intelligente Haussteuerung und Automatisierung",
-            quality_level: "Premium",
-            is_optional: true
-          }
-        ];
+        const { data, error } = await supabase
+          .from('offers_packages')
+          .select('*')
+          .order('category', { ascending: true })
+          .order('name', { ascending: true });
 
-        setAvailablePackages(mockPackages);
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setAvailablePackages(data);
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -123,20 +88,19 @@ export function ElektrosanierungConfigurator() {
     setProjectParams(prev => ({ ...prev, ...updates }));
   };
 
-  // Helper function to toggle package selection
-  const togglePackageSelection = (packageData: OfferPackage) => {
+  // Handler function for package selection
+  const handlePackageSelection = (packageData: OfferPackage, checked: boolean) => {
     setSelectedPackages(prev => {
-      const existing = prev.find(p => p.package_id === packageData.id);
-      if (existing) {
-        // Remove if already selected
-        return prev.filter(p => p.package_id !== packageData.id);
-      } else {
-        // Add with default quantity of 1
+      if (checked) {
+        // Add package with default quantity of 1
         return [...prev, {
           package_id: packageData.id,
           name: packageData.name,
           quantity: 1
         }];
+      } else {
+        // Remove package
+        return prev.filter(p => p.package_id !== packageData.id);
       }
     });
   };
@@ -168,11 +132,11 @@ export function ElektrosanierungConfigurator() {
     return selected ? selected.quantity : 0;
   };
 
-  // Get unique categories from available packages
-  const categories = [...new Set(availablePackages.map(pkg => pkg.category))];
+  // Get unique categories from available packages, filter out null values
+  const categories = [...new Set(availablePackages.map(pkg => pkg.category))].filter(Boolean);
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // Handle form submission - send to backend webhook
+  const handleSubmit = async () => {
     if (selectedPackages.length === 0) {
       toast({
         title: "Keine Auswahl",
@@ -182,27 +146,51 @@ export function ElektrosanierungConfigurator() {
       return;
     }
 
-    addItem({
-      productType: 'elektrosanierung',
-      name: 'Elektrosanierung Konfiguration',
-      configuration: {
-        projectParams,
-        selectedPackages,
-      },
-      pricing: {
-        materialCosts: 0, // Will be calculated in backend
-        laborCosts: 0,    // Will be calculated in backend
-        travelCosts: 0,   // Will be calculated in backend
-        subtotal: 0,      // Will be calculated in backend
-        subsidy: 0,
-        total: 0          // Will be calculated in backend
-      }
-    });
+    try {
+      const payload = {
+        global_parameters: projectParams,
+        selected_package_ids: selectedPackages.map(pkg => pkg.package_id)
+      };
 
-    toast({
-      title: "Erfolgreich hinzugefügt",
-      description: "Konfiguration wurde zum Warenkorb hinzugefügt."
-    });
+      // Send to backend webhook for calculation
+      const { data, error } = await supabase.functions.invoke('calculate-elektrosanierung', {
+        body: payload
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Add calculated result to cart
+      addItem({
+        productType: 'elektrosanierung',
+        name: 'Elektrosanierung Konfiguration',
+        configuration: {
+          projectParams,
+          selectedPackages,
+        },
+        pricing: data?.pricing || {
+          materialCosts: 0,
+          laborCosts: 0,
+          travelCosts: 0,
+          subtotal: 0,
+          subsidy: 0,
+          total: 0
+        }
+      });
+
+      toast({
+        title: "Erfolgreich hinzugefügt",
+        description: "Konfiguration wurde zum Warenkorb hinzugefügt."
+      });
+
+    } catch (err: any) {
+      toast({
+        title: "Fehler",
+        description: "Berechnung konnte nicht durchgeführt werden: " + err.message,
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -242,39 +230,6 @@ export function ElektrosanierungConfigurator() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="wohnflaeche">Wohnfläche (m²)</Label>
-              <Input
-                id="wohnflaeche"
-                type="number"
-                min="1"
-                value={projectParams.wohnflaeche}
-                onChange={e => updateProjectParams({ wohnflaeche: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="raeume">Anzahl Räume</Label>
-              <Input
-                id="raeume"
-                type="number"
-                min="1"
-                value={projectParams.raeume}
-                onChange={e => updateProjectParams({ raeume: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="etagen">Anzahl Etagen</Label>
-              <Input
-                id="etagen"
-                type="number"
-                min="1"
-                value={projectParams.etagen}
-                onChange={e => updateProjectParams({ etagen: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-
-            <div>
               <Label htmlFor="baujahr">Baujahr</Label>
               <Input
                 id="baujahr"
@@ -301,18 +256,6 @@ export function ElektrosanierungConfigurator() {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="col-span-2">
-              <Label htmlFor="aufschlagKomplexitaet">Aufschlag wegen erhöhter Komplexität in Prozent (nur auf Arbeitszeit)</Label>
-              <Input
-                id="aufschlagKomplexitaet"
-                type="number"
-                min="0"
-                max="100"
-                value={projectParams.aufschlagKomplexitaet}
-                onChange={e => updateProjectParams({ aufschlagKomplexitaet: parseInt(e.target.value) || 0 })}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -336,46 +279,22 @@ export function ElektrosanierungConfigurator() {
                   <AccordionContent>
                     <div className="space-y-4">
                       {getPackagesByCategory(category).map((pkg) => (
-                        <div key={pkg.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              checked={isPackageSelected(pkg.id)}
-                              onCheckedChange={() => togglePackageSelection(pkg)}
-                            />
-                            <div>
-                              <h4 className="font-medium">{pkg.name}</h4>
-                              {pkg.description && (
-                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                              )}
-                              {pkg.quality_level && (
-                                <span className="text-xs bg-secondary px-2 py-1 rounded">
-                                  {pkg.quality_level}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {isPackageSelected(pkg.id) && (
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updatePackageQuantity(pkg.id, getSelectedQuantity(pkg.id) - 1)}
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="min-w-[2rem] text-center">
-                                {getSelectedQuantity(pkg.id)}
+                        <div key={pkg.id} className="flex items-center space-x-3 p-4 border rounded-lg">
+                          <Checkbox
+                            checked={isPackageSelected(pkg.id)}
+                            onCheckedChange={(checked) => handlePackageSelection(pkg, checked as boolean)}
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-medium">{pkg.name}</h4>
+                            {pkg.description && (
+                              <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                            )}
+                            {pkg.quality_level && (
+                              <span className="text-xs bg-secondary px-2 py-1 rounded">
+                                {pkg.quality_level}
                               </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updatePackageQuantity(pkg.id, getSelectedQuantity(pkg.id) + 1)}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
