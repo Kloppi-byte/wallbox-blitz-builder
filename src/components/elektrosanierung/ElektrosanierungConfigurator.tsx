@@ -12,8 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 // Import lucide icons
-import { Building, Package, CheckCircle, Minus, Plus } from 'lucide-react';
+import { Building, Package, CheckCircle, Minus, Plus, Search } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 // Database table types
@@ -99,6 +101,7 @@ export function ElektrosanierungConfigurator() {
   // State for detail view
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
   const [showAddProduct, setShowAddProduct] = useState<number | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -272,6 +275,35 @@ export function ElektrosanierungConfigurator() {
     );
   };
 
+  // Handler function for adding a product to a package
+  const handleAddProduct = (packageId: number, productId: string) => {
+    const product = products.find(p => p.product_id === productId);
+    if (!product) return;
+
+    const newLineItem: OfferLineItem = {
+      id: `${packageId}-${productId}-${Date.now()}`,
+      package_id: packageId,
+      package_name: availablePackages.find(p => p.id === packageId)?.name || '',
+      product_id: product.product_id,
+      name: product.name,
+      description: product.description,
+      unit: product.unit,
+      unit_price: product.unit_price,
+      category: product.category,
+      produkt_gruppe: product.produkt_gruppe,
+      qualitaetsstufe: product.qualitaetsstufe,
+      stunden_meister: product.stunden_meister,
+      stunden_geselle: product.stunden_geselle,
+      stunden_monteur: product.stunden_monteur,
+      quantity: 1, // Default quantity
+      image: product.image
+    };
+
+    setOfferLineItems(prev => [...prev, newLineItem]);
+    setShowAddProduct(null); // Close the dropdown
+    setProductSearchQuery(''); // Reset search
+  };
+
   // Helper function to get packages by category
   const getPackagesByCategory = (category: string) => {
     return availablePackages.filter(pkg => pkg.category === category);
@@ -285,6 +317,16 @@ export function ElektrosanierungConfigurator() {
   // Helper function to get line items for a package
   const getLineItemsForPackage = (packageId: number) => {
     return offerLineItems.filter(item => item.package_id === packageId);
+  };
+
+  // Helper function to get filtered products for adding to packages
+  const getFilteredProducts = () => {
+    if (!productSearchQuery) return products;
+    return products.filter(product => 
+      product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(productSearchQuery.toLowerCase())) ||
+      (product.category && product.category.toLowerCase().includes(productSearchQuery.toLowerCase()))
+    );
   };
 
   // Helper function to get alternatives for a product group
@@ -765,19 +807,72 @@ export function ElektrosanierungConfigurator() {
                                        </div>
                                      </div>
                                    ))}
-                                  
-                                  {/* Add Product Button */}
-                                  <div className="p-3 border-2 border-dashed border-muted rounded-lg">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setShowAddProduct(pkg.id)}
-                                      className="w-full"
-                                    >
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Produkt hinzufügen
-                                    </Button>
-                                  </div>
+                                   
+                                   {/* Add Product Button */}
+                                   <div className="p-3 border-2 border-dashed border-muted rounded-lg">
+                                     <Popover open={showAddProduct === pkg.id} onOpenChange={(open) => setShowAddProduct(open ? pkg.id : null)}>
+                                       <PopoverTrigger asChild>
+                                         <Button
+                                           variant="outline"
+                                           size="sm"
+                                           className="w-full"
+                                         >
+                                           <Plus className="h-4 w-4 mr-2" />
+                                           Produkt hinzufügen
+                                         </Button>
+                                       </PopoverTrigger>
+                                       <PopoverContent className="w-80 p-0" align="start">
+                                         <Command>
+                                           <div className="flex items-center border-b px-3">
+                                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                             <CommandInput
+                                               placeholder="Produkte durchsuchen..."
+                                               value={productSearchQuery}
+                                               onValueChange={setProductSearchQuery}
+                                               className="flex-1"
+                                             />
+                                           </div>
+                                           <CommandList className="max-h-60 overflow-y-auto">
+                                             <CommandEmpty>Keine Produkte gefunden.</CommandEmpty>
+                                             <CommandGroup>
+                                               {getFilteredProducts().map((product) => (
+                                                 <CommandItem
+                                                   key={product.product_id}
+                                                   value={product.product_id}
+                                                   onSelect={() => handleAddProduct(pkg.id, product.product_id)}
+                                                   className="flex items-center gap-3 p-3 cursor-pointer"
+                                                 >
+                                                   <div className="w-10 h-10 flex-shrink-0">
+                                                     {product.image ? (
+                                                       <img 
+                                                         src={product.image} 
+                                                         alt={product.name}
+                                                         className="w-full h-full object-cover rounded border"
+                                                       />
+                                                     ) : (
+                                                       <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                         <Package className="h-5 w-5 text-muted-foreground" />
+                                                       </div>
+                                                     )}
+                                                   </div>
+                                                   <div className="flex-1 min-w-0">
+                                                     <div className="font-medium text-sm">{product.name}</div>
+                                                     {product.description && (
+                                                       <div className="text-xs text-muted-foreground truncate">{product.description}</div>
+                                                     )}
+                                                     <div className="flex items-center gap-2 mt-1">
+                                                       <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
+                                                       <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
+                                                     </div>
+                                                   </div>
+                                                 </CommandItem>
+                                               ))}
+                                             </CommandGroup>
+                                           </CommandList>
+                                         </Command>
+                                       </PopoverContent>
+                                     </Popover>
+                                   </div>
                                 </div>
                               ) : (
                                 <div className="text-sm text-muted-foreground">
