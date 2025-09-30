@@ -767,8 +767,11 @@ export function ElektrosanierungConfigurator() {
                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_meister', (item.stunden_meister || 0) + 0.1)}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
-                                               </div>
-                                             </div>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground mt-1 block">
+                                                  {((item.stunden_meister || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_meister || 0).toFixed(2)} h
+                                                </span>
+                                              </div>
 
                                              {/* Geselle Hours */}
                                              <div>
@@ -796,8 +799,11 @@ export function ElektrosanierungConfigurator() {
                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_geselle', (item.stunden_geselle || 0) + 0.1)}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
-                                               </div>
-                                             </div>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground mt-1 block">
+                                                  {((item.stunden_geselle || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_geselle || 0).toFixed(2)} h
+                                                </span>
+                                              </div>
 
                                              {/* Monteur Hours */}
                                              <div>
@@ -825,8 +831,11 @@ export function ElektrosanierungConfigurator() {
                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleHoursChange(item.id, 'stunden_monteur', (item.stunden_monteur || 0) + 0.1)}>
                                                    <Plus className="h-3 w-3" />
                                                  </Button>
-                                               </div>
-                                             </div>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground mt-1 block">
+                                                  {((item.stunden_monteur || 0) / (item.quantity || 1)).toFixed(2)} h/Stk × {item.quantity} = {(item.stunden_monteur || 0).toFixed(2)} h
+                                                </span>
+                                              </div>
                                            </div>
                                          </div>
                                        </div>
