@@ -515,209 +515,252 @@ export function ElektrosanierungConfigurator() {
                                         )}
                                       </div>
                                       
-                                      {/* Controls - Right side */}
-                                      <div className="flex items-center gap-6">
-                                        {/* Quantity */}
-                                        <div className="flex items-center gap-2">
-                                          <Label className="text-xs whitespace-nowrap min-w-[45px]">Menge:</Label>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}
-                                          >
-                                            <Minus className="h-3 w-3" />
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            value={item.quantity === 0 ? '' : item.quantity.toString()}
-                                            placeholder="0"
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              if (value === '') {
-                                                // Keep empty while typing
-                                                return;
-                                              }
-                                              handleQuantityChange(item.id, parseInt(value) || 0);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (e.target.value === '') {
-                                                handleQuantityChange(item.id, 0);
-                                              }
-                                            }}
-                                            className="w-16 h-8 text-xs text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                                          >
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                          <span className="text-xs text-muted-foreground">{item.unit}</span>
-                                        </div>
+                                       {/* Controls arranged in grid */}
+                                       <div className="mt-3">
+                                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                           {/* Quantity */}
+                                           <div>
+                                             <Label className="text-sm font-medium mb-2 block">Menge</Label>
+                                             <div className="flex items-center gap-2">
+                                               <Button
+                                                 variant="outline"
+                                                 size="sm"
+                                                 className="h-9 w-9 p-0"
+                                                 onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}
+                                               >
+                                                 <Minus className="h-4 w-4" />
+                                               </Button>
+                                               <Input
+                                                 type="number"
+                                                 min="0"
+                                                 step="1"
+                                                 value={item.quantity || ''}
+                                                 placeholder="0"
+                                                 onChange={(e) => {
+                                                   const value = e.target.value;
+                                                   if (value === '') {
+                                                     setOfferLineItems(current =>
+                                                       current.map(lineItem =>
+                                                         lineItem.id === item.id ? { ...lineItem, quantity: '' as any } : lineItem
+                                                       )
+                                                     );
+                                                   } else {
+                                                     const num = parseInt(value) || 0;
+                                                     handleQuantityChange(item.id, num);
+                                                   }
+                                                 }}
+                                                 onBlur={(e) => {
+                                                   if (e.target.value === '') {
+                                                     handleQuantityChange(item.id, 0);
+                                                   }
+                                                 }}
+                                                 className="w-20 h-9 text-center"
+                                               />
+                                               <Button
+                                                 variant="outline"
+                                                 size="sm"
+                                                 className="h-9 w-9 p-0"
+                                                 onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                               >
+                                                 <Plus className="h-4 w-4" />
+                                               </Button>
+                                             </div>
+                                             <span className="text-xs text-muted-foreground mt-1 block">{item.unit}</span>
+                                           </div>
 
-                                        {/* Quality */}
-                                        <div className="flex items-center gap-2">
-                                          <Label className="text-xs whitespace-nowrap min-w-[50px]">Qualität:</Label>
-                                          <Select value={item.product_id} onValueChange={(value) => handleProductSwap(item.id, value)}>
-                                            <SelectTrigger className="w-24 h-8 text-xs">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {getAlternatives(item.produkt_gruppe || '').map(alt => (
-                                                <SelectItem key={alt.product_id} value={alt.product_id}>
-                                                  {alt.qualitaetsstufe}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                      </div>
+                                           {/* Quality */}
+                                           <div>
+                                             <Label className="text-sm font-medium mb-2 block">Qualität</Label>
+                                             <Select value={item.product_id} onValueChange={(value) => handleProductSwap(item.id, value)}>
+                                               <SelectTrigger className="h-9">
+                                                 <SelectValue />
+                                               </SelectTrigger>
+                                               <SelectContent>
+                                                 {getAlternatives(item.produkt_gruppe || '').map(alt => (
+                                                   <SelectItem key={alt.product_id} value={alt.product_id}>
+                                                     {alt.qualitaetsstufe}
+                                                   </SelectItem>
+                                                 ))}
+                                               </SelectContent>
+                                             </Select>
+                                           </div>
 
-                                      {/* Hours row */}
-                                      <div className="w-full mt-2 flex items-center justify-end gap-6">
-                                        {/* Meister Hours */}
-                                        <div className="flex items-center gap-2">
-                                          <Label className="text-xs whitespace-nowrap min-w-[50px]">Meister:</Label>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_meister', Math.max(0, item.stunden_meister - 0.1))}
-                                          >
-                                            <Minus className="h-3 w-3" />
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            value={item.stunden_meister === 0 ? '' : item.stunden_meister.toString()}
-                                            placeholder="0"
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              if (value === '') {
-                                                // Keep empty while typing
-                                                return;
-                                              }
-                                              handleHoursChange(item.id, 'stunden_meister', parseFloat(value) || 0);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (e.target.value === '') {
-                                                handleHoursChange(item.id, 'stunden_meister', 0);
-                                              }
-                                            }}
-                                            className="w-16 h-8 text-xs text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_meister', item.stunden_meister + 0.1)}
-                                          >
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                          <span className="text-xs text-muted-foreground">h</span>
-                                        </div>
+                                           {/* Price */}
+                                           <div>
+                                             <Label className="text-sm font-medium mb-2 block">Gesamtpreis</Label>
+                                             <div className="bg-muted border rounded p-2 h-9 flex items-center justify-center">
+                                               <span className="font-semibold">
+                                                 {((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)} €
+                                               </span>
+                                             </div>
+                                             <span className="text-xs text-muted-foreground mt-1 block">
+                                               {(item.unit_price || 0).toFixed(2)} € / {item.unit}
+                                             </span>
+                                           </div>
 
-                                        {/* Geselle Hours */}
-                                        <div className="flex items-center gap-2">
-                                          <Label className="text-xs whitespace-nowrap min-w-[50px]">Geselle:</Label>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_geselle', Math.max(0, item.stunden_geselle - 0.1))}
-                                          >
-                                            <Minus className="h-3 w-3" />
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            value={item.stunden_geselle === 0 ? '' : item.stunden_geselle.toString()}
-                                            placeholder="0"
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              if (value === '') {
-                                                // Keep empty while typing
-                                                return;
-                                              }
-                                              handleHoursChange(item.id, 'stunden_geselle', parseFloat(value) || 0);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (e.target.value === '') {
-                                                handleHoursChange(item.id, 'stunden_geselle', 0);
-                                              }
-                                            }}
-                                            className="w-16 h-8 text-xs text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_geselle', item.stunden_geselle + 0.1)}
-                                          >
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                          <span className="text-xs text-muted-foreground">h</span>
-                                        </div>
+                                           {/* Remove button */}
+                                           <div className="flex items-end">
+                                             <Button
+                                               variant="destructive"
+                                               size="sm"
+                                               onClick={() => handleRemoveLineItem(item.id)}
+                                               className="h-9 w-full"
+                                             >
+                                               Entfernen
+                                             </Button>
+                                           </div>
+                                         </div>
 
-                                        {/* Monteur Hours */}
-                                        <div className="flex items-center gap-2">
-                                          <Label className="text-xs whitespace-nowrap min-w-[50px]">Monteur:</Label>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_monteur', Math.max(0, item.stunden_monteur - 0.1))}
-                                          >
-                                            <Minus className="h-3 w-3" />
-                                          </Button>
-                                          <Input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            value={item.stunden_monteur === 0 ? '' : item.stunden_monteur.toString()}
-                                            placeholder="0"
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              if (value === '') {
-                                                // Keep empty while typing
-                                                return;
-                                              }
-                                              handleHoursChange(item.id, 'stunden_monteur', parseFloat(value) || 0);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (e.target.value === '') {
-                                                handleHoursChange(item.id, 'stunden_monteur', 0);
-                                              }
-                                            }}
-                                            className="w-16 h-8 text-xs text-center"
-                                          />
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => handleHoursChange(item.id, 'stunden_monteur', item.stunden_monteur + 0.1)}
-                                          >
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                          <span className="text-xs text-muted-foreground">h</span>
-                                        </div>
+                                          {/* Hours row */}
+                                          <div className="grid grid-cols-3 gap-4">
+                                            {/* Meister Hours */}
+                                            <div>
+                                              <Label className="text-sm font-medium mb-2 block">Meister (h)</Label>
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_meister', Math.max(0, (item.stunden_meister || 0) - 0.1))}
+                                                >
+                                                  <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <Input
+                                                  type="number"
+                                                  step="0.1"
+                                                  min="0"
+                                                  value={item.stunden_meister || ''}
+                                                  placeholder="0.00"
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                      setOfferLineItems(current =>
+                                                        current.map(lineItem =>
+                                                          lineItem.id === item.id ? { ...lineItem, stunden_meister: '' as any } : lineItem
+                                                        )
+                                                      );
+                                                    } else {
+                                                      const num = parseFloat(value) || 0;
+                                                      handleHoursChange(item.id, 'stunden_meister', num);
+                                                    }
+                                                  }}
+                                                  onBlur={(e) => {
+                                                    if (e.target.value === '') {
+                                                      handleHoursChange(item.id, 'stunden_meister', 0);
+                                                    }
+                                                  }}
+                                                  className="flex-1 h-8 text-center text-sm"
+                                                />
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_meister', (item.stunden_meister || 0) + 0.1)}
+                                                >
+                                                  <Plus className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            </div>
 
-                                        {/* Remove Button */}
-                                        <Button
-                                          variant="destructive"
-                                          size="sm"
-                                          onClick={() => handleRemoveLineItem(item.id)}
-                                          className="h-8"
-                                        >
-                                          Entfernen
-                                        </Button>
+                                            {/* Geselle Hours */}
+                                            <div>
+                                              <Label className="text-sm font-medium mb-2 block">Geselle (h)</Label>
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_geselle', Math.max(0, (item.stunden_geselle || 0) - 0.1))}
+                                                >
+                                                  <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <Input
+                                                  type="number"
+                                                  step="0.1"
+                                                  min="0"
+                                                  value={item.stunden_geselle || ''}
+                                                  placeholder="0.00"
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                      setOfferLineItems(current =>
+                                                        current.map(lineItem =>
+                                                          lineItem.id === item.id ? { ...lineItem, stunden_geselle: '' as any } : lineItem
+                                                        )
+                                                      );
+                                                    } else {
+                                                      const num = parseFloat(value) || 0;
+                                                      handleHoursChange(item.id, 'stunden_geselle', num);
+                                                    }
+                                                  }}
+                                                  onBlur={(e) => {
+                                                    if (e.target.value === '') {
+                                                      handleHoursChange(item.id, 'stunden_geselle', 0);
+                                                    }
+                                                  }}
+                                                  className="flex-1 h-8 text-center text-sm"
+                                                />
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_geselle', (item.stunden_geselle || 0) + 0.1)}
+                                                >
+                                                  <Plus className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            </div>
+
+                                            {/* Monteur Hours */}
+                                            <div>
+                                              <Label className="text-sm font-medium mb-2 block">Monteur (h)</Label>
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_monteur', Math.max(0, (item.stunden_monteur || 0) - 0.1))}
+                                                >
+                                                  <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <Input
+                                                  type="number"
+                                                  step="0.1"
+                                                  min="0"
+                                                  value={item.stunden_monteur || ''}
+                                                  placeholder="0.00"
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value === '') {
+                                                      setOfferLineItems(current =>
+                                                        current.map(lineItem =>
+                                                          lineItem.id === item.id ? { ...lineItem, stunden_monteur: '' as any } : lineItem
+                                                        )
+                                                      );
+                                                    } else {
+                                                      const num = parseFloat(value) || 0;
+                                                      handleHoursChange(item.id, 'stunden_monteur', num);
+                                                    }
+                                                  }}
+                                                  onBlur={(e) => {
+                                                    if (e.target.value === '') {
+                                                      handleHoursChange(item.id, 'stunden_monteur', 0);
+                                                    }
+                                                  }}
+                                                  className="flex-1 h-8 text-center text-sm"
+                                                />
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0"
+                                                  onClick={() => handleHoursChange(item.id, 'stunden_monteur', (item.stunden_monteur || 0) + 0.1)}
+                                                >
+                                                  <Plus className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                   ))}
