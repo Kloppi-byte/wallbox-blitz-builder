@@ -142,9 +142,21 @@ export function ElektrosanierungConfigurator() {
 
         // Update state with fetched data
         if (packagesResult.data) setAvailablePackages(packagesResult.data);
-        if (packageItemsResult.data) setPackageItems(packageItemsResult.data);
+        if (packageItemsResult.data) {
+          console.log('Package items data:', packageItemsResult.data);
+          setPackageItems(packageItemsResult.data);
+        }
         if (productGroupsResult.data) setProductGroups(productGroupsResult.data);
-        if (productsResult.data) setProducts(productsResult.data);
+        if (productsResult.data) {
+          console.log('Products data:', productsResult.data);
+          setProducts(productsResult.data);
+        }
+
+        // Log the package IDs and package item package IDs to check relationship
+        if (packagesResult.data && packageItemsResult.data) {
+          console.log('Package IDs:', packagesResult.data.map(p => p.id));
+          console.log('Package Item package_ids:', [...new Set(packageItemsResult.data.map(pi => pi.package_id))]);
+        }
 
       } catch (err: any) {
         setError(err.message);
