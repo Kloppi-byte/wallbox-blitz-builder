@@ -56,6 +56,7 @@ type OfferProduct = {
   stunden_geselle: number;
   stunden_monteur: number;
   created_at: string;
+  image: string | null;
 };
 
 // Application state types
@@ -75,6 +76,7 @@ type OfferLineItem = {
   stunden_geselle: number;
   stunden_monteur: number;
   quantity: number;
+  image: string | null;
 };
 
 // --- COMPONENT STATE ---
@@ -96,6 +98,7 @@ export function ElektrosanierungConfigurator() {
 
   // State for detail view
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
+  const [showAddProduct, setShowAddProduct] = useState<number | null>(null);
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -149,7 +152,10 @@ export function ElektrosanierungConfigurator() {
         if (productGroupsResult.data) setProductGroups(productGroupsResult.data);
         if (productsResult.data) {
           console.log('Products data:', productsResult.data);
-          setProducts(productsResult.data);
+          setProducts(productsResult.data.map(product => ({
+            ...product,
+            image: (product as any).image || null
+          })));
         }
 
         // Log the package IDs and package item package IDs to check relationship
@@ -202,7 +208,8 @@ export function ElektrosanierungConfigurator() {
             stunden_meister: product.stunden_meister,
             stunden_geselle: product.stunden_geselle,
             stunden_monteur: product.stunden_monteur,
-            quantity: item.quantity_base + item.quantity_per_room + item.quantity_per_floor + item.quantity_per_sqm // Simple default calculation
+            quantity: item.quantity_base + item.quantity_per_room + item.quantity_per_floor + item.quantity_per_sqm, // Simple default calculation
+            image: product.image
           });
         }
       });
@@ -246,6 +253,22 @@ export function ElektrosanierungConfigurator() {
             }
           : item
       )
+    );
+  };
+
+  // Handler function for hours changes
+  const handleHoursChange = (lineItemId: string, field: 'stunden_meister' | 'stunden_geselle' | 'stunden_monteur', newValue: number) => {
+    setOfferLineItems(currentItems =>
+      currentItems.map(item =>
+        item.id === lineItemId ? { ...item, [field]: Math.max(0, newValue) } : item
+      )
+    );
+  };
+
+  // Handler function for removing line items
+  const handleRemoveLineItem = (lineItemId: string) => {
+    setOfferLineItems(currentItems =>
+      currentItems.filter(item => item.id !== lineItemId)
     );
   };
 
@@ -468,47 +491,204 @@ export function ElektrosanierungConfigurator() {
                               {isPackageSelected(pkg.id) ? (
                                 <div className="space-y-3">
                                   {getLineItemsForPackage(pkg.id).map(item => (
-                                    <div key={item.id} className="flex items-center gap-3 p-3 bg-background border rounded">
-                                      <div className="flex-1">
-                                        <div className="font-medium">{item.name}</div>
+                                    <div key={item.id} className="flex items-start gap-3 p-4 bg-background border rounded-lg">
+                                      {/* Product Image */}
+                                      <div className="w-16 h-16 flex-shrink-0">
+                                        {item.image ? (
+                                          <img 
+                                            src={item.image} 
+                                            alt={item.name}
+                                            className="w-full h-full object-cover rounded border"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                            <Package className="h-6 w-6 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Product Info */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-sm">{item.name}</div>
                                         {item.description && (
-                                          <div className="text-xs text-muted-foreground">{item.description}</div>
+                                          <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
                                         )}
                                       </div>
                                       
-                                      {/* Quantity input */}
-                                      <div className="flex items-center gap-2">
-                                        <Label htmlFor={`qty-${item.id}`} className="text-xs">Menge:</Label>
-                                        <Input
-                                          id={`qty-${item.id}`}
-                                          type="number"
-                                          min="0"
-                                          step="1"
-                                          value={item.quantity}
-                                          onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
-                                          className="w-16 h-8 text-xs"
-                                        />
-                                        <span className="text-xs text-muted-foreground">{item.unit}</span>
-                                      </div>
+                                      {/* Controls Grid */}
+                                      <div className="grid grid-cols-2 gap-4 w-96">
+                                        {/* Quantity */}
+                                        <div className="flex items-center gap-2">
+                                          <Label className="text-xs whitespace-nowrap">Menge:</Label>
+                                          <div className="flex items-center">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}
+                                            >
+                                              <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              step="1"
+                                              value={item.quantity}
+                                              onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs text-center mx-1"
+                                            />
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="text-xs text-muted-foreground ml-2">{item.unit}</span>
+                                          </div>
+                                        </div>
 
-                                      {/* Product swap select */}
-                                      <div className="flex items-center gap-2">
-                                        <Label className="text-xs">Qualität:</Label>
-                                        <Select value={item.product_id} onValueChange={(value) => handleProductSwap(item.id, value)}>
-                                          <SelectTrigger className="w-32 h-8 text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {getAlternatives(item.produkt_gruppe || '').map(alt => (
-                                              <SelectItem key={alt.product_id} value={alt.product_id}>
-                                                {alt.qualitaetsstufe}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        {/* Quality */}
+                                        <div className="flex items-center gap-2">
+                                          <Label className="text-xs whitespace-nowrap">Qualität:</Label>
+                                          <Select value={item.product_id} onValueChange={(value) => handleProductSwap(item.id, value)}>
+                                            <SelectTrigger className="w-24 h-8 text-xs">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {getAlternatives(item.produkt_gruppe || '').map(alt => (
+                                                <SelectItem key={alt.product_id} value={alt.product_id}>
+                                                  {alt.qualitaetsstufe}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
+                                        {/* Meister Hours */}
+                                        <div className="flex items-center gap-2">
+                                          <Label className="text-xs whitespace-nowrap">Meister:</Label>
+                                          <div className="flex items-center">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_meister', Math.max(0, item.stunden_meister - 0.5))}
+                                            >
+                                              <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <Input
+                                              type="number"
+                                              step="0.5"
+                                              min="0"
+                                              value={item.stunden_meister}
+                                              onChange={(e) => handleHoursChange(item.id, 'stunden_meister', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs text-center mx-1"
+                                            />
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_meister', item.stunden_meister + 0.5)}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="text-xs text-muted-foreground ml-2">h</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Geselle Hours */}
+                                        <div className="flex items-center gap-2">
+                                          <Label className="text-xs whitespace-nowrap">Geselle:</Label>
+                                          <div className="flex items-center">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_geselle', Math.max(0, item.stunden_geselle - 0.5))}
+                                            >
+                                              <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <Input
+                                              type="number"
+                                              step="0.5"
+                                              min="0"
+                                              value={item.stunden_geselle}
+                                              onChange={(e) => handleHoursChange(item.id, 'stunden_geselle', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs text-center mx-1"
+                                            />
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_geselle', item.stunden_geselle + 0.5)}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="text-xs text-muted-foreground ml-2">h</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Monteur Hours */}
+                                        <div className="flex items-center gap-2">
+                                          <Label className="text-xs whitespace-nowrap">Monteur:</Label>
+                                          <div className="flex items-center">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_monteur', Math.max(0, item.stunden_monteur - 0.5))}
+                                            >
+                                              <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <Input
+                                              type="number"
+                                              step="0.5"
+                                              min="0"
+                                              value={item.stunden_monteur}
+                                              onChange={(e) => handleHoursChange(item.id, 'stunden_monteur', parseFloat(e.target.value) || 0)}
+                                              className="w-16 h-8 text-xs text-center mx-1"
+                                            />
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() => handleHoursChange(item.id, 'stunden_monteur', item.stunden_monteur + 0.5)}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="text-xs text-muted-foreground ml-2">h</span>
+                                          </div>
+                                        </div>
+
+                                        {/* Remove Button */}
+                                        <div className="flex items-center justify-end col-span-2">
+                                          <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => handleRemoveLineItem(item.id)}
+                                            className="h-8"
+                                          >
+                                            Entfernen
+                                          </Button>
+                                        </div>
                                       </div>
                                     </div>
                                   ))}
+                                  
+                                  {/* Add Product Button */}
+                                  <div className="p-3 border-2 border-dashed border-muted rounded-lg">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowAddProduct(pkg.id)}
+                                      className="w-full"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Produkt hinzufügen
+                                    </Button>
+                                  </div>
                                 </div>
                               ) : (
                                 <div className="text-sm text-muted-foreground">
