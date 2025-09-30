@@ -263,7 +263,7 @@ export function ElektrosanierungConfigurator() {
   const handleHoursChange = (lineItemId: string, field: 'stunden_meister' | 'stunden_geselle' | 'stunden_monteur', newValue: number) => {
     setOfferLineItems(currentItems =>
       currentItems.map(item =>
-        item.id === lineItemId ? { ...item, [field]: Math.max(0, newValue) } : item
+        item.id === lineItemId ? { ...item, [field]: Math.max(0, parseFloat(newValue.toFixed(2))) } : item
       )
     );
   };
@@ -672,7 +672,7 @@ export function ElektrosanierungConfigurator() {
                                                    type="number"
                                                    step="0.1"
                                                    min="0"
-                                                   value={item.stunden_meister || ''}
+                                                   value={item.stunden_meister ? parseFloat(item.stunden_meister.toString()).toFixed(2) : ''}
                                                    placeholder="0.00"
                                                    onChange={(e) => {
                                                      const value = e.target.value;
@@ -721,7 +721,7 @@ export function ElektrosanierungConfigurator() {
                                                    type="number"
                                                    step="0.1"
                                                    min="0"
-                                                   value={item.stunden_geselle || ''}
+                                                   value={item.stunden_geselle ? parseFloat(item.stunden_geselle.toString()).toFixed(2) : ''}
                                                    placeholder="0.00"
                                                    onChange={(e) => {
                                                      const value = e.target.value;
@@ -770,7 +770,7 @@ export function ElektrosanierungConfigurator() {
                                                    type="number"
                                                    step="0.1"
                                                    min="0"
-                                                   value={item.stunden_monteur || ''}
+                                                   value={item.stunden_monteur ? parseFloat(item.stunden_monteur.toString()).toFixed(2) : ''}
                                                    placeholder="0.00"
                                                    onChange={(e) => {
                                                      const value = e.target.value;
