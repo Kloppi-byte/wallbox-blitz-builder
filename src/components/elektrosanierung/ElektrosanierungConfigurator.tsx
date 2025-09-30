@@ -1,7 +1,8 @@
-// src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/contexts/CartContext';
+import { CartIcon } from '@/components/cart/CartIcon';
 // Import necessary UI components from '@/components/ui/...'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+// Import lucide icons
+import { Building, Package, CheckCircle, Minus, Plus } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 // This type matches the structure of your 'offers_packages' table
@@ -19,6 +22,7 @@ type OfferPackage = {
   description: string | null;
   category: string | null;
   is_optional: boolean | null;
+  quality_level?: string | null;
 };
 
 // This type defines how we store a package the user has selected
@@ -30,9 +34,15 @@ type SelectedPackage = {
 
 // --- COMPONENT STATE ---
 export function ElektrosanierungConfigurator() {
-  // Global Parameters state
-  const [baujahr, setBaujahr] = useState<number>(2000);
-  const [qualitaetsstufe, setQualitaetsstufe] = useState<string>('Standard');
+  // State for the global project parameters
+  const [projectParams, setProjectParams] = useState({
+    wohnflaeche: 80,
+    raeume: 4,
+    etagen: 1,
+    baujahr: 2000,
+    qualitaetsstufe: 'Standard',
+    aufschlagKomplexitaet: 0, // percentage for labor time surcharge
+  });
 
   // State to hold packages fetched from Supabase
   const [availablePackages, setAvailablePackages] = useState<OfferPackage[]>([]);
@@ -44,8 +54,6 @@ export function ElektrosanierungConfigurator() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ... rest of the component
-
   const { toast } = useToast();
   const { addItem } = useCart();
 
@@ -54,71 +62,9 @@ export function ElektrosanierungConfigurator() {
     const fetchPackages = async () => {
       try {
         setLoading(true);
-  // src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
-
-  useEffect(() => {
-    const fetchPackages = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('offers_packages')
-        .select('id, name, description, category, is_optional');
-
-      if (error) {
-        setError(error.message);
-        console.error("Error fetching packages:", error);
-      } else {
-        setAvailablePackages(data || []);
-      }
-      setLoading(false);
-    };
-
-    fetchPackages();
-  }, []);
-
-      // src/components/elektrosanierung/ElektrosanierungConfigurator.tsx
-
-  const handleSubmit = async () => {
-    const offerRequestPayload = {
-      global_params: {
-        baujahr,
-        qualitaetsstufe,
-      },
-      selected_packages: selectedPackages,
-    };
-
-    console.log("Sending to webhook:", JSON.stringify(offerRequestPayload, null, 2));
-
-    try {
-      // IMPORTANT: Replace with your actual Supabase Edge Function URL
-      const response = await fetch('YOUR_SUPABASE_WEBHOOK_URL', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // You might need an Authorization header depending on your function's settings
-        },
-        body: JSON.stringify(offerRequestPayload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Webhook failed with status ${response.status}: ${errorBody}`);
-      }
-
-      alert('Angebot erfolgreich angefordert! Wir melden uns in Kürze bei Ihnen.');
-      // Handle success - e.g., redirect or show a success message
-      
-    } catch (err: any) {
-      console.error("Error submitting offer request:", err);
-      alert(`Es ist ein Fehler aufgetreten: ${err.message}`);
-      // Handle error - e.g., show an error toast
-    }
-  };
-
-  // Make sure to add the onClick handler to the submit button:
-  // <Button onClick={handleSubmit}>Angebot anfordern</Button>
         
-        // Mock data for demonstration - replace with actual database call when offers_packages table exists
-        const mockPackages: SanierungPackage[] = [
+        // Since offers_packages table doesn't exist yet, use mock data
+        const mockPackages: OfferPackage[] = [
           {
             id: 1,
             name: "Basis Elektroinstallation",
@@ -178,7 +124,7 @@ export function ElektrosanierungConfigurator() {
   };
 
   // Helper function to toggle package selection
-  const togglePackageSelection = (packageData: SanierungPackage) => {
+  const togglePackageSelection = (packageData: OfferPackage) => {
     setSelectedPackages(prev => {
       const existing = prev.find(p => p.package_id === packageData.id);
       if (existing) {
@@ -340,7 +286,7 @@ export function ElektrosanierungConfigurator() {
               />
             </div>
 
-            <div className="col-span-2">
+            <div>
               <Label htmlFor="qualitaetsstufe">Qualitätsstufe</Label>
               <Select
                 value={projectParams.qualitaetsstufe}
@@ -354,6 +300,18 @@ export function ElektrosanierungConfigurator() {
                   <SelectItem value="Premium">Premium</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="aufschlagKomplexitaet">Aufschlag wegen erhöhter Komplexität in Prozent (nur auf Arbeitszeit)</Label>
+              <Input
+                id="aufschlagKomplexitaet"
+                type="number"
+                min="0"
+                max="100"
+                value={projectParams.aufschlagKomplexitaet}
+                onChange={e => updateProjectParams({ aufschlagKomplexitaet: parseInt(e.target.value) || 0 })}
+              />
             </div>
           </CardContent>
         </Card>
@@ -470,6 +428,6 @@ export function ElektrosanierungConfigurator() {
       </div>
     </div>
   );
-};
+}
 
 export default ElektrosanierungConfigurator;
