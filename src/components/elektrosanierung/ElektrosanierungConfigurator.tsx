@@ -459,7 +459,26 @@ export function ElektrosanierungConfigurator() {
             <CardDescription>Geben Sie die Eckdaten des Gebäudes an.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            {globalParamDefs.map(def => {
+            {/* Keep Qualitätsstufe as hardcoded field */}
+            <div>
+              <Label htmlFor="qualitaetsstufe">Qualitätsstufe</Label>
+              <Select 
+                value={String(globalParams.qualitaetsstufe)} 
+                onValueChange={value => handleGlobalParamChange('qualitaetsstufe', value)}
+              >
+                <SelectTrigger id="qualitaetsstufe">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Basic">Basic</SelectItem>
+                  <SelectItem value="Standard">Standard</SelectItem>
+                  <SelectItem value="Premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Dynamically render other global parameters */}
+            {globalParamDefs.filter(def => def.param_key !== 'qualitaetsstufe').map(def => {
               const currentValue = globalParams[def.param_key] || def.default_value || '';
               
               // Render based on param_type
