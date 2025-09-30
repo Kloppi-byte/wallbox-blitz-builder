@@ -62,7 +62,7 @@ export function ElektrosanierungConfigurator() {
         setLoading(true);
         
         const { data, error } = await supabase
-          .from('offers_packages' as any)
+          .from('offers_packages')
           .select('*')
           .order('category', { ascending: true })
           .order('name', { ascending: true });
@@ -72,7 +72,7 @@ export function ElektrosanierungConfigurator() {
         }
 
         if (data) {
-          setAvailablePackages(data as unknown as OfferPackage[]);
+          setAvailablePackages(data);
         }
       } catch (err: any) {
         setError(err.message);
