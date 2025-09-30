@@ -59,9 +59,21 @@ type OfferProduct = {
 };
 
 // Application state types
-type SelectedPackage = {
+type OfferLineItem = {
+  id: string;
   package_id: number;
+  package_name: string;
+  product_id: string;
   name: string;
+  description: string | null;
+  unit: string;
+  unit_price: number;
+  category: string | null;
+  produkt_gruppe: string | null;
+  qualitaetsstufe: string | null;
+  stunden_meister: number;
+  stunden_geselle: number;
+  stunden_monteur: number;
   quantity: number;
 };
 
@@ -79,8 +91,8 @@ export function ElektrosanierungConfigurator() {
   const [productGroups, setProductGroups] = useState<OfferProductGroup[]>([]);
   const [products, setProducts] = useState<OfferProduct[]>([]);
   
-  // State to hold the packages the user has selected
-  const [selectedPackages, setSelectedPackages] = useState<SelectedPackage[]>([]);
+  // State to hold the offer line items (replaces selectedPackages)
+  const [offerLineItems, setOfferLineItems] = useState<OfferLineItem[]>([]);
 
   // State for detail view
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
@@ -152,29 +164,76 @@ export function ElektrosanierungConfigurator() {
 
   // Handler function for package selection
   const handlePackageSelection = (packageData: OfferPackage, checked: boolean) => {
-    setSelectedPackages(prev => {
-      if (checked) {
-        // Add package with default quantity of 1
-        return [...prev, {
-          package_id: packageData.id,
-          name: packageData.name,
-          quantity: 1
-        }];
-      } else {
-        // Remove package
-        return prev.filter(p => p.package_id !== packageData.id);
-      }
-    });
+    if (checked) {
+      // Resolve all products for this package and add to offer line items
+      const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
+      
+      const newLineItems: OfferLineItem[] = [];
+      packageItemsForPackage.forEach(item => {
+        const product = products.find(prod => 
+          prod.produkt_gruppe === item.produkt_gruppe_id && 
+          prod.qualitaetsstufe === projectParams.qualitaetsstufe
+        );
+        if (product) {
+          newLineItems.push({
+            id: `${packageData.id}-${product.product_id}-${Date.now()}`,
+            package_id: packageData.id,
+            package_name: packageData.name,
+            product_id: product.product_id,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            unit_price: product.unit_price,
+            category: product.category,
+            produkt_gruppe: product.produkt_gruppe,
+            qualitaetsstufe: product.qualitaetsstufe,
+            stunden_meister: product.stunden_meister,
+            stunden_geselle: product.stunden_geselle,
+            stunden_monteur: product.stunden_monteur,
+            quantity: item.quantity_base + item.quantity_per_room + item.quantity_per_floor + item.quantity_per_sqm // Simple default calculation
+          });
+        }
+      });
+      
+      setOfferLineItems(prev => [...prev, ...newLineItems]);
+    } else {
+      // Remove all line items for this package
+      setOfferLineItems(prev => prev.filter(item => item.package_id !== packageData.id));
+    }
   };
 
-  // Helper function to update package quantity
-  const updatePackageQuantity = (packageId: number, quantity: number) => {
-    setSelectedPackages(prev =>
-      prev.map(p =>
-        p.package_id === packageId
-          ? { ...p, quantity: Math.max(0, quantity) }
-          : p
-      ).filter(p => p.quantity > 0) // Remove packages with 0 quantity
+  // Handler function for quantity changes
+  const handleQuantityChange = (lineItemId: string, newQuantity: number) => {
+    setOfferLineItems(currentItems =>
+      currentItems.map(item =>
+        item.id === lineItemId ? { ...item, quantity: Math.max(0, newQuantity) } : item
+      ).filter(item => item.quantity > 0) // Remove items with 0 quantity
+    );
+  };
+
+  // Handler function for product swaps
+  const handleProductSwap = (lineItemId: string, newProductId: string) => {
+    const newProduct = products.find(p => p.product_id === newProductId);
+    if (!newProduct) return;
+
+    setOfferLineItems(currentItems =>
+      currentItems.map(item =>
+        item.id === lineItemId 
+          ? { 
+              ...item, 
+              product_id: newProduct.product_id,
+              name: newProduct.name,
+              description: newProduct.description,
+              unit: newProduct.unit,
+              unit_price: newProduct.unit_price,
+              category: newProduct.category,
+              qualitaetsstufe: newProduct.qualitaetsstufe,
+              stunden_meister: newProduct.stunden_meister,
+              stunden_geselle: newProduct.stunden_geselle,
+              stunden_monteur: newProduct.stunden_monteur
+            }
+          : item
+      )
     );
   };
 
@@ -185,13 +244,17 @@ export function ElektrosanierungConfigurator() {
 
   // Helper function to check if a package is selected
   const isPackageSelected = (packageId: number) => {
-    return selectedPackages.some(p => p.package_id === packageId);
+    return offerLineItems.some(item => item.package_id === packageId);
   };
 
-  // Helper function to get selected package quantity
-  const getSelectedQuantity = (packageId: number) => {
-    const selected = selectedPackages.find(p => p.package_id === packageId);
-    return selected ? selected.quantity : 0;
+  // Helper function to get line items for a package
+  const getLineItemsForPackage = (packageId: number) => {
+    return offerLineItems.filter(item => item.package_id === packageId);
+  };
+
+  // Helper function to get alternatives for a product group
+  const getAlternatives = (produktGruppe: string) => {
+    return products.filter(p => p.produkt_gruppe === produktGruppe);
   };
 
   // Helper function to get products for a package (client-side join)
@@ -219,7 +282,7 @@ export function ElektrosanierungConfigurator() {
 
   // Handle form submission - send to backend webhook
   const handleSubmit = async () => {
-    if (selectedPackages.length === 0) {
+    if (offerLineItems.length === 0) {
       toast({
         title: "Keine Auswahl",
         description: "Bitte wählen Sie mindestens ein Paket aus.",
@@ -231,7 +294,7 @@ export function ElektrosanierungConfigurator() {
     try {
       const payload = {
         global_parameters: projectParams,
-        selected_package_ids: selectedPackages.map(pkg => pkg.package_id)
+        line_items: offerLineItems
       };
 
       // Send to backend webhook for calculation
@@ -249,7 +312,7 @@ export function ElektrosanierungConfigurator() {
         name: 'Elektrosanierung Konfiguration',
         configuration: {
           projectParams,
-          selectedPackages,
+          offerLineItems,
         },
         pricing: data?.pricing || {
           materialCosts: 0,
@@ -388,13 +451,63 @@ export function ElektrosanierungConfigurator() {
                           </div>
                           {/* Package details view */}
                           {detailsPackageId === pkg.id && (
-                            <div className="pl-8 mt-2 text-sm text-muted-foreground">
-                              <strong>Inhalt für '{projectParams.qualitaetsstufe}':</strong>
-                              <ul className="mt-1 space-y-1">
-                                {getProductsForPackage(pkg.id, projectParams.qualitaetsstufe).map(productName => (
-                                  <li key={productName}>- {productName}</li>
-                                ))}
-                              </ul>
+                            <div className="pl-8 mt-2">
+                              <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{projectParams.qualitaetsstufe}':</strong>
+                              {isPackageSelected(pkg.id) ? (
+                                <div className="space-y-3">
+                                  {getLineItemsForPackage(pkg.id).map(item => (
+                                    <div key={item.id} className="flex items-center gap-3 p-3 bg-background border rounded">
+                                      <div className="flex-1">
+                                        <div className="font-medium">{item.name}</div>
+                                        {item.description && (
+                                          <div className="text-xs text-muted-foreground">{item.description}</div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Quantity input */}
+                                      <div className="flex items-center gap-2">
+                                        <Label htmlFor={`qty-${item.id}`} className="text-xs">Menge:</Label>
+                                        <Input
+                                          id={`qty-${item.id}`}
+                                          type="number"
+                                          min="0"
+                                          step="1"
+                                          value={item.quantity}
+                                          onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                                          className="w-16 h-8 text-xs"
+                                        />
+                                        <span className="text-xs text-muted-foreground">{item.unit}</span>
+                                      </div>
+
+                                      {/* Product swap select */}
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs">Qualität:</Label>
+                                        <Select value={item.product_id} onValueChange={(value) => handleProductSwap(item.id, value)}>
+                                          <SelectTrigger className="w-32 h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {getAlternatives(item.produkt_gruppe || '').map(alt => (
+                                              <SelectItem key={alt.product_id} value={alt.product_id}>
+                                                {alt.qualitaetsstufe}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">
+                                  <p>Paket auswählen, um Inhalte zu bearbeiten.</p>
+                                  <ul className="mt-1 space-y-1">
+                                    {getProductsForPackage(pkg.id, projectParams.qualitaetsstufe).map(productName => (
+                                      <li key={productName}>- {productName}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -417,17 +530,29 @@ export function ElektrosanierungConfigurator() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <h4 className="font-medium">Ausgewählte Pakete:</h4>
-              {selectedPackages.length === 0 ? (
+              <h4 className="font-medium">Ausgewählte Angebotspositionen:</h4>
+              {offerLineItems.length === 0 ? (
                 <p className="text-muted-foreground">Keine Pakete ausgewählt</p>
               ) : (
                 <div className="space-y-2">
-                  {selectedPackages.map((pkg) => (
-                    <div key={pkg.package_id} className="flex justify-between items-center p-2 bg-secondary rounded">
-                      <span>{pkg.name}</span>
-                      <span>Anzahl: {pkg.quantity}</span>
-                    </div>
-                  ))}
+                  {/* Group by package */}
+                  {[...new Set(offerLineItems.map(item => item.package_id))].map(packageId => {
+                    const packageItems = getLineItemsForPackage(packageId);
+                    const packageName = packageItems[0]?.package_name || '';
+                    return (
+                      <div key={packageId} className="p-3 bg-secondary rounded">
+                        <h5 className="font-medium mb-2">{packageName}</h5>
+                        <div className="space-y-1 text-sm">
+                          {packageItems.map(item => (
+                            <div key={item.id} className="flex justify-between">
+                              <span>{item.name}</span>
+                              <span>{item.quantity} {item.unit}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               
@@ -438,7 +563,7 @@ export function ElektrosanierungConfigurator() {
                 <Button 
                   onClick={handleSubmit}
                   className="w-full"
-                  disabled={selectedPackages.length === 0}
+                  disabled={offerLineItems.length === 0}
                 >
                   Angebot anfordern
                 </Button>
