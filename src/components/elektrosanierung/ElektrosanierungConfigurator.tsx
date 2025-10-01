@@ -392,7 +392,7 @@ export function ElektrosanierungConfigurator() {
           }
           
           newLineItems.push({
-            id: `${packageData.id}-${product.product_id}-${Date.now()}`,
+            id: `${instanceId}-${product.product_id}-${Math.random()}`,
             package_id: packageData.id,
             package_name: packageData.name,
             product_id: product.product_id,
