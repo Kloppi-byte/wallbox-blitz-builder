@@ -1032,7 +1032,8 @@ export function ElektrosanierungConfigurator() {
         </div>
       </div>;
   }
-  return <div className="min-h-screen bg-background">
+  return (
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -1748,11 +1749,10 @@ export function ElektrosanierungConfigurator() {
                               </div>
                             )}
                           </div>
-                        </div>
-                      })}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>)}
+                       })}
+                     </div>
+                   </AccordionContent>
+                 </AccordionItem>)}
             </Accordion>
           </CardContent>
         </Card>
