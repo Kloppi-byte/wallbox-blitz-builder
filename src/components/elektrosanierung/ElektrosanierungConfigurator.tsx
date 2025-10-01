@@ -1082,39 +1082,79 @@ export function ElektrosanierungConfigurator() {
                 </div>}
               
               {/* Cost Summary */}
-              {offerLineItems.length > 0 && rates && <div className="mt-6 p-4 bg-secondary rounded space-y-2">
+              {offerLineItems.length > 0 && rates && <div className="mt-6 p-4 bg-secondary rounded space-y-4">
                   <h5 className="font-medium mb-2">Kostenübersicht</h5>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span>Materialkosten:</span>
-                      <span>{offerLineItems.reduce((sum, item) => {
-                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
-                        return sum + (finalUnitPrice * item.quantity);
-                      }, 0).toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Arbeitskosten:</span>
-                      <span>{offerLineItems.reduce((sum, item) => {
-                        return sum + (
-                          (item.stunden_meister * rates.stundensatz_meister) +
-                          (item.stunden_geselle * rates.stundensatz_geselle) +
-                          (item.stunden_monteur * rates.stundensatz_monteur)
-                        );
-                      }, 0).toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t font-medium">
-                      <span>Zwischensumme:</span>
-                      <span>{(offerLineItems.reduce((sum, item) => {
+                  
+                  {/* Material Costs Breakdown */}
+                  <div>
+                    <div className="font-medium text-sm mb-2">Materialkosten:</div>
+                    <div className="space-y-1 text-sm pl-3">
+                      {offerLineItems.map(item => {
                         const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
                         const materialCost = finalUnitPrice * item.quantity;
-                        const laborCost = (
-                          (item.stunden_meister * rates.stundensatz_meister) +
-                          (item.stunden_geselle * rates.stundensatz_geselle) +
-                          (item.stunden_monteur * rates.stundensatz_monteur)
-                        );
-                        return sum + materialCost + laborCost;
-                      }, 0)).toFixed(2)} €</span>
+                        return <div key={item.id} className="flex justify-between text-muted-foreground">
+                          <span>{item.name} ({item.quantity} {item.unit})</span>
+                          <span>{materialCost.toFixed(2)} €</span>
+                        </div>;
+                      })}
+                      <div className="flex justify-between pt-1 border-t font-medium text-foreground">
+                        <span>Materialkosten gesamt:</span>
+                        <span>{offerLineItems.reduce((sum, item) => {
+                          const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                          return sum + (finalUnitPrice * item.quantity);
+                        }, 0).toFixed(2)} €</span>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Labor Costs Breakdown by Role */}
+                  <div>
+                    <div className="font-medium text-sm mb-2">Arbeitskosten:</div>
+                    <div className="space-y-1 text-sm pl-3">
+                      {(() => {
+                        const totalMeisterHours = offerLineItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                        const totalGesellHours = offerLineItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                        const totalMonteurHours = offerLineItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                        
+                        const meisterCost = totalMeisterHours * rates.stundensatz_meister;
+                        const geselleCost = totalGesellHours * rates.stundensatz_geselle;
+                        const monteurCost = totalMonteurHours * rates.stundensatz_monteur;
+                        
+                        return <>
+                          {totalMeisterHours > 0 && <div className="flex justify-between text-muted-foreground">
+                            <span>Meister ({totalMeisterHours.toFixed(1)} Std. × {rates.stundensatz_meister} €)</span>
+                            <span>{meisterCost.toFixed(2)} €</span>
+                          </div>}
+                          {totalGesellHours > 0 && <div className="flex justify-between text-muted-foreground">
+                            <span>Geselle ({totalGesellHours.toFixed(1)} Std. × {rates.stundensatz_geselle} €)</span>
+                            <span>{geselleCost.toFixed(2)} €</span>
+                          </div>}
+                          {totalMonteurHours > 0 && <div className="flex justify-between text-muted-foreground">
+                            <span>Monteur ({totalMonteurHours.toFixed(1)} Std. × {rates.stundensatz_monteur} €)</span>
+                            <span>{monteurCost.toFixed(2)} €</span>
+                          </div>}
+                          <div className="flex justify-between pt-1 border-t font-medium text-foreground">
+                            <span>Arbeitskosten gesamt:</span>
+                            <span>{(meisterCost + geselleCost + monteurCost).toFixed(2)} €</span>
+                          </div>
+                        </>;
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="flex justify-between pt-2 border-t font-medium text-base">
+                    <span>Zwischensumme:</span>
+                    <span>{(offerLineItems.reduce((sum, item) => {
+                      const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                      const materialCost = finalUnitPrice * item.quantity;
+                      const laborCost = (
+                        (item.stunden_meister * rates.stundensatz_meister) +
+                        (item.stunden_geselle * rates.stundensatz_geselle) +
+                        (item.stunden_monteur * rates.stundensatz_monteur)
+                      );
+                      return sum + materialCost + laborCost;
+                    }, 0)).toFixed(2)} €</span>
                   </div>
                 </div>}
               
