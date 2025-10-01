@@ -396,6 +396,141 @@ export function ElektrosanierungConfigurator() {
     }
   };
 
+  // Handler function to add another instance of an already selected package
+  const handleAddAnotherInstance = (packageData: OfferPackage) => {
+    // Create a new selected package instance with parameters
+    const instanceId = `${packageData.id}-${Date.now()}`;
+    const newSelectedPackage = {
+      instanceId,
+      package_id: packageData.id,
+      name: packageData.name,
+      parameters: {} as Record<string, any>
+    };
+    setSelectedPackages(prev => [...prev, newSelectedPackage]);
+
+    // Resolve all products for this package and add to offer line items
+    const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
+    const newLineItems: OfferLineItem[] = [];
+    packageItemsForPackage.forEach(item => {
+      const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+      if (product) {
+        // Calculate quantity: start with quantity_base and ADD multiplier terms
+        let calculatedQuantity = item.quantity_base || 0;
+        
+        // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
+        if (item.multipliers_material && typeof item.multipliers_material === 'object') {
+          const multipliers = item.multipliers_material as Record<string, number>;
+          
+          for (const formulaKey in multipliers) {
+            const factor = multipliers[formulaKey];
+            
+            // Split the formula key by '*' to get individual parameter names
+            const paramNames = formulaKey.split('*').map(name => name.trim());
+            
+            // Calculate the term value by multiplying all parameter values
+            let termValue = 1.0;
+            let allParamsFound = true;
+            
+            for (const paramName of paramNames) {
+              if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                // Convert boolean to 1/0 for calculations
+                const paramValue = typeof globalParams[paramName] === 'boolean'
+                  ? (globalParams[paramName] ? 1 : 0)
+                  : globalParams[paramName];
+                
+                termValue *= paramValue;
+              } else {
+                allParamsFound = false;
+                termValue = 0;
+                break;
+              }
+            }
+            
+            // ADD the final term (termValue * factor) to total quantity
+            if (allParamsFound || termValue !== 0) {
+              calculatedQuantity += termValue * factor;
+            }
+          }
+        }
+
+        // Calculate hours multiplier: start with base 1 and ADD multiplier terms
+        let hoursMultiplier = 1.0;
+        
+        // Apply hours multipliers (e.g., {"altbau": 0.2} means +20% if altbau is true)
+        if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
+          const multipliers = item.multipliers_hours as Record<string, number>;
+          
+          for (const formulaKey in multipliers) {
+            // Skip the "floor" key - it's handled separately
+            if (formulaKey === 'floor') continue;
+            
+            const factor = multipliers[formulaKey];
+            
+            // Split the formula key by '*' to get individual parameter names
+            const paramNames = formulaKey.split('*').map(name => name.trim());
+            
+            // Calculate the term value by multiplying all parameter values
+            let termValue = 1.0;
+            let allParamsFound = true;
+            
+            for (const paramName of paramNames) {
+              if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                // Convert boolean to 1/0 for calculations
+                const paramValue = typeof globalParams[paramName] === 'boolean'
+                  ? (globalParams[paramName] ? 1 : 0)
+                  : globalParams[paramName];
+                
+                termValue *= paramValue;
+              } else {
+                allParamsFound = false;
+                termValue = 0;
+                break;
+              }
+            }
+            
+            // ADD the final term (termValue * factor) to hours multiplier
+            if (allParamsFound || termValue !== 0) {
+              hoursMultiplier += termValue * factor;
+            }
+          }
+          
+          // Apply floor if specified - prevents multiplier from going below minimum
+          if (multipliers.floor !== undefined) {
+            hoursMultiplier = Math.max(hoursMultiplier, multipliers.floor);
+          }
+        }
+        
+        newLineItems.push({
+          id: `${packageData.id}-${product.product_id}-${Date.now()}-${Math.random()}`,
+          package_id: packageData.id,
+          package_name: packageData.name,
+          product_id: product.product_id,
+          name: product.name,
+          description: product.description,
+          unit: product.unit,
+          unit_price: product.unit_price,
+          category: product.category,
+          produkt_gruppe: product.produkt_gruppe,
+          qualitaetsstufe: product.qualitaetsstufe,
+          stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+          stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+          stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+          stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+          stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+          stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+          quantity: Math.round(calculatedQuantity * 100) / 100,
+          image: product.image
+        });
+      }
+    });
+    setOfferLineItems(prev => [...prev, ...newLineItems]);
+    
+    toast({
+      title: "Paket hinzugefügt",
+      description: `${packageData.name} wurde erneut hinzugefügt.`,
+    });
+  };
+
   // Handler function for parameter changes
   const handleParameterChange = (packageId: number, paramKey: string, value: any) => {
     setSelectedPackages(prev => prev.map(pkg => pkg.package_id === packageId ? {
@@ -760,9 +895,21 @@ export function ElektrosanierungConfigurator() {
                                     {pkg.quality_level}
                                   </span>}
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}>
-                                Details
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                {isSelected && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleAddAnotherInstance(pkg)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Nochmal hinzufügen
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}>
+                                  Details
+                                </Button>
+                              </div>
                             </div>
 
                             {/* Conditionally render parameter inputs ONLY if package is selected */}
