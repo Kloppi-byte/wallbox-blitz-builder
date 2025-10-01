@@ -99,7 +99,8 @@ export function ElektrosanierungConfigurator() {
 
   // State for global parameters (dynamically populated from database)
   const [globalParams, setGlobalParams] = useState<Record<string, any>>({
-    baujahr: 2000,
+    baujahr: true, // true = Altbau, false = Neubau
+    anzahl_nutzungseinheiten: 1,
     qualitaetsstufe: 'Standard'
   });
 
