@@ -679,6 +679,155 @@ export function ElektrosanierungConfigurator() {
     } : pkg));
   };
 
+  // Recalculate line items whenever parameters change
+  useEffect(() => {
+    if (selectedPackages.length === 0 || products.length === 0 || packageItems.length === 0) return;
+    
+    const recalculatedLineItems: OfferLineItem[] = [];
+    
+    selectedPackages.forEach(selectedPackage => {
+      const packageData = availablePackages.find(pkg => pkg.id === selectedPackage.package_id);
+      if (!packageData) return;
+      
+      const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
+      
+      packageItemsForPackage.forEach(item => {
+        // Find product with fallback hierarchy
+        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+        
+        if (!product && packageData.quality_level) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+        }
+        
+        if (!product) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+        }
+        
+        if (!product) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+        }
+        
+        if (product) {
+          // Calculate quantity with merged parameters
+          let calculatedQuantity = item.quantity_base || 0;
+          const allParams = { ...globalParams, ...selectedPackage.parameters };
+          
+          // Apply material multipliers
+          if (item.multipliers_material && typeof item.multipliers_material === 'object') {
+            const multipliers = item.multipliers_material as Record<string, any>;
+            
+            for (const formulaKey in multipliers) {
+              const factor = multipliers[formulaKey];
+              
+              if (typeof factor === 'object' && factor !== null) {
+                const paramValue = allParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    calculatedQuantity += Number(additiveValue);
+                  }
+                }
+              } else if (typeof factor === 'number') {
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
+                }
+                
+                if (allParamsFound || termValue !== 0) {
+                  calculatedQuantity += termValue * factor;
+                }
+              }
+            }
+          }
+
+          // Calculate hours multiplier
+          let hoursMultiplier = 1.0;
+          
+          if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
+            const multipliers = item.multipliers_hours as Record<string, any>;
+            
+            for (const formulaKey in multipliers) {
+              if (formulaKey === 'floor') continue;
+              
+              const factor = multipliers[formulaKey];
+              
+              if (typeof factor === 'object' && factor !== null) {
+                const paramValue = allParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    hoursMultiplier += Number(additiveValue);
+                  }
+                }
+              } else if (typeof factor === 'number') {
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
+                }
+                
+                if (allParamsFound || termValue !== 0) {
+                  hoursMultiplier += termValue * factor;
+                }
+              }
+            }
+            
+            if (multipliers.floor !== undefined) {
+              hoursMultiplier = Math.max(hoursMultiplier, multipliers.floor);
+            }
+          }
+          
+          recalculatedLineItems.push({
+            id: `${selectedPackage.instanceId}-${product.product_id}`,
+            package_id: packageData.id,
+            package_name: packageData.name,
+            product_id: product.product_id,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            unit_price: product.unit_price,
+            category: product.category,
+            produkt_gruppe: product.produkt_gruppe,
+            qualitaetsstufe: product.qualitaetsstufe,
+            stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+            stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+            stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+            stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+            stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+            stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+            quantity: Math.round(calculatedQuantity),
+            image: product.image
+          });
+        }
+      });
+    });
+    
+    setOfferLineItems(recalculatedLineItems);
+  }, [selectedPackages, globalParams, products, packageItems, availablePackages]);
+
   // Handler function for quantity changes
   const handleQuantityChange = (lineItemId: string, newQuantity: number) => {
     setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
