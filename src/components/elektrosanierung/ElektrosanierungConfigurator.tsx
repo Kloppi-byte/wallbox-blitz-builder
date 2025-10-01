@@ -102,7 +102,8 @@ export function ElektrosanierungConfigurator() {
   const [globalParams, setGlobalParams] = useState<Record<string, any>>({
     baujahr: true, // true = Altbau, false = Neubau
     anzahl_nutzungseinheiten: 1,
-    qualitaetsstufe: 'Standard'
+    qualitaetsstufe: 'Standard',
+    qualitaetsfaktor: 'Standard' // Synced with qualitaetsstufe for multiplier calculations
   });
 
   // State for data from all four tables
@@ -852,7 +853,11 @@ export function ElektrosanierungConfigurator() {
               <Label htmlFor="qualitaetsstufe">Qualitätsstufe</Label>
               <Select 
                 value={String(globalParams.qualitaetsstufe)} 
-                onValueChange={value => handleGlobalParamChange('qualitaetsstufe', value)}
+                onValueChange={value => {
+                  handleGlobalParamChange('qualitaetsstufe', value);
+                  // Sync qualitaetsfaktor to match qualitaetsstufe for multiplier calculations
+                  handleGlobalParamChange('qualitaetsfaktor', value);
+                }}
               >
                 <SelectTrigger id="qualitaetsstufe">
                   <SelectValue />
@@ -866,7 +871,7 @@ export function ElektrosanierungConfigurator() {
             </div>
 
             {/* Dynamically render other global parameters */}
-            {globalParamDefs.filter(def => def.param_key !== 'qualitaetsstufe').map(def => {
+            {globalParamDefs.filter(def => def.param_key !== 'qualitaetsstufe' && def.param_key !== 'qualitaetsfaktor').map(def => {
               // Initialize default value based on param_type
               let defaultValue: any = def.default_value;
               if (def.param_type === 'boolean') {

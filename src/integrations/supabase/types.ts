@@ -319,7 +319,8 @@ export type Database = {
         Row: {
           created_at: string | null
           id: number
-          multipliers: Json | null
+          multipliers_hours: Json | null
+          multipliers_material: Json | null
           package_id: number
           produkt_gruppe_id: string
           quantity_base: number | null
@@ -327,7 +328,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: number
-          multipliers?: Json | null
+          multipliers_hours?: Json | null
+          multipliers_material?: Json | null
           package_id: number
           produkt_gruppe_id: string
           quantity_base?: number | null
@@ -335,7 +337,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: number
-          multipliers?: Json | null
+          multipliers_hours?: Json | null
+          multipliers_material?: Json | null
           package_id?: number
           produkt_gruppe_id?: string
           quantity_base?: number | null
