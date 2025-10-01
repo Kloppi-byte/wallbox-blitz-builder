@@ -319,32 +319,26 @@ export type Database = {
         Row: {
           created_at: string | null
           id: number
+          multipliers: Json | null
           package_id: number
           produkt_gruppe_id: string
           quantity_base: number | null
-          quantity_per_floor: number | null
-          quantity_per_room: number | null
-          quantity_per_sqm: number | null
         }
         Insert: {
           created_at?: string | null
           id?: number
+          multipliers?: Json | null
           package_id: number
           produkt_gruppe_id: string
           quantity_base?: number | null
-          quantity_per_floor?: number | null
-          quantity_per_room?: number | null
-          quantity_per_sqm?: number | null
         }
         Update: {
           created_at?: string | null
           id?: number
+          multipliers?: Json | null
           package_id?: number
           produkt_gruppe_id?: string
           quantity_base?: number | null
-          quantity_per_floor?: number | null
-          quantity_per_room?: number | null
-          quantity_per_sqm?: number | null
         }
         Relationships: [
           {
@@ -366,23 +360,32 @@ export type Database = {
       offers_package_parameter_definitions: {
         Row: {
           default_value: string | null
+          is_global: boolean | null
           label: string
+          maps_to_factor_column: string | null
           param_key: string
           param_type: string
+          "true/false": string | null
           unit: string | null
         }
         Insert: {
           default_value?: string | null
+          is_global?: boolean | null
           label: string
+          maps_to_factor_column?: string | null
           param_key: string
           param_type: string
+          "true/false"?: string | null
           unit?: string | null
         }
         Update: {
           default_value?: string | null
+          is_global?: boolean | null
           label?: string
+          maps_to_factor_column?: string | null
           param_key?: string
           param_type?: string
+          "true/false"?: string | null
           unit?: string | null
         }
         Relationships: []
@@ -507,6 +510,30 @@ export type Database = {
           stunden_monteur?: number | null
           unit?: string
           unit_price?: number
+        }
+        Relationships: []
+      }
+      offers_rates: {
+        Row: {
+          aufschlag_prozent: number
+          loc_id: string
+          stundensatz_geselle: number
+          stundensatz_meister: number
+          stundensatz_monteur: number
+        }
+        Insert: {
+          aufschlag_prozent?: number
+          loc_id: string
+          stundensatz_geselle: number
+          stundensatz_meister: number
+          stundensatz_monteur: number
+        }
+        Update: {
+          aufschlag_prozent?: number
+          loc_id?: string
+          stundensatz_geselle?: number
+          stundensatz_meister?: number
+          stundensatz_monteur?: number
         }
         Relationships: []
       }
