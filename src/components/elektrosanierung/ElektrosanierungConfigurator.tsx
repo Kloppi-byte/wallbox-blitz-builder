@@ -1345,7 +1345,7 @@ export function ElektrosanierungConfigurator() {
                                                             <h5 className="font-medium text-sm truncate">{item.name}</h5>
                                                             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
                                                               <span>Menge: {item.quantity} {item.unit}</span>
-                                                              <span>Preis: {(item.unit_price * item.quantity).toFixed(2)} CHF</span>
+                                                              <span>Preis: {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €</span>
                                                             </div>
                                                           </div>
 
