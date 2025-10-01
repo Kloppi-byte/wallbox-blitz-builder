@@ -266,11 +266,32 @@ export function ElektrosanierungConfigurator() {
     if (checked) {
       // Create a new selected package instance with parameters
       const instanceId = `${packageData.id}-${Date.now()}`;
+      
+      // Initialize instance parameters with default values from paramDefs
+      const initialInstanceParams: Record<string, any> = {};
+      const packageParamKeys = paramLinks
+        .filter(link => link.package_id === packageData.id)
+        .map(link => link.param_key);
+      
+      packageParamKeys.forEach(paramKey => {
+        const paramDef = paramDefs.find(def => def.param_key === paramKey);
+        if (paramDef && !paramDef.is_global) {
+          // Initialize with default value
+          if (paramDef.param_type === 'boolean') {
+            initialInstanceParams[paramKey] = false;
+          } else if (paramDef.default_value) {
+            initialInstanceParams[paramKey] = paramDef.param_type === 'number' 
+              ? Number(paramDef.default_value) 
+              : paramDef.default_value;
+          }
+        }
+      });
+      
       const newSelectedPackage = {
         instanceId,
         package_id: packageData.id,
         name: packageData.name,
-        parameters: {} as Record<string, any>
+        parameters: initialInstanceParams
       };
       setSelectedPackages(prev => [...prev, newSelectedPackage]);
 
@@ -297,6 +318,9 @@ export function ElektrosanierungConfigurator() {
           // Calculate quantity: start with quantity_base and ADD multiplier terms
           let calculatedQuantity = item.quantity_base || 0;
           
+          // Merge global and instance parameters for calculations
+          const allParams = { ...globalParams, ...newSelectedPackage.parameters };
+          
           // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
           if (item.multipliers_material && typeof item.multipliers_material === 'object') {
             const multipliers = item.multipliers_material as Record<string, any>;
@@ -307,7 +331,7 @@ export function ElektrosanierungConfigurator() {
               // Check if factor is an object (lookup table for additive values)
               if (typeof factor === 'object' && factor !== null) {
                 // Object-based additive: look up the parameter value in the object
-                const paramValue = globalParams[formulaKey];
+                const paramValue = allParams[formulaKey];
                 if (paramValue !== undefined && paramValue !== null) {
                   const additiveValue = factor[String(paramValue)];
                   if (additiveValue !== undefined) {
@@ -324,11 +348,11 @@ export function ElektrosanierungConfigurator() {
                 let allParamsFound = true;
                 
                 for (const paramName of paramNames) {
-                  if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
                     // Convert boolean to 1/0 for calculations
-                    const paramValue = typeof globalParams[paramName] === 'boolean'
-                      ? (globalParams[paramName] ? 1 : 0)
-                      : globalParams[paramName];
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
                     
                     termValue *= paramValue;
                   } else {
@@ -362,7 +386,7 @@ export function ElektrosanierungConfigurator() {
               // Check if factor is an object (lookup table for additive values)
               if (typeof factor === 'object' && factor !== null) {
                 // Object-based additive: look up the parameter value in the object
-                const paramValue = globalParams[formulaKey];
+                const paramValue = allParams[formulaKey];
                 if (paramValue !== undefined && paramValue !== null) {
                   const additiveValue = factor[String(paramValue)];
                   if (additiveValue !== undefined) {
@@ -379,11 +403,11 @@ export function ElektrosanierungConfigurator() {
                 let allParamsFound = true;
                 
                 for (const paramName of paramNames) {
-                  if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
                     // Convert boolean to 1/0 for calculations
-                    const paramValue = typeof globalParams[paramName] === 'boolean'
-                      ? (globalParams[paramName] ? 1 : 0)
-                      : globalParams[paramName];
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
                     
                     termValue *= paramValue;
                   } else {
@@ -441,11 +465,32 @@ export function ElektrosanierungConfigurator() {
   const handleAddAnotherInstance = (packageData: OfferPackage) => {
     // Create a new selected package instance with parameters
     const instanceId = `${packageData.id}-${Date.now()}`;
+    
+    // Initialize instance parameters with default values from paramDefs
+    const initialInstanceParams: Record<string, any> = {};
+    const packageParamKeys = paramLinks
+      .filter(link => link.package_id === packageData.id)
+      .map(link => link.param_key);
+    
+    packageParamKeys.forEach(paramKey => {
+      const paramDef = paramDefs.find(def => def.param_key === paramKey);
+      if (paramDef && !paramDef.is_global) {
+        // Initialize with default value
+        if (paramDef.param_type === 'boolean') {
+          initialInstanceParams[paramKey] = false;
+        } else if (paramDef.default_value) {
+          initialInstanceParams[paramKey] = paramDef.param_type === 'number' 
+            ? Number(paramDef.default_value) 
+            : paramDef.default_value;
+        }
+      }
+    });
+    
     const newSelectedPackage = {
       instanceId,
       package_id: packageData.id,
       name: packageData.name,
-      parameters: {} as Record<string, any>
+      parameters: initialInstanceParams
     };
     setSelectedPackages(prev => [...prev, newSelectedPackage]);
 
@@ -472,38 +517,54 @@ export function ElektrosanierungConfigurator() {
         // Calculate quantity: start with quantity_base and ADD multiplier terms
         let calculatedQuantity = item.quantity_base || 0;
         
+        // Merge global and instance parameters for calculations
+        const allParams = { ...globalParams, ...newSelectedPackage.parameters };
+        
         // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
         if (item.multipliers_material && typeof item.multipliers_material === 'object') {
-          const multipliers = item.multipliers_material as Record<string, number>;
+          const multipliers = item.multipliers_material as Record<string, any>;
           
           for (const formulaKey in multipliers) {
             const factor = multipliers[formulaKey];
             
-            // Split the formula key by '*' to get individual parameter names
-            const paramNames = formulaKey.split('*').map(name => name.trim());
-            
-            // Calculate the term value by multiplying all parameter values
-            let termValue = 1.0;
-            let allParamsFound = true;
-            
-            for (const paramName of paramNames) {
-              if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
-                // Convert boolean to 1/0 for calculations
-                const paramValue = typeof globalParams[paramName] === 'boolean'
-                  ? (globalParams[paramName] ? 1 : 0)
-                  : globalParams[paramName];
-                
-                termValue *= paramValue;
-              } else {
-                allParamsFound = false;
-                termValue = 0;
-                break;
+            // Check if factor is an object (lookup table for additive values)
+            if (typeof factor === 'object' && factor !== null) {
+              // Object-based additive: look up the parameter value in the object
+              const paramValue = allParams[formulaKey];
+              if (paramValue !== undefined && paramValue !== null) {
+                const additiveValue = factor[String(paramValue)];
+                if (additiveValue !== undefined) {
+                  calculatedQuantity += Number(additiveValue);
+                }
               }
-            }
-            
-            // ADD the final term (termValue * factor) to total quantity
-            if (allParamsFound || termValue !== 0) {
-              calculatedQuantity += termValue * factor;
+            } else if (typeof factor === 'number') {
+              // Number-based multiplicative: use existing formula logic
+              // Split the formula key by '*' to get individual parameter names
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              
+              // Calculate the term value by multiplying all parameter values
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                  // Convert boolean to 1/0 for calculations
+                  const paramValue = typeof allParams[paramName] === 'boolean'
+                    ? (allParams[paramName] ? 1 : 0)
+                    : allParams[paramName];
+                  
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
+              }
+              
+              // ADD the final term (termValue * factor) to total quantity
+              if (allParamsFound || termValue !== 0) {
+                calculatedQuantity += termValue * factor;
+              }
             }
           }
         }
@@ -513,7 +574,7 @@ export function ElektrosanierungConfigurator() {
         
         // Apply hours multipliers (e.g., {"altbau": 0.2} means +20% if altbau is true)
         if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
-          const multipliers = item.multipliers_hours as Record<string, number>;
+          const multipliers = item.multipliers_hours as Record<string, any>;
           
           for (const formulaKey in multipliers) {
             // Skip the "floor" key - it's handled separately
@@ -521,31 +582,44 @@ export function ElektrosanierungConfigurator() {
             
             const factor = multipliers[formulaKey];
             
-            // Split the formula key by '*' to get individual parameter names
-            const paramNames = formulaKey.split('*').map(name => name.trim());
-            
-            // Calculate the term value by multiplying all parameter values
-            let termValue = 1.0;
-            let allParamsFound = true;
-            
-            for (const paramName of paramNames) {
-              if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
-                // Convert boolean to 1/0 for calculations
-                const paramValue = typeof globalParams[paramName] === 'boolean'
-                  ? (globalParams[paramName] ? 1 : 0)
-                  : globalParams[paramName];
-                
-                termValue *= paramValue;
-              } else {
-                allParamsFound = false;
-                termValue = 0;
-                break;
+            // Check if factor is an object (lookup table for additive values)
+            if (typeof factor === 'object' && factor !== null) {
+              // Object-based additive: look up the parameter value in the object
+              const paramValue = allParams[formulaKey];
+              if (paramValue !== undefined && paramValue !== null) {
+                const additiveValue = factor[String(paramValue)];
+                if (additiveValue !== undefined) {
+                  hoursMultiplier += Number(additiveValue);
+                }
               }
-            }
-            
-            // ADD the final term (termValue * factor) to hours multiplier
-            if (allParamsFound || termValue !== 0) {
-              hoursMultiplier += termValue * factor;
+            } else if (typeof factor === 'number') {
+              // Number-based multiplicative: use existing formula logic
+              // Split the formula key by '*' to get individual parameter names
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              
+              // Calculate the term value by multiplying all parameter values
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                  // Convert boolean to 1/0 for calculations
+                  const paramValue = typeof allParams[paramName] === 'boolean'
+                    ? (allParams[paramName] ? 1 : 0)
+                    : allParams[paramName];
+                  
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
+              }
+              
+              // ADD the final term (termValue * factor) to hours multiplier
+              if (allParamsFound || termValue !== 0) {
+                hoursMultiplier += termValue * factor;
+              }
             }
           }
           
