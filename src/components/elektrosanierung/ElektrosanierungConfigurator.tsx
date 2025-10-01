@@ -34,7 +34,8 @@ type OfferPackageItem = {
   package_id: number;
   produkt_gruppe_id: string;
   quantity_base: number;
-  multipliers?: any;
+  multipliers_material?: any;
+  multipliers_hours?: any;
   created_at: string;
 };
 type OfferProductGroup = {
@@ -281,9 +282,9 @@ export function ElektrosanierungConfigurator() {
           // Calculate quantity: start with quantity_base and ADD multiplier terms
           let calculatedQuantity = item.quantity_base || 0;
           
-          // Apply multipliers with formula parser (supports "param" and "param1 * param2")
-          if (item.multipliers && typeof item.multipliers === 'object') {
-            const multipliers = item.multipliers as Record<string, number>;
+          // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
+          if (item.multipliers_material && typeof item.multipliers_material === 'object') {
+            const multipliers = item.multipliers_material as Record<string, number>;
             
             for (const formulaKey in multipliers) {
               const factor = multipliers[formulaKey];
@@ -316,6 +317,45 @@ export function ElektrosanierungConfigurator() {
               }
             }
           }
+
+          // Calculate hours multiplier: start with base 1 and ADD multiplier terms
+          let hoursMultiplier = 1.0;
+          
+          // Apply hours multipliers (e.g., {"altbau": 0.2} means +20% if altbau is true)
+          if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
+            const multipliers = item.multipliers_hours as Record<string, number>;
+            
+            for (const formulaKey in multipliers) {
+              const factor = multipliers[formulaKey];
+              
+              // Split the formula key by '*' to get individual parameter names
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              
+              // Calculate the term value by multiplying all parameter values
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                  // Convert boolean to 1/0 for calculations
+                  const paramValue = typeof globalParams[paramName] === 'boolean'
+                    ? (globalParams[paramName] ? 1 : 0)
+                    : globalParams[paramName];
+                  
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
+              }
+              
+              // ADD the final term (termValue * factor) to hours multiplier
+              if (allParamsFound || termValue !== 0) {
+                hoursMultiplier += termValue * factor;
+              }
+            }
+          }
           
           newLineItems.push({
             id: `${packageData.id}-${product.product_id}-${Date.now()}`,
@@ -329,12 +369,12 @@ export function ElektrosanierungConfigurator() {
             category: product.category,
             produkt_gruppe: product.produkt_gruppe,
             qualitaetsstufe: product.qualitaetsstufe,
-          stunden_meister: product.stunden_meister * calculatedQuantity,
-          stunden_geselle: product.stunden_geselle * calculatedQuantity,
-          stunden_monteur: product.stunden_monteur * calculatedQuantity,
-          stunden_meister_per_unit: product.stunden_meister,
-          stunden_geselle_per_unit: product.stunden_geselle,
-          stunden_monteur_per_unit: product.stunden_monteur,
+          stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+          stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+          stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+          stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+          stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+          stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
           quantity: Math.round(calculatedQuantity * 100) / 100,
           image: product.image
           });
