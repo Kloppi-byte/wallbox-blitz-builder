@@ -326,6 +326,9 @@ export function ElektrosanierungConfigurator() {
             const multipliers = item.multipliers_hours as Record<string, number>;
             
             for (const formulaKey in multipliers) {
+              // Skip the "floor" key - it's handled separately
+              if (formulaKey === 'floor') continue;
+              
               const factor = multipliers[formulaKey];
               
               // Split the formula key by '*' to get individual parameter names
@@ -354,6 +357,11 @@ export function ElektrosanierungConfigurator() {
               if (allParamsFound || termValue !== 0) {
                 hoursMultiplier += termValue * factor;
               }
+            }
+            
+            // Apply floor if specified - prevents multiplier from going below minimum
+            if (multipliers.floor !== undefined) {
+              hoursMultiplier = Math.max(hoursMultiplier, multipliers.floor);
             }
           }
           
