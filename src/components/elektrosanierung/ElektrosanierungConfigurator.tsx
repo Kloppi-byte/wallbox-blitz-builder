@@ -277,7 +277,21 @@ export function ElektrosanierungConfigurator() {
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       const newLineItems: OfferLineItem[] = [];
       packageItemsForPackage.forEach(item => {
-        const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+        // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
+        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+        
+        if (!product && packageData.quality_level) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+        }
+        
+        if (!product) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+        }
+        
+        if (!product) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+        }
+        
         if (product) {
           // Calculate quantity: start with quantity_base and ADD multiplier terms
           let calculatedQuantity = item.quantity_base || 0;
@@ -438,7 +452,21 @@ export function ElektrosanierungConfigurator() {
     const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
     const newLineItems: OfferLineItem[] = [];
     packageItemsForPackage.forEach(item => {
-      const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+      // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
+      let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+      
+      if (!product && packageData.quality_level) {
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+      }
+      
+      if (!product) {
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+      }
+      
+      if (!product) {
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+      }
+      
       if (product) {
         // Calculate quantity: start with quantity_base and ADD multiplier terms
         let calculatedQuantity = item.quantity_base || 0;
