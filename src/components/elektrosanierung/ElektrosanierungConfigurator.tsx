@@ -284,36 +284,49 @@ export function ElektrosanierungConfigurator() {
           
           // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
           if (item.multipliers_material && typeof item.multipliers_material === 'object') {
-            const multipliers = item.multipliers_material as Record<string, number>;
+            const multipliers = item.multipliers_material as Record<string, any>;
             
             for (const formulaKey in multipliers) {
               const factor = multipliers[formulaKey];
               
-              // Split the formula key by '*' to get individual parameter names
-              const paramNames = formulaKey.split('*').map(name => name.trim());
-              
-              // Calculate the term value by multiplying all parameter values
-              let termValue = 1.0;
-              let allParamsFound = true;
-              
-              for (const paramName of paramNames) {
-                if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
-                  // Convert boolean to 1/0 for calculations
-                  const paramValue = typeof globalParams[paramName] === 'boolean'
-                    ? (globalParams[paramName] ? 1 : 0)
-                    : globalParams[paramName];
-                  
-                  termValue *= paramValue;
-                } else {
-                  allParamsFound = false;
-                  termValue = 0;
-                  break;
+              // Check if factor is an object (lookup table for additive values)
+              if (typeof factor === 'object' && factor !== null) {
+                // Object-based additive: look up the parameter value in the object
+                const paramValue = globalParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    calculatedQuantity += Number(additiveValue);
+                  }
                 }
-              }
-              
-              // ADD the final term (termValue * factor) to total quantity
-              if (allParamsFound || termValue !== 0) {
-                calculatedQuantity += termValue * factor;
+              } else if (typeof factor === 'number') {
+                // Number-based multiplicative: use existing formula logic
+                // Split the formula key by '*' to get individual parameter names
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                
+                // Calculate the term value by multiplying all parameter values
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                    // Convert boolean to 1/0 for calculations
+                    const paramValue = typeof globalParams[paramName] === 'boolean'
+                      ? (globalParams[paramName] ? 1 : 0)
+                      : globalParams[paramName];
+                    
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
+                }
+                
+                // ADD the final term (termValue * factor) to total quantity
+                if (allParamsFound || termValue !== 0) {
+                  calculatedQuantity += termValue * factor;
+                }
               }
             }
           }
@@ -323,7 +336,7 @@ export function ElektrosanierungConfigurator() {
           
           // Apply hours multipliers (e.g., {"altbau": 0.2} means +20% if altbau is true)
           if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
-            const multipliers = item.multipliers_hours as Record<string, number>;
+            const multipliers = item.multipliers_hours as Record<string, any>;
             
             for (const formulaKey in multipliers) {
               // Skip the "floor" key - it's handled separately
@@ -331,31 +344,44 @@ export function ElektrosanierungConfigurator() {
               
               const factor = multipliers[formulaKey];
               
-              // Split the formula key by '*' to get individual parameter names
-              const paramNames = formulaKey.split('*').map(name => name.trim());
-              
-              // Calculate the term value by multiplying all parameter values
-              let termValue = 1.0;
-              let allParamsFound = true;
-              
-              for (const paramName of paramNames) {
-                if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
-                  // Convert boolean to 1/0 for calculations
-                  const paramValue = typeof globalParams[paramName] === 'boolean'
-                    ? (globalParams[paramName] ? 1 : 0)
-                    : globalParams[paramName];
-                  
-                  termValue *= paramValue;
-                } else {
-                  allParamsFound = false;
-                  termValue = 0;
-                  break;
+              // Check if factor is an object (lookup table for additive values)
+              if (typeof factor === 'object' && factor !== null) {
+                // Object-based additive: look up the parameter value in the object
+                const paramValue = globalParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    hoursMultiplier += Number(additiveValue);
+                  }
                 }
-              }
-              
-              // ADD the final term (termValue * factor) to hours multiplier
-              if (allParamsFound || termValue !== 0) {
-                hoursMultiplier += termValue * factor;
+              } else if (typeof factor === 'number') {
+                // Number-based multiplicative: use existing formula logic
+                // Split the formula key by '*' to get individual parameter names
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                
+                // Calculate the term value by multiplying all parameter values
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (globalParams[paramName] !== undefined && globalParams[paramName] !== null) {
+                    // Convert boolean to 1/0 for calculations
+                    const paramValue = typeof globalParams[paramName] === 'boolean'
+                      ? (globalParams[paramName] ? 1 : 0)
+                      : globalParams[paramName];
+                    
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
+                }
+                
+                // ADD the final term (termValue * factor) to hours multiplier
+                if (allParamsFound || termValue !== 0) {
+                  hoursMultiplier += termValue * factor;
+                }
               }
             }
             
