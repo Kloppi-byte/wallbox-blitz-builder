@@ -800,18 +800,18 @@ export function ElektrosanierungConfigurator() {
                                                </Select>
                                              </div>
 
-                                             {/* Price */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Gesamtpreis</Label>
-                                               <div className="bg-muted border rounded p-2 h-9 flex items-center justify-center">
-                                                 <span className="font-semibold">
-                                                   {((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)} €
-                                                 </span>
-                                               </div>
-                                               <span className="text-xs text-muted-foreground mt-1 block">
-                                                 {(item.unit_price || 0).toFixed(2)} € / {item.unit}
-                                               </span>
-                                             </div>
+                                              {/* Price */}
+                                              <div>
+                                                <Label className="text-sm font-medium mb-2 block">Gesamtpreis</Label>
+                                                <div className="bg-muted border rounded p-2 h-9 flex items-center justify-center">
+                                                  <span className="font-semibold">
+                                                    {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €
+                                                  </span>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground mt-1 block">
+                                                  {rates ? (item.unit_price * rates.aufschlag_prozent).toFixed(2) : item.unit_price.toFixed(2)} € / {item.unit}
+                                                </span>
+                                              </div>
 
                                              {/* Remove button */}
                                              <div className="flex items-end">
