@@ -501,7 +501,7 @@ export function ElektrosanierungConfigurator() {
         }
         
         newLineItems.push({
-          id: `${packageData.id}-${product.product_id}-${Date.now()}-${Math.random()}`,
+          id: `${instanceId}-${product.product_id}-${Math.random()}`,
           package_id: packageData.id,
           package_name: packageData.name,
           product_id: product.product_id,
@@ -531,9 +531,17 @@ export function ElektrosanierungConfigurator() {
     });
   };
 
-  // Handler function for parameter changes
-  const handleParameterChange = (packageId: number, paramKey: string, value: any) => {
-    setSelectedPackages(prev => prev.map(pkg => pkg.package_id === packageId ? {
+  // Handler function to remove a specific package instance
+  const handleRemovePackageInstance = (instanceId: string) => {
+    // Remove the instance from selectedPackages
+    setSelectedPackages(prev => prev.filter(p => p.instanceId !== instanceId));
+    // Remove all line items associated with this instance
+    setOfferLineItems(prev => prev.filter(item => !item.id.startsWith(instanceId)));
+  };
+
+  // Handler function for parameter changes - now instance-specific
+  const handleParameterChange = (instanceId: string, paramKey: string, value: any) => {
+    setSelectedPackages(prev => prev.map(pkg => pkg.instanceId === instanceId ? {
       ...pkg,
       parameters: {
         ...pkg.parameters,
@@ -623,10 +631,20 @@ export function ElektrosanierungConfigurator() {
 
   // Helper function to check if a package is selected
   const isPackageSelected = (packageId: number) => {
-    return offerLineItems.some(item => item.package_id === packageId);
+    return selectedPackages.some(p => p.package_id === packageId);
   };
 
-  // Helper function to get line items for a package
+  // Helper function to get all instances of a package
+  const getPackageInstances = (packageId: number) => {
+    return selectedPackages.filter(p => p.package_id === packageId);
+  };
+
+  // Helper function to get line items for a specific instance
+  const getLineItemsForInstance = (instanceId: string) => {
+    return offerLineItems.filter(item => item.id.startsWith(instanceId));
+  };
+
+  // Helper function to get line items for a package (for summary section)
   const getLineItemsForPackage = (packageId: number) => {
     return offerLineItems.filter(item => item.package_id === packageId);
   };
@@ -884,363 +902,481 @@ export function ElektrosanierungConfigurator() {
                     <div className="space-y-4">
                       {getPackagesByCategory(category).map(pkg => {
                     const isSelected = isPackageSelected(pkg.id);
+                    const instances = getPackageInstances(pkg.id);
                     const requiredParams = paramLinks.filter(link => link.package_id === pkg.id);
-                    return <div key={pkg.id}>
-                            <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                              <Checkbox checked={isSelected} onCheckedChange={checked => handlePackageSelection(pkg, checked as boolean)} />
-                              <div className="flex-1">
-                                <h4 className="font-medium">{pkg.name}</h4>
-                                {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
-                                {pkg.quality_level && <span className="text-xs bg-secondary px-2 py-1 rounded">
-                                    {pkg.quality_level}
-                                  </span>}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {isSelected && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => handleAddAnotherInstance(pkg)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Nochmal hinzufügen
-                                  </Button>
-                                )}
+                    
+                    return <div key={pkg.id} className="space-y-3">
+                            {/* Show unselected package with checkbox */}
+                            {!isSelected && (
+                              <div className="flex items-center space-x-3 p-4 border rounded-lg">
+                                <Checkbox checked={false} onCheckedChange={checked => handlePackageSelection(pkg, checked as boolean)} />
+                                <div className="flex-1">
+                                  <h4 className="font-medium">{pkg.name}</h4>
+                                  {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
+                                  {pkg.quality_level && <span className="text-xs bg-secondary px-2 py-1 rounded">
+                                      {pkg.quality_level}
+                                    </span>}
+                                </div>
                                 <Button variant="outline" size="sm" onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}>
                                   Details
                                 </Button>
                               </div>
-                            </div>
+                            )}
+                            
+                            {/* Show each instance as a separate box */}
+                            {instances.map((instance, index) => (
+                              <div key={instance.instanceId}>
+                                <div className="flex items-center space-x-3 p-4 border rounded-lg">
+                                  <Checkbox checked={true} onCheckedChange={() => handleRemovePackageInstance(instance.instanceId)} />
+                                  <div className="flex-1">
+                                    <h4 className="font-medium">{pkg.name}</h4>
+                                    {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
+                                    {pkg.quality_level && <span className="text-xs bg-secondary px-2 py-1 rounded mr-2">
+                                        {pkg.quality_level}
+                                      </span>}
+                                    {instances.length > 1 && <span className="text-xs text-muted-foreground">
+                                        (Instanz {index + 1})
+                                      </span>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => handleAddAnotherInstance(pkg)}
+                                    >
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Nochmal hinzufügen
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setDetailsPackageId(detailsPackageId === pkg.id ? null : pkg.id)}>
+                                      Details
+                                    </Button>
+                                  </div>
+                                </div>
 
-                            {/* Conditionally render parameter inputs ONLY if package is selected */}
-                            {isSelected && requiredParams.length > 0 && <div className="pl-8 mt-2 space-y-3 p-4 bg-muted/50 rounded-lg border">
-                                <h5 className="text-sm font-semibold text-foreground">Parameter für dieses Paket:</h5>
-                                {requiredParams.map(link => {
-                          const def = localParamDefs.find(d => d.param_key === link.param_key);
-                          if (!def) return null;
-                          const currentPackage = selectedPackages.find(p => p.package_id === pkg.id);
-                          const currentValue = currentPackage?.parameters[def.param_key] || def.default_value || '';
-                          return <div key={def.param_key} className="space-y-1">
-                                      <Label htmlFor={`param-${pkg.id}-${def.param_key}`} className="text-sm font-medium">
-                                        {def.label}
-                                        {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
-                                      </Label>
-                                      <Input id={`param-${pkg.id}-${def.param_key}`} type={def.param_type} value={currentValue} onChange={e => handleParameterChange(pkg.id, def.param_key, e.target.value)} placeholder={`${def.label} eingeben...`} className="max-w-xs" />
-                                    </div>;
-                        })}
-                              </div>}
-                          {/* Package details view */}
-                          {detailsPackageId === pkg.id && <div className="pl-8 mt-2">
-                              <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{globalParams.qualitaetsstufe}':</strong>
-                              {isPackageSelected(pkg.id) ? <div className="space-y-3">
-                                   {getLineItemsForPackage(pkg.id).map(item => <div key={item.id} className="p-4 bg-background border rounded-lg">
-                                       <div className="flex items-start gap-4">
-                                         {/* Product Image */}
-                                         <div className="w-16 h-16 flex-shrink-0">
-                                           {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" /> : <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                               <Package className="h-8 w-8 text-muted-foreground" />
-                                             </div>}
-                                         </div>
+                                {/* Parameter inputs for this specific instance */}
+                                {requiredParams.length > 0 && (
+                                  <div className="pl-8 mt-2 space-y-3 p-4 bg-muted/50 rounded-lg border">
+                                    <h5 className="text-sm font-semibold text-foreground">Parameter für dieses Paket:</h5>
+                                    {requiredParams.map(link => {
+                                      const def = localParamDefs.find(d => d.param_key === link.param_key);
+                                      if (!def) return null;
+                                      const currentValue = instance.parameters[def.param_key] || def.default_value || '';
+                                      return <div key={def.param_key} className="space-y-1">
+                                          <Label htmlFor={`param-${instance.instanceId}-${def.param_key}`} className="text-sm font-medium">
+                                            {def.label}
+                                            {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
+                                          </Label>
+                                          <Input 
+                                            id={`param-${instance.instanceId}-${def.param_key}`} 
+                                            type={def.param_type} 
+                                            value={currentValue} 
+                                            onChange={e => handleParameterChange(instance.instanceId, def.param_key, e.target.value)} 
+                                            placeholder={`${def.label} eingeben...`} 
+                                            className="max-w-xs" 
+                                          />
+                                        </div>;
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {/* Package details view - show for any instance */}
+                            {detailsPackageId === pkg.id && instances.length > 0 && (
+                              <div className="pl-8 mt-2">
+                                <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{globalParams.qualitaetsstufe}':</strong>
+                                {instances.map((instance, idx) => (
+                                  <div key={instance.instanceId} className="mb-6">
+                                    {instances.length > 1 && <h6 className="text-sm font-medium mb-2">Instanz {idx + 1}</h6>}
+                                    <div className="space-y-3">
+                                      {getLineItemsForInstance(instance.instanceId).map(item => (
+                                        <div key={item.id} className="p-4 bg-background border rounded-lg">
+                                          <div className="flex items-start gap-4">
+                                            {/* Product Image */}
+                                            <div className="w-16 h-16 flex-shrink-0">
+                                              {item.image ? (
+                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
+                                              ) : (
+                                                <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                  <Package className="h-8 w-8 text-muted-foreground" />
+                                                </div>
+                                              )}
+                                            </div>
 
-                                         {/* Product Info and Controls */}
-                                         <div className="flex-1">
-                                           <div className="mb-3">
-                                             <h5 className="font-medium text-base">{item.name}</h5>
-                                             {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
-                                           </div>
+                                            {/* Product Info and Controls */}
+                                            <div className="flex-1">
+                                              <div className="mb-3">
+                                                <h5 className="font-medium text-base">{item.name}</h5>
+                                                {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                                              </div>
 
-                                           {/* Top row controls */}
-                                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                             {/* Quantity */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Menge</Label>
-                                               <div className="flex items-center gap-2">
-                                                 <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}>
-                                                   <Minus className="h-4 w-4" />
-                                                 </Button>
-                                                 <Input type="number" min="0" step="1" value={item.quantity || ''} placeholder="0" onChange={e => {
-                                        const value = e.target.value;
-                                        if (value === '') {
-                                          setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                            ...lineItem,
-                                            quantity: '' as any
-                                          } : lineItem));
-                                        } else {
-                                          const num = parseInt(value) || 0;
-                                          handleQuantityChange(item.id, num);
-                                        }
-                                      }} onBlur={e => {
-                                        if (e.target.value === '') {
-                                          handleQuantityChange(item.id, 0);
-                                        }
-                                      }} className="w-20 h-9 text-center" />
-                                                 <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
-                                                   <Plus className="h-4 w-4" />
-                                                 </Button>
-                                               </div>
-                                               <span className="text-xs text-muted-foreground mt-1 block">{item.unit}</span>
-                                             </div>
+                                              {/* Top row controls */}
+                                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                                {/* Quantity */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Menge</Label>
+                                                  <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}>
+                                                      <Minus className="h-4 w-4" />
+                                                    </Button>
+                                                    <Input 
+                                                      type="number" 
+                                                      min="0" 
+                                                      step="1" 
+                                                      value={item.quantity || ''} 
+                                                      placeholder="0" 
+                                                      onChange={e => {
+                                                        const value = e.target.value;
+                                                        if (value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? { ...lineItem, quantity: '' as any } : lineItem
+                                                          ));
+                                                        } else {
+                                                          const num = parseInt(value) || 0;
+                                                          handleQuantityChange(item.id, num);
+                                                        }
+                                                      }}
+                                                      onBlur={e => {
+                                                        if (e.target.value === '') {
+                                                          handleQuantityChange(item.id, 0);
+                                                        }
+                                                      }}
+                                                      className="w-20 h-9 text-center" 
+                                                    />
+                                                    <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
+                                                      <Plus className="h-4 w-4" />
+                                                    </Button>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground mt-1 block">{item.unit}</span>
+                                                </div>
 
-                                             {/* Quality */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Qualität</Label>
-                                               <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
-                                                 <SelectTrigger className="h-9">
-                                                   <SelectValue />
-                                                 </SelectTrigger>
-                                                 <SelectContent>
-                                                   {getAlternatives(item.produkt_gruppe || '').map(alt => <SelectItem key={alt.product_id} value={alt.product_id}>
-                                                       {alt.qualitaetsstufe}
-                                                     </SelectItem>)}
-                                                 </SelectContent>
-                                               </Select>
-                                             </div>
+                                                {/* Quality */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Qualität</Label>
+                                                  <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
+                                                    <SelectTrigger className="h-9">
+                                                      <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {getAlternatives(item.produkt_gruppe || '').map(alt => (
+                                                        <SelectItem key={alt.product_id} value={alt.product_id}>
+                                                          {alt.qualitaetsstufe}
+                                                        </SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
 
-                                              {/* Price */}
-                                              <div>
-                                                <Label className="text-sm font-medium mb-2 block">Gesamtpreis</Label>
-                                                <div className="bg-muted border rounded p-2 h-9 flex items-center justify-center">
-                                                  <span className="font-semibold">
-                                                    {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €
+                                                {/* Price */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Preis</Label>
+                                                  <div className="space-y-1">
+                                                    <span className="text-base font-semibold block">
+                                                      {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €
+                                                    </span>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                                    {rates ? (item.unit_price * rates.aufschlag_prozent).toFixed(2) : item.unit_price.toFixed(2)} € / {item.unit}
                                                   </span>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {rates ? (item.unit_price * rates.aufschlag_prozent).toFixed(2) : item.unit_price.toFixed(2)} € / {item.unit}
-                                                </span>
-                                              </div>
 
-                                             {/* Remove button */}
-                                             <div className="flex items-end">
-                                               <Button variant="destructive" size="sm" onClick={() => handleRemoveLineItem(item.id)} className="h-9 w-full">
-                                                 Entfernen
-                                               </Button>
-                                             </div>
-                                           </div>
-
-                                           {/* Hours row */}
-                                           <div className="grid grid-cols-3 gap-4">
-                                             {/* Meister Hours */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Meister (h)</Label>
-                                               <div className="flex items-center gap-2">
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_meister_per_unit - 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_meister_per_unit: newPerUnit,
-                                           stunden_meister: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Minus className="h-3 w-3" />
-                                                 </Button>
-                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
-                                         const value = e.target.value;
-                                         if (value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_meister_per_unit: 0
-                                           } : lineItem));
-                                         } else {
-                                           const totalHours = parseFloat(value) || 0;
-                                           const perUnitHours = totalHours / (item.quantity || 1);
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_meister_per_unit: perUnitHours,
-                                             stunden_meister: totalHours
-                                           } : lineItem));
-                                         }
-                                       }} onBlur={e => {
-                                         if (e.target.value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_meister_per_unit: 0,
-                                             stunden_meister: 0
-                                           } : lineItem));
-                                         }
-                                       }} className="flex-1 h-8 text-center text-sm" />
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_meister_per_unit + 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_meister_per_unit: newPerUnit,
-                                           stunden_meister: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Plus className="h-3 w-3" />
-                                                 </Button>
+                                                {/* Remove button */}
+                                                <div className="flex items-end">
+                                                  <Button variant="destructive" size="sm" onClick={() => handleRemoveLineItem(item.id)} className="h-9 w-full">
+                                                    Entfernen
+                                                  </Button>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
-                                                </span>
                                               </div>
 
-                                             {/* Geselle Hours */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Geselle (h)</Label>
-                                               <div className="flex items-center gap-2">
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_geselle_per_unit - 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_geselle_per_unit: newPerUnit,
-                                           stunden_geselle: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Minus className="h-3 w-3" />
-                                                 </Button>
-                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
-                                         const value = e.target.value;
-                                         if (value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_geselle_per_unit: 0
-                                           } : lineItem));
-                                         } else {
-                                           const totalHours = parseFloat(value) || 0;
-                                           const perUnitHours = totalHours / (item.quantity || 1);
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_geselle_per_unit: perUnitHours,
-                                             stunden_geselle: totalHours
-                                           } : lineItem));
-                                         }
-                                       }} onBlur={e => {
-                                         if (e.target.value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_geselle_per_unit: 0,
-                                             stunden_geselle: 0
-                                           } : lineItem));
-                                         }
-                                       }} className="flex-1 h-8 text-center text-sm" />
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_geselle_per_unit + 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_geselle_per_unit: newPerUnit,
-                                           stunden_geselle: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Plus className="h-3 w-3" />
-                                                 </Button>
+                                              {/* Hours row */}
+                                              <div className="grid grid-cols-3 gap-4">
+                                                {/* Meister Hours */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Meister (h)</Label>
+                                                  <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_meister_per_unit - 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_meister_per_unit: newPerUnit,
+                                                          stunden_meister: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.1" 
+                                                      min="0" 
+                                                      value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} 
+                                                      placeholder="0.00" 
+                                                      onChange={e => {
+                                                        const value = e.target.value;
+                                                        if (value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? { ...lineItem, stunden_meister_per_unit: 0 } : lineItem
+                                                          ));
+                                                        } else {
+                                                          const totalHours = parseFloat(value) || 0;
+                                                          const perUnitHours = totalHours / (item.quantity || 1);
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_meister_per_unit: perUnitHours,
+                                                              stunden_meister: totalHours
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      onBlur={e => {
+                                                        if (e.target.value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_meister_per_unit: 0,
+                                                              stunden_meister: 0
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      className="flex-1 h-8 text-center text-sm" 
+                                                    />
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_meister_per_unit + 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_meister_per_unit: newPerUnit,
+                                                          stunden_meister: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                                    {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
+                                                  </span>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
-                                                </span>
-                                              </div>
 
-                                             {/* Monteur Hours */}
-                                             <div>
-                                               <Label className="text-sm font-medium mb-2 block">Monteur (h)</Label>
-                                               <div className="flex items-center gap-2">
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_monteur_per_unit - 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_monteur_per_unit: newPerUnit,
-                                           stunden_monteur: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Minus className="h-3 w-3" />
-                                                 </Button>
-                                                  <Input type="number" step="0.1" min="0" value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} placeholder="0.00" onChange={e => {
-                                         const value = e.target.value;
-                                         if (value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_monteur_per_unit: 0
-                                           } : lineItem));
-                                         } else {
-                                           const totalHours = parseFloat(value) || 0;
-                                           const perUnitHours = totalHours / (item.quantity || 1);
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_monteur_per_unit: perUnitHours,
-                                             stunden_monteur: totalHours
-                                           } : lineItem));
-                                         }
-                                       }} onBlur={e => {
-                                         if (e.target.value === '') {
-                                           setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                             ...lineItem,
-                                             stunden_monteur_per_unit: 0,
-                                             stunden_monteur: 0
-                                           } : lineItem));
-                                         }
-                                       }} className="flex-1 h-8 text-center text-sm" />
-                                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                         const newPerUnit = Math.max(0, item.stunden_monteur_per_unit + 0.1);
-                                         setOfferLineItems(current => current.map(lineItem => lineItem.id === item.id ? {
-                                           ...lineItem,
-                                           stunden_monteur_per_unit: newPerUnit,
-                                           stunden_monteur: newPerUnit * item.quantity
-                                         } : lineItem));
-                                       }}>
-                                                   <Plus className="h-3 w-3" />
-                                                 </Button>
+                                                {/* Geselle Hours */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Geselle (h)</Label>
+                                                  <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_geselle_per_unit - 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_geselle_per_unit: newPerUnit,
+                                                          stunden_geselle: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.1" 
+                                                      min="0" 
+                                                      value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} 
+                                                      placeholder="0.00" 
+                                                      onChange={e => {
+                                                        const value = e.target.value;
+                                                        if (value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? { ...lineItem, stunden_geselle_per_unit: 0 } : lineItem
+                                                          ));
+                                                        } else {
+                                                          const totalHours = parseFloat(value) || 0;
+                                                          const perUnitHours = totalHours / (item.quantity || 1);
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_geselle_per_unit: perUnitHours,
+                                                              stunden_geselle: totalHours
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      onBlur={e => {
+                                                        if (e.target.value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_geselle_per_unit: 0,
+                                                              stunden_geselle: 0
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      className="flex-1 h-8 text-center text-sm" 
+                                                    />
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_geselle_per_unit + 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_geselle_per_unit: newPerUnit,
+                                                          stunden_geselle: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                                    {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
+                                                  </span>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground mt-1 block">
-                                                  {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
-                                                </span>
+
+                                                {/* Monteur Hours */}
+                                                <div>
+                                                  <Label className="text-sm font-medium mb-2 block">Monteur (h)</Label>
+                                                  <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_monteur_per_unit - 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_monteur_per_unit: newPerUnit,
+                                                          stunden_monteur: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.1" 
+                                                      min="0" 
+                                                      value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} 
+                                                      placeholder="0.00" 
+                                                      onChange={e => {
+                                                        const value = e.target.value;
+                                                        if (value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? { ...lineItem, stunden_monteur_per_unit: 0 } : lineItem
+                                                          ));
+                                                        } else {
+                                                          const totalHours = parseFloat(value) || 0;
+                                                          const perUnitHours = totalHours / (item.quantity || 1);
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_monteur_per_unit: perUnitHours,
+                                                              stunden_monteur: totalHours
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      onBlur={e => {
+                                                        if (e.target.value === '') {
+                                                          setOfferLineItems(current => current.map(lineItem => 
+                                                            lineItem.id === item.id ? {
+                                                              ...lineItem,
+                                                              stunden_monteur_per_unit: 0,
+                                                              stunden_monteur: 0
+                                                            } : lineItem
+                                                          ));
+                                                        }
+                                                      }}
+                                                      className="flex-1 h-8 text-center text-sm" 
+                                                    />
+                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                      const newPerUnit = Math.max(0, item.stunden_monteur_per_unit + 0.1);
+                                                      setOfferLineItems(current => current.map(lineItem => 
+                                                        lineItem.id === item.id ? {
+                                                          ...lineItem,
+                                                          stunden_monteur_per_unit: newPerUnit,
+                                                          stunden_monteur: newPerUnit * item.quantity
+                                                        } : lineItem
+                                                      ));
+                                                    }}>
+                                                      <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground mt-1 block">
+                                                    {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
+                                                  </span>
+                                                </div>
                                               </div>
-                                           </div>
-                                         </div>
-                                       </div>
-                                     </div>)}
-                                   
-                                   {/* Add Product Button */}
-                                   <div className="p-3 border-2 border-dashed border-muted rounded-lg">
-                                     <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
-                                       <PopoverTrigger asChild>
-                                         <Button variant="outline" size="sm" className="w-full">
-                                           <Plus className="h-4 w-4 mr-2" />
-                                           Produkt hinzufügen
-                                         </Button>
-                                       </PopoverTrigger>
-                                       <PopoverContent className="w-80 p-0" align="start">
-                                         <div className="flex flex-col">
-                                           {/* Search Input */}
-                                           <div className="flex items-center border-b px-3 py-2">
-                                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                             <Input placeholder="Produkte durchsuchen..." value={productSearchQuery} onChange={e => setProductSearchQuery(e.target.value)} className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" />
-                                           </div>
-                                           
-                                           {/* Product List */}
-                                           <div className="max-h-60 overflow-y-auto">
-                                             {getFilteredProducts().length === 0 ? <div className="p-4 text-center text-sm text-muted-foreground">
-                                                 Keine Produkte gefunden.
-                                               </div> : getFilteredProducts().map(product => <div key={product.product_id} onClick={() => handleAddProduct(pkg.id, product.product_id)} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors">
-                                                   <div className="w-10 h-10 flex-shrink-0">
-                                                     {product.image ? <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" /> : <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                         <Package className="h-5 w-5 text-muted-foreground" />
-                                                       </div>}
-                                                   </div>
-                                                   <div className="flex-1 min-w-0">
-                                                     <div className="font-medium text-sm">{product.name}</div>
-                                                     {product.description && <div className="text-xs text-muted-foreground truncate">{product.description}</div>}
-                                                     <div className="flex items-center gap-2 mt-1">
-                                                       <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
-                                                       <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
-                                                     </div>
-                                                   </div>
-                                                 </div>)}
-                                           </div>
-                                         </div>
-                                       </PopoverContent>
-                                     </Popover>
-                                   </div>
-                                 </div> : <div className="text-sm text-muted-foreground">
-                                  <p>Paket auswählen, um Inhalte zu bearbeiten.</p>
-                                  <ul className="mt-1 space-y-1">
-                                    {getProductsForPackage(pkg.id, globalParams.qualitaetsstufe).map(productName => <li key={productName}>- {productName}</li>)}
-                                  </ul>
-                                </div>}
-                            </div>}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    
+                                      {/* Add Product Button */}
+                                      <div className="p-3 border-2 border-dashed border-muted rounded-lg">
+                                        <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
+                                          <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm" className="w-full">
+                                              <Plus className="h-4 w-4 mr-2" />
+                                              Produkt hinzufügen
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-80 p-0" align="start">
+                                            <div className="flex flex-col">
+                                              {/* Search Input */}
+                                              <div className="flex items-center border-b px-3 py-2">
+                                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                <Input 
+                                                  placeholder="Produkte durchsuchen..." 
+                                                  value={productSearchQuery} 
+                                                  onChange={e => setProductSearchQuery(e.target.value)} 
+                                                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                                                />
+                                              </div>
+                                              
+                                              {/* Product List */}
+                                              <div className="max-h-60 overflow-y-auto">
+                                                {getFilteredProducts().length === 0 ? (
+                                                  <div className="p-4 text-center text-sm text-muted-foreground">
+                                                    Keine Produkte gefunden.
+                                                  </div>
+                                                ) : getFilteredProducts().map(product => (
+                                                  <div 
+                                                    key={product.product_id} 
+                                                    onClick={() => handleAddProduct(pkg.id, product.product_id)} 
+                                                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
+                                                  >
+                                                    <div className="w-10 h-10 flex-shrink-0">
+                                                      {product.image ? (
+                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" />
+                                                      ) : (
+                                                        <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                          <Package className="h-5 w-5 text-muted-foreground" />
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="font-medium text-sm">{product.name}</div>
+                                                      {product.description && (
+                                                        <div className="text-xs text-muted-foreground truncate">{product.description}</div>
+                                                      )}
+                                                      <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
+                                                        <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>;
-                  })}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>)}
+                   })}
+                     </div>
+                   </AccordionContent>
+                 </AccordionItem>)}
             </Accordion>
           </CardContent>
         </Card>
