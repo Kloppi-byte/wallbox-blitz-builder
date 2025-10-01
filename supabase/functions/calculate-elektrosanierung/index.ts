@@ -12,6 +12,7 @@ interface RequestBody {
     qualitaetsstufe: string;
   };
   selected_package_ids: number[];
+  loc_id?: string;
 }
 
 serve(async (req) => {
@@ -26,12 +27,26 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { global_parameters, selected_package_ids }: RequestBody = await req.json()
+    const { global_parameters, selected_package_ids, loc_id }: RequestBody = await req.json()
 
     console.log('Processing calculation request:', {
       global_parameters,
-      selected_package_ids
+      selected_package_ids,
+      loc_id
     })
+
+    // Fetch rates for the specified location
+    const { data: rates, error: ratesError } = await supabaseClient
+      .from('offers_rates')
+      .select('*')
+      .eq('loc_id', loc_id || '1')
+      .single()
+
+    if (ratesError) {
+      throw new Error(`Failed to fetch rates: ${ratesError.message}`)
+    }
+
+    console.log('Fetched rates:', rates)
 
     // Fetch package items for selected packages
     const { data: packageItems, error: packageItemsError } = await supabaseClient
@@ -50,7 +65,9 @@ serve(async (req) => {
 
     // Calculate total costs based on package items and products
     let totalMaterialCosts = 0
-    let totalLaborHours = 0
+    let monteurHours = 0
+    let geselleHours = 0
+    let meisterHours = 0
 
     for (const item of packageItems || []) {
       const product = item.offers_products
@@ -60,25 +77,22 @@ serve(async (req) => {
       const quantity = baseQuantity
       
       if (product) {
-        // Calculate material costs
-        totalMaterialCosts += (product.unit_price || 0) * quantity
+        // Calculate material costs with markup from rates
+        const finalUnitPrice = (product.unit_price || 0) * rates.aufschlag_prozent
+        totalMaterialCosts += finalUnitPrice * quantity
         
-        // Calculate labor hours
-        totalLaborHours += (
-          (product.stunden_monteur || 0) + 
-          (product.stunden_geselle || 0) + 
-          (product.stunden_meister || 0)
-        ) * quantity
+        // Calculate labor hours by type
+        monteurHours += (product.stunden_monteur || 0) * quantity
+        geselleHours += (product.stunden_geselle || 0) * quantity
+        meisterHours += (product.stunden_meister || 0) * quantity
       }
     }
 
-    // Apply quality level multiplier
-    const qualityMultiplier = global_parameters.qualitaetsstufe === 'Premium' ? 1.3 : 1.0
-    totalMaterialCosts *= qualityMultiplier
-
-    // Calculate labor costs (example: 65 EUR per hour)
-    const hourlyRate = 65
-    const totalLaborCosts = totalLaborHours * hourlyRate
+    // Calculate labor costs using rates from offers_rates
+    const totalLaborCosts = 
+      (monteurHours * rates.stundensatz_monteur) +
+      (geselleHours * rates.stundensatz_geselle) +
+      (meisterHours * rates.stundensatz_meister)
 
     // Calculate travel costs (example: 5% of total)
     const travelCosts = (totalMaterialCosts + totalLaborCosts) * 0.05

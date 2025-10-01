@@ -93,11 +93,13 @@ interface WebhookPayload {
 // Universal calculation engine
 async function calculateOffer(
   offerRequest: OfferRequest,
-  supabase: any
+  supabase: any,
+  locId?: string
 ): Promise<CalculatedProduct[]> {
   console.log('Starting universal calculation engine...');
   console.log('Global params:', offerRequest.global_params);
   console.log('Selected packages:', offerRequest.selected_packages.length);
+  console.log('Location ID:', locId);
 
   // Step A: Fetch all necessary data
   const packageIds = offerRequest.selected_packages.map(p => p.package_id);
@@ -126,6 +128,20 @@ async function calculateOffer(
   }
 
   console.log('Fetched products:', allProducts.length);
+
+  // Fetch rates for the specified location
+  const { data: rates, error: ratesError } = await supabase
+    .from('offers_rates')
+    .select('*')
+    .eq('loc_id', locId || '1')
+    .single();
+
+  if (ratesError) {
+    console.error('Error fetching rates:', ratesError);
+    throw new Error(`Failed to fetch rates: ${ratesError.message}`);
+  }
+
+  console.log('Fetched rates:', rates);
 
   // Step B: Initialize offer map
   const offerMap = new Map<string, CalculatedProduct>();
@@ -223,10 +239,13 @@ async function calculateOffer(
       // Add or update product in offer map
       const existingProduct = offerMap.get(matchingProduct.product_id);
 
+      // Calculate prices with markup from rates
+      const finalUnitPrice = matchingProduct.unit_price * rates.aufschlag_prozent;
+
       if (existingProduct) {
         // Product already exists, add to quantity
         existingProduct.quantity += totalQuantity;
-        existingProduct.total_price = existingProduct.quantity * existingProduct.unit_price;
+        existingProduct.total_price = existingProduct.quantity * finalUnitPrice;
         existingProduct.labor_hours.monteur += totalQuantity * matchingProduct.stunden_monteur;
         existingProduct.labor_hours.geselle += totalQuantity * matchingProduct.stunden_geselle;
         existingProduct.labor_hours.meister += totalQuantity * matchingProduct.stunden_meister;
@@ -238,8 +257,8 @@ async function calculateOffer(
           name: matchingProduct.name,
           quantity: totalQuantity,
           unit: matchingProduct.unit,
-          unit_price: matchingProduct.unit_price,
-          total_price: totalQuantity * matchingProduct.unit_price,
+          unit_price: finalUnitPrice,
+          total_price: totalQuantity * finalUnitPrice,
           labor_hours: {
             monteur: totalQuantity * matchingProduct.stunden_monteur,
             geselle: totalQuantity * matchingProduct.stunden_geselle,
@@ -284,8 +303,20 @@ const handler = async (req: Request): Promise<Response> => {
       // New offer calculation request
       console.log('Processing as offer calculation request');
       const offerRequest = requestBody as OfferRequest;
+      const locId = requestBody.loc_id || '1';
 
-      const calculatedProducts = await calculateOffer(offerRequest, supabase);
+      const calculatedProducts = await calculateOffer(offerRequest, supabase, locId);
+
+      // Fetch rates for labor cost calculation
+      const { data: rates, error: ratesError } = await supabase
+        .from('offers_rates')
+        .select('*')
+        .eq('loc_id', locId)
+        .single();
+
+      if (ratesError) {
+        throw new Error(`Failed to fetch rates: ${ratesError.message}`);
+      }
 
       // Calculate totals
       const materialTotal = calculatedProducts.reduce((sum, p) => sum + p.total_price, 0);
@@ -298,15 +329,23 @@ const handler = async (req: Request): Promise<Response> => {
         { monteur: 0, geselle: 0, meister: 0 }
       );
 
+      // Calculate labor costs using rates from offers_rates
+      const laborCost = 
+        (totalLaborHours.monteur * rates.stundensatz_monteur) +
+        (totalLaborHours.geselle * rates.stundensatz_geselle) +
+        (totalLaborHours.meister * rates.stundensatz_meister);
+
       const response = {
         success: true,
         message: 'Offer calculated successfully',
         offerId: `OFFER-${Date.now()}`,
         calculatedAt: new Date().toISOString(),
         global_params: offerRequest.global_params,
+        loc_id: locId,
         products: calculatedProducts,
         totals: {
           material_cost: materialTotal,
+          labor_cost: laborCost,
           labor_hours: totalLaborHours,
           total_products: calculatedProducts.length,
         },

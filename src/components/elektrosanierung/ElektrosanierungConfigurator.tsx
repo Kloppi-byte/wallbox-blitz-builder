@@ -95,6 +95,11 @@ type OfferLineItem = {
 
 // --- COMPONENT STATE ---
 export function ElektrosanierungConfigurator() {
+  // State for selected location
+  const [selectedLocId, setSelectedLocId] = useState<string>('1');
+  const [availableLocs, setAvailableLocs] = useState<{ loc_id: string; name: string }[]>([]);
+  const [rates, setRates] = useState<any>(null);
+
   // State for global parameters (dynamically populated from database)
   const [globalParams, setGlobalParams] = useState<Record<string, any>>({
     baujahr: 2000,
@@ -137,6 +142,31 @@ export function ElektrosanierungConfigurator() {
     addItem
   } = useCart();
 
+  // Fetch rates when location changes
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('offers_rates')
+          .select('*')
+          .eq('loc_id', selectedLocId)
+          .maybeSingle();
+
+        if (error) throw error;
+        setRates(data);
+      } catch (err: any) {
+        console.error('Error fetching rates:', err);
+        toast({
+          title: "Fehler",
+          description: "Raten konnten nicht geladen werden.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchRates();
+  }, [selectedLocId, toast]);
+
   // Data fetching from all tables including parameter tables
   useEffect(() => {
     const fetchAllData = async () => {
@@ -145,15 +175,18 @@ export function ElektrosanierungConfigurator() {
         setError(null);
 
         // Fetch data from all six tables concurrently using Promise.all
-        const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult] = await Promise.all([supabase.from('offers_packages').select('*').order('category', {
-          ascending: true
-        }).order('name', {
-          ascending: true
-        }), supabase.from('offers_package_items').select('*'), supabase.from('offers_product_groups').select('*'), supabase.from('offers_products').select('*').order('category', {
-          ascending: true
-        }).order('name', {
-          ascending: true
-        }), supabase.from('offers_package_parameter_links').select('*'), supabase.from('offers_package_parameter_definitions').select('*')]);
+        const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult] = await Promise.all([
+          supabase.from('offers_packages').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
+          supabase.from('offers_package_items').select('*'),
+          supabase.from('offers_product_groups').select('*'),
+          supabase.from('offers_products').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
+          supabase.from('offers_package_parameter_links').select('*'),
+          supabase.from('offers_package_parameter_definitions').select('*')
+        ]);
+
+        // Fetch rates and locations separately to avoid type issues
+        const ratesResult = await (supabase as any).from('offers_rates').select('*');
+        const locsResult = await supabase.from('locs').select('id, name');
 
         // Check for errors in any of the requests
         if (packagesResult.error) throw packagesResult.error;
@@ -184,6 +217,25 @@ export function ElektrosanierungConfigurator() {
         if (paramDefsResult.data) {
           console.log('Parameter definitions data:', paramDefsResult.data);
           setParamDefs(paramDefsResult.data);
+        }
+
+        // Check for errors in rates and locs
+        if (ratesResult.error) throw ratesResult.error;
+        if (locsResult.error) throw locsResult.error;
+
+        // Process locations from rates
+        if (ratesResult.data && locsResult.data) {
+          const locsMap = new Map(locsResult.data.map((loc: any) => [loc.id.toString(), loc.name]));
+          const locations = ratesResult.data.map((rate: any) => ({
+            loc_id: rate.loc_id,
+            name: locsMap.get(rate.loc_id) || `Standort ${rate.loc_id}`
+          }));
+          setAvailableLocs(locations);
+
+          // Set first location as default
+          if (locations.length > 0) {
+            setSelectedLocId(locations[0].loc_id);
+          }
         }
 
         // Log the package IDs and package item package IDs to check relationship
@@ -279,14 +331,14 @@ export function ElektrosanierungConfigurator() {
             category: product.category,
             produkt_gruppe: product.produkt_gruppe,
             qualitaetsstufe: product.qualitaetsstufe,
-            stunden_meister: product.stunden_meister * calculatedQuantity,
-            stunden_geselle: product.stunden_geselle * calculatedQuantity,
-            stunden_monteur: product.stunden_monteur * calculatedQuantity,
-            stunden_meister_per_unit: product.stunden_meister,
-            stunden_geselle_per_unit: product.stunden_geselle,
-            stunden_monteur_per_unit: product.stunden_monteur,
-            quantity: Math.round(calculatedQuantity * 100) / 100, // Round to 2 decimals
-            image: product.image
+          stunden_meister: product.stunden_meister * calculatedQuantity,
+          stunden_geselle: product.stunden_geselle * calculatedQuantity,
+          stunden_monteur: product.stunden_monteur * calculatedQuantity,
+          stunden_meister_per_unit: product.stunden_meister,
+          stunden_geselle_per_unit: product.stunden_geselle,
+          stunden_monteur_per_unit: product.stunden_monteur,
+          quantity: Math.round(calculatedQuantity * 100) / 100,
+          image: product.image
           });
         }
       });
@@ -444,8 +496,9 @@ export function ElektrosanierungConfigurator() {
     }
     try {
       const payload = {
-        global_params: globalParams,
-        selected_packages: selectedPackages
+        global_parameters: globalParams,
+        selected_package_ids: selectedPackages.map(p => p.package_id),
+        loc_id: selectedLocId
       };
 
       // Send to backend webhook for calculation
@@ -465,7 +518,8 @@ export function ElektrosanierungConfigurator() {
         name: 'Elektrosanierung Konfiguration',
         configuration: {
           globalParams,
-          selectedPackages
+          selectedPackages,
+          loc_id: selectedLocId
         },
         pricing: data?.pricing || {
           materialCosts: 0,
@@ -520,6 +574,26 @@ export function ElektrosanierungConfigurator() {
             <CardDescription>Geben Sie die Eckdaten des Gebäudes an.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
+            {/* Location Selector */}
+            <div className="col-span-2">
+              <Label htmlFor="standort">Standort</Label>
+              <Select 
+                value={selectedLocId} 
+                onValueChange={setSelectedLocId}
+              >
+                <SelectTrigger id="standort">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableLocs.map(loc => (
+                    <SelectItem key={loc.loc_id} value={loc.loc_id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Keep Qualitätsstufe as hardcoded field */}
             <div>
               <Label htmlFor="qualitaetsstufe">Qualitätsstufe</Label>
@@ -997,21 +1071,58 @@ export function ElektrosanierungConfigurator() {
                 return <div key={packageId} className="p-3 bg-secondary rounded">
                         <h5 className="font-medium mb-2">{packageName}</h5>
                         <div className="space-y-1 text-sm">
-                          {packageItems.map(item => <div key={item.id} className="flex justify-between">
-                              <span>{item.name}</span>
-                              <span>{((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)} €</span>
-                            </div>)}
+                          {packageItems.map(item => {
+                            const finalUnitPrice = rates ? (item.unit_price * rates.aufschlag_prozent) : item.unit_price;
+                            return <div key={item.id} className="flex justify-between">
+                              <span>{item.name} ({item.quantity} {item.unit})</span>
+                              <span>{(finalUnitPrice * item.quantity).toFixed(2)} €</span>
+                            </div>;
+                          })}
                         </div>
                       </div>;
               })}
                 </div>}
               
+              {/* Cost Summary */}
+              {offerLineItems.length > 0 && rates && <div className="mt-6 p-4 bg-secondary rounded space-y-2">
+                  <h5 className="font-medium mb-2">Kostenübersicht</h5>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Materialkosten:</span>
+                      <span>{offerLineItems.reduce((sum, item) => {
+                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        return sum + (finalUnitPrice * item.quantity);
+                      }, 0).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Arbeitskosten:</span>
+                      <span>{offerLineItems.reduce((sum, item) => {
+                        return sum + (
+                          (item.stunden_meister * rates.stundensatz_meister) +
+                          (item.stunden_geselle * rates.stundensatz_geselle) +
+                          (item.stunden_monteur * rates.stundensatz_monteur)
+                        );
+                      }, 0).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t font-medium">
+                      <span>Zwischensumme:</span>
+                      <span>{(offerLineItems.reduce((sum, item) => {
+                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        const materialCost = finalUnitPrice * item.quantity;
+                        const laborCost = (
+                          (item.stunden_meister * rates.stundensatz_meister) +
+                          (item.stunden_geselle * rates.stundensatz_geselle) +
+                          (item.stunden_monteur * rates.stundensatz_monteur)
+                        );
+                        return sum + materialCost + laborCost;
+                      }, 0)).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>}
+              
               <div className="pt-4">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Der Gesamtpreis wird nach Übermittlung der Anfrage berechnet und Ihnen in einem detaillierten Angebot mitgeteilt.
-                </p>
                 <Button onClick={handleSubmit} className="w-full" disabled={offerLineItems.length === 0}>
-                  Angebot anfordern
+                  In den Warenkorb
                 </Button>
               </div>
             </div>
