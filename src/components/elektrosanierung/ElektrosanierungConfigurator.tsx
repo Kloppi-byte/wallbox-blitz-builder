@@ -34,10 +34,7 @@ type OfferPackageItem = {
   package_id: number;
   produkt_gruppe_id: string;
   quantity_base: number;
-  quantity_per_room: number;
-  quantity_per_floor: number;
-  quantity_per_sqm: number;
-  multipliers?: Record<string, number> | null;
+  multipliers?: any;
   created_at: string;
 };
 type OfferProductGroup = {
@@ -576,13 +573,13 @@ export function ElektrosanierungConfigurator() {
           <CardContent className="grid grid-cols-2 gap-4">
             {/* Location Selector */}
             <div className="col-span-2">
-              <Label htmlFor="standort">Standort</Label>
+              <Label htmlFor="standort">LOC</Label>
               <Select 
                 value={selectedLocId} 
                 onValueChange={setSelectedLocId}
               >
                 <SelectTrigger id="standort">
-                  <SelectValue />
+                  <SelectValue placeholder="LOC" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableLocs.map(loc => (
