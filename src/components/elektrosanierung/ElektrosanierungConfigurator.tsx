@@ -409,7 +409,7 @@ export function ElektrosanierungConfigurator() {
           stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
           stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
           stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-          quantity: Math.round(calculatedQuantity * 100) / 100,
+          quantity: Math.round(calculatedQuantity),
           image: product.image
           });
         }
@@ -544,7 +544,7 @@ export function ElektrosanierungConfigurator() {
           stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
           stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
           stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-          quantity: Math.round(calculatedQuantity * 100) / 100,
+          quantity: Math.round(calculatedQuantity),
           image: product.image
         });
       }
