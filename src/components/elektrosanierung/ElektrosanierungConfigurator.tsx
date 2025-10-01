@@ -57,6 +57,7 @@ type OfferProduct = {
   stunden_monteur: number;
   created_at: string;
   image: string | null;
+  tags: string[];
 };
 type OfferPackageParameterDefinition = {
   param_key: string;
@@ -212,7 +213,8 @@ export function ElektrosanierungConfigurator() {
           console.log('Products data:', productsResult.data);
           setProducts(productsResult.data.map(product => ({
             ...product,
-            image: (product as any).image || null
+            image: (product as any).image || null,
+            tags: (product as any).tags || []
           })));
         }
         if (paramLinksResult.data) {
@@ -305,18 +307,19 @@ export function ElektrosanierungConfigurator() {
       const newLineItems: OfferLineItem[] = [];
       packageItemsForPackage.forEach(item => {
         // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
-        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+        // Also filter by location tags
+        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
         
         if (!product && packageData.quality_level) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard' && isProductAvailableForLocation(prod));
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic' && isProductAvailableForLocation(prod));
         }
         
         if (product) {
@@ -504,18 +507,19 @@ export function ElektrosanierungConfigurator() {
     const newLineItems: OfferLineItem[] = [];
     packageItemsForPackage.forEach(item => {
       // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
-      let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+      // Also filter by location tags
+      let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
       
       if (!product && packageData.quality_level) {
-        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
       }
       
       if (!product) {
-        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard' && isProductAvailableForLocation(prod));
       }
       
       if (!product) {
-        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic' && isProductAvailableForLocation(prod));
       }
       
       if (product) {
@@ -698,18 +702,19 @@ export function ElektrosanierungConfigurator() {
       
       packageItemsForPackage.forEach(item => {
         // Find product with fallback hierarchy
-        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe);
+        // Also filter by location tags
+        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
         
         if (!product && packageData.quality_level) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level);
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard');
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard' && isProductAvailableForLocation(prod));
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic');
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic' && isProductAvailableForLocation(prod));
         }
         
         if (product) {
@@ -933,14 +938,23 @@ export function ElektrosanierungConfigurator() {
   };
 
   // Helper function to get filtered products for adding to packages
+  // Helper function to check if product is available for selected location
+  const isProductAvailableForLocation = (product: OfferProduct) => {
+    const selectedLoc = availableLocs.find(loc => loc.loc_id === selectedLocId);
+    if (!selectedLoc) return true; // If no location selected, show all
+    if (!product.tags || product.tags.length === 0) return false; // If product has no tags, hide it
+    return product.tags.includes(selectedLoc.name);
+  };
+
   const getFilteredProducts = () => {
-    if (!productSearchQuery) return products;
-    return products.filter(product => product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || product.description && product.description.toLowerCase().includes(productSearchQuery.toLowerCase()) || product.category && product.category.toLowerCase().includes(productSearchQuery.toLowerCase()));
+    let filtered = products.filter(isProductAvailableForLocation);
+    if (!productSearchQuery) return filtered;
+    return filtered.filter(product => product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || product.description && product.description.toLowerCase().includes(productSearchQuery.toLowerCase()) || product.category && product.category.toLowerCase().includes(productSearchQuery.toLowerCase()));
   };
 
   // Helper function to get alternatives for a product group
   const getAlternatives = (produktGruppe: string) => {
-    return products.filter(p => p.produkt_gruppe === produktGruppe);
+    return products.filter(p => p.produkt_gruppe === produktGruppe && isProductAvailableForLocation(p));
   };
 
   // Helper function to get products for a package (client-side join)
@@ -951,7 +965,7 @@ export function ElektrosanierungConfigurator() {
     // 2. For each package item, find the corresponding product
     const productNames: string[] = [];
     packageItemsForPackage.forEach(item => {
-      const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === qualitaetsstufe);
+      const product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === qualitaetsstufe && isProductAvailableForLocation(prod));
       if (product) {
         productNames.push(product.name);
       }
