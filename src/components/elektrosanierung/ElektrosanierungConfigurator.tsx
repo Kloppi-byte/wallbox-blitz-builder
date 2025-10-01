@@ -225,7 +225,7 @@ export function ElektrosanierungConfigurator() {
           const locsMap = new Map(locsResult.data.map((loc: any) => [loc.id.toString(), loc.name]));
           const locations = ratesResult.data.map((rate: any) => ({
             loc_id: rate.loc_id,
-            name: locsMap.get(rate.loc_id) || `Standort ${rate.loc_id}`
+            name: locsMap.get(rate.loc_id) || `LOC ${rate.loc_id}`
           }));
           setAvailableLocs(locations);
 
