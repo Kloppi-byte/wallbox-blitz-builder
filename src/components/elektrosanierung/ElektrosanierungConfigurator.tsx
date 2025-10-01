@@ -15,8 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 // Import lucide icons
-import { Building, Package, CheckCircle, Minus, Plus, Search } from 'lucide-react';
+import { Building, Package, CheckCircle, Minus, Plus, Search, ChevronDown, ChevronUp } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 // Database table types
@@ -97,6 +98,10 @@ export function ElektrosanierungConfigurator() {
   const [selectedLocId, setSelectedLocId] = useState<string>('1');
   const [availableLocs, setAvailableLocs] = useState<{ loc_id: string; name: string }[]>([]);
   const [rates, setRates] = useState<any>(null);
+  
+  // State for collapsible product sections
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [showProductsForInstance, setShowProductsForInstance] = useState<Set<string>>(new Set());
 
   // State for global parameters (dynamically populated from database)
   const [globalParams, setGlobalParams] = useState<Record<string, any>>({
@@ -1266,37 +1271,118 @@ export function ElektrosanierungConfigurator() {
                             {detailsPackageId === pkg.id && instances.length > 0 && (
                               <div className="pl-8 mt-2">
                                 <strong className="text-sm text-muted-foreground mb-3 block">Inhalt für '{globalParams.qualitaetsstufe}':</strong>
-                                {instances.map((instance, idx) => (
-                                  <div key={instance.instanceId} className="mb-6">
-                                    {instances.length > 1 && <h6 className="text-sm font-medium mb-2">Instanz {idx + 1}</h6>}
-                                    <div className="space-y-3">
-                                      {getLineItemsForInstance(instance.instanceId).map(item => (
-                                        <div key={item.id} className="p-4 bg-background border rounded-lg">
-                                          <div className="flex items-start gap-4">
-                                            {/* Product Image */}
-                                            <div className="w-16 h-16 flex-shrink-0">
-                                              {item.image ? (
-                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
-                                              ) : (
-                                                <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                  <Package className="h-8 w-8 text-muted-foreground" />
-                                                </div>
-                                              )}
-                                            </div>
+                                {instances.map((instance, idx) => {
+                                  const lineItems = getLineItemsForInstance(instance.instanceId);
+                                  const isProductsVisible = showProductsForInstance.has(instance.instanceId);
+                                  
+                                  return (
+                                    <div key={instance.instanceId} className="mb-6">
+                                      {instances.length > 1 && <h6 className="text-sm font-medium mb-2">Instanz {idx + 1}</h6>}
+                                      
+                                      <Collapsible 
+                                        open={isProductsVisible} 
+                                        onOpenChange={(open) => {
+                                          setShowProductsForInstance(prev => {
+                                            const newSet = new Set(prev);
+                                            if (open) {
+                                              newSet.add(instance.instanceId);
+                                            } else {
+                                              newSet.delete(instance.instanceId);
+                                            }
+                                            return newSet;
+                                          });
+                                        }}
+                                      >
+                                        <CollapsibleTrigger asChild>
+                                          <Button variant="outline" className="w-full justify-between mb-3">
+                                            <span className="flex items-center gap-2">
+                                              <Package className="h-4 w-4" />
+                                              Produkte anzeigen ({lineItems.length} Artikel)
+                                            </span>
+                                            {isProductsVisible ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                          </Button>
+                                        </CollapsibleTrigger>
+                                        
+                                        <CollapsibleContent>
+                                          <div className="space-y-3">
+                                            {lineItems.map(item => {
+                                              const isExpanded = expandedProducts.has(item.id);
+                                              
+                                              return (
+                                                <div key={item.id} className="bg-background border rounded-lg overflow-hidden">
+                                                  <Collapsible
+                                                    open={isExpanded}
+                                                    onOpenChange={(open) => {
+                                                      setExpandedProducts(prev => {
+                                                        const newSet = new Set(prev);
+                                                        if (open) {
+                                                          newSet.add(item.id);
+                                                        } else {
+                                                          newSet.delete(item.id);
+                                                        }
+                                                        return newSet;
+                                                      });
+                                                    }}
+                                                  >
+                                                    {/* Compact Product View */}
+                                                    <CollapsibleTrigger asChild>
+                                                      <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                                        <div className="flex items-center gap-4">
+                                                          {/* Product Image */}
+                                                          <div className="w-12 h-12 flex-shrink-0">
+                                                            {item.image ? (
+                                                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
+                                                            ) : (
+                                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                                <Package className="h-6 w-6 text-muted-foreground" />
+                                                              </div>
+                                                            )}
+                                                          </div>
 
-                                            {/* Product Info and Controls */}
-                                            <div className="flex-1">
-                                              <div className="mb-3">
-                                                <h5 className="font-medium text-base">{item.name}</h5>
-                                                {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
-                                              </div>
+                                                          {/* Compact Info */}
+                                                          <div className="flex-1 min-w-0">
+                                                            <h5 className="font-medium text-sm truncate">{item.name}</h5>
+                                                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                                              <span>Menge: {item.quantity} {item.unit}</span>
+                                                              <span>Preis: {(item.unit_price * item.quantity).toFixed(2)} CHF</span>
+                                                            </div>
+                                                          </div>
 
-                                              {/* Top row controls */}
-                                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                                {/* Quantity */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Menge</Label>
-                                                  <div className="flex items-center gap-2">
+                                                          {/* Expand Icon */}
+                                                          <div className="flex-shrink-0">
+                                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </CollapsibleTrigger>
+
+                                                    {/* Expanded Product Details */}
+                                                    <CollapsibleContent>
+                                                      <div className="p-4 pt-0 border-t">
+                                                        <div key={item.id} className="flex items-start gap-4">
+                                                          {/* Product Image */}
+                                                          <div className="w-16 h-16 flex-shrink-0">
+                                                            {item.image ? (
+                                                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
+                                                            ) : (
+                                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                                <Package className="h-8 w-8 text-muted-foreground" />
+                                                              </div>
+                                                            )}
+                                                          </div>
+
+                                                          {/* Product Info and Controls */}
+                                                          <div className="flex-1">
+                                                            <div className="mb-3">
+                                                              {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                                                            </div>
+
+                                                            {/* Top row controls */}
+                                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                                              {/* Quantity */}
+                                                              <div>
+                                                                <Label className="text-sm font-medium mb-2 block">Menge</Label>
+                                                                <div className="flex items-center gap-2">
                                                     <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}>
                                                       <Minus className="h-4 w-4" />
                                                     </Button>
@@ -1579,18 +1665,25 @@ export function ElektrosanierungConfigurator() {
                                                       <Plus className="h-3 w-3" />
                                                     </Button>
                                                   </div>
-                                                  <span className="text-xs text-muted-foreground mt-1 block">
-                                                    {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
-                                                  </span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    
-                                      {/* Add Product Button */}
-                                      <div className="p-3 border-2 border-dashed border-muted rounded-lg">
+                                                   <span className="text-xs text-muted-foreground mt-1 block">
+                                                     {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
+                                                   </span>
+                                                 </div>
+                                               </div>
+                                             </div>
+                                           </div>
+                                         </div>
+                                       </CollapsibleContent>
+                                     </Collapsible>
+                                   </div>
+                                 );
+                               })}
+                             </div>
+                           </CollapsibleContent>
+                         </Collapsible>
+                                     
+                         {/* Add Product Button */}
+                         <div className="p-3 border-2 border-dashed border-muted rounded-lg mt-3">
                                         <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
                                           <PopoverTrigger asChild>
                                             <Button variant="outline" size="sm" className="w-full">
@@ -1650,15 +1743,16 @@ export function ElektrosanierungConfigurator() {
                                         </Popover>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
-                          </div>;
-                   })}
-                     </div>
-                   </AccordionContent>
-                 </AccordionItem>)}
+                          </div>
+                        </div>
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>)}
             </Accordion>
           </CardContent>
         </Card>
@@ -1780,6 +1874,7 @@ export function ElektrosanierungConfigurator() {
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 }
 export default ElektrosanierungConfigurator;
