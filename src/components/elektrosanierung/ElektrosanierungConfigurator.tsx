@@ -2008,7 +2008,6 @@ export function ElektrosanierungConfigurator() {
                                     title="Auf Supabase-Wert zurücksetzen"
                                   >
                                     <RotateCcw className="h-3 w-3" />
-                                    <span>Supabase</span>
                                   </button>
                                 )}
                               </div>
@@ -2050,7 +2049,6 @@ export function ElektrosanierungConfigurator() {
                                     title="Auf Supabase-Wert zurücksetzen"
                                   >
                                     <RotateCcw className="h-3 w-3" />
-                                    <span>Supabase</span>
                                   </button>
                                 )}
                               </div>
@@ -2092,7 +2090,6 @@ export function ElektrosanierungConfigurator() {
                                     title="Auf Supabase-Wert zurücksetzen"
                                   >
                                     <RotateCcw className="h-3 w-3" />
-                                    <span>Supabase</span>
                                   </button>
                                 )}
                               </div>
