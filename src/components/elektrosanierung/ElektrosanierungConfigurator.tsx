@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { ProductLineItem } from './ProductLineItem';
-import { SoneparProductSearch } from './SoneparProductSearch';
 // Import necessary UI components from '@/components/ui/...'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -161,7 +160,11 @@ export function ElektrosanierungConfigurator() {
   // State for detail view
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
   const [showAddProduct, setShowAddProduct] = useState<number | null>(null);
+  const [showAddSoneparProduct, setShowAddSoneparProduct] = useState<number | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [soneparSearchTerm, setSoneparSearchTerm] = useState('');
+  const [soneparResults, setSoneparResults] = useState<any[]>([]);
+  const [isSearchingSonepar, setIsSearchingSonepar] = useState(false);
   
   // State for image dialog
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -325,6 +328,40 @@ export function ElektrosanierungConfigurator() {
     };
     fetchAllData();
   }, []);
+
+  // Debounced Sonepar search
+  useEffect(() => {
+    const performSoneparSearch = async () => {
+      if (soneparSearchTerm.length < 3) {
+        setSoneparResults([]);
+        return;
+      }
+      
+      setIsSearchingSonepar(true);
+      try {
+        const { data, error } = await supabase
+          .from('offers_datanorm_sonepar')
+          .select('*')
+          .or(`Bezeichnung.ilike.%${soneparSearchTerm}%,Artikelnummer.ilike.%${soneparSearchTerm}%,Kurzcode.ilike.%${soneparSearchTerm}%`)
+          .limit(50);
+        
+        if (error) throw error;
+        setSoneparResults(data || []);
+      } catch (err) {
+        console.error('Error searching Sonepar products:', err);
+        toast({
+          title: "Fehler",
+          description: "Sonepar Produkte konnten nicht gesucht werden.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSearchingSonepar(false);
+      }
+    };
+    
+    const timeoutId = setTimeout(performSoneparSearch, 300);
+    return () => clearTimeout(timeoutId);
+  }, [soneparSearchTerm, toast]);
 
   // Helper: Build factor column key from location name
   const factorColumnKey = (locName: string): string => {
@@ -1312,12 +1349,8 @@ export function ElektrosanierungConfigurator() {
       <div className="container mx-auto p-4">
         <h1 className="text-3xl font-bold mb-6">Elektrosanierung</h1>
 
-        {/* Main Layout: Configurator on left, Product Search on right */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left side - Main configurator (2/3 width) */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Section 1: Global Project Parameters */}
-            <Card className="mb-8">
+        {/* Section 1: Global Project Parameters */}
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building className="h-5 w-5" />
@@ -1742,66 +1775,143 @@ export function ElektrosanierungConfigurator() {
                                         })()}
                                       </div>
                                       
-                          {/* Global Add Product Button (outside categories) */}
+                          {/* Global Add Product Buttons (outside categories) */}
                           <div className="p-3 border-2 border-dashed border-muted rounded-lg mt-3">
-                                        <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
-                                          <PopoverTrigger asChild>
-                                            <Button variant="outline" size="sm" className="w-full">
-                                              <Plus className="h-4 w-4 mr-2" />
-                                              Produkt hinzufügen
-                                            </Button>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-80 p-0" align="start">
-                                            <div className="flex flex-col">
-                                              {/* Search Input */}
-                                              <div className="flex items-center border-b px-3 py-2">
-                                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                                <Input 
-                                                  placeholder="Produkte durchsuchen..." 
-                                                  value={productSearchQuery} 
-                                                  onChange={e => setProductSearchQuery(e.target.value)} 
-                                                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
-                                                />
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Regular Product Addition */}
+                              <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Produkt hinzufügen
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-0" align="start">
+                                  <div className="flex flex-col">
+                                    {/* Search Input */}
+                                    <div className="flex items-center border-b px-3 py-2">
+                                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                      <Input 
+                                        placeholder="Produkte durchsuchen..." 
+                                        value={productSearchQuery} 
+                                        onChange={e => setProductSearchQuery(e.target.value)} 
+                                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                                      />
+                                    </div>
+                                    
+                                    {/* Product List */}
+                                    <div className="max-h-60 overflow-y-auto">
+                                      {getFilteredProducts().length === 0 ? (
+                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                          Keine Produkte gefunden.
+                                        </div>
+                                      ) : getFilteredProducts().map(product => (
+                                        <div 
+                                          key={product.product_id} 
+                                          onClick={() => handleAddProduct(pkg.id, product.product_id)} 
+                                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
+                                        >
+                                          <div className="w-10 h-10 flex-shrink-0">
+                                            {product.image ? (
+                                              <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" />
+                                            ) : (
+                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                <Package className="h-5 w-5 text-muted-foreground" />
                                               </div>
-                                              
-                                              {/* Product List */}
-                                              <div className="max-h-60 overflow-y-auto">
-                                                {getFilteredProducts().length === 0 ? (
-                                                  <div className="p-4 text-center text-sm text-muted-foreground">
-                                                    Keine Produkte gefunden.
-                                                  </div>
-                                                ) : getFilteredProducts().map(product => (
-                                                  <div 
-                                                    key={product.product_id} 
-                                                    onClick={() => handleAddProduct(pkg.id, product.product_id)} 
-                                                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
-                                                  >
-                                                    <div className="w-10 h-10 flex-shrink-0">
-                                                      {product.image ? (
-                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" />
-                                                      ) : (
-                                                        <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                          <Package className="h-5 w-5 text-muted-foreground" />
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                      <div className="font-medium text-sm">{product.name}</div>
-                                                      {product.description && (
-                                                        <div className="text-xs text-muted-foreground truncate">{product.description}</div>
-                                                      )}
-                                                      <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
-                                                        <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-sm">{product.name}</div>
+                                            {product.description && (
+                                              <div className="text-xs text-muted-foreground truncate">{product.description}</div>
+                                            )}
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
+                                              <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
                                             </div>
-                                          </PopoverContent>
-                                        </Popover>
-                                      </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              
+                              {/* Sonepar Product Addition */}
+                              <Popover open={showAddSoneparProduct === pkg.id} onOpenChange={open => setShowAddSoneparProduct(open ? pkg.id : null)}>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Sonderprodukt hinzufügen
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0" align="start">
+                                  <Command>
+                                    <div className="flex items-center border-b px-3 py-2">
+                                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                      <Input 
+                                        placeholder="Mindestens 3 Zeichen..." 
+                                        value={soneparSearchTerm} 
+                                        onChange={e => setSoneparSearchTerm(e.target.value)} 
+                                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                                      />
+                                    </div>
+                                    <CommandList>
+                                      {isSearchingSonepar && (
+                                        <div className="py-6 text-center text-sm">Suche läuft...</div>
+                                      )}
+                                      {!isSearchingSonepar && soneparResults.length === 0 && soneparSearchTerm.length >= 3 && (
+                                        <CommandEmpty>Keine Produkte gefunden.</CommandEmpty>
+                                      )}
+                                      {!isSearchingSonepar && soneparSearchTerm.length < 3 && (
+                                        <div className="py-6 text-center text-sm text-muted-foreground">
+                                          Geben Sie mindestens 3 Zeichen ein
+                                        </div>
+                                      )}
+                                      {!isSearchingSonepar && soneparResults.length > 0 && (
+                                        <CommandGroup>
+                                          {soneparResults.map((product) => (
+                                            <CommandItem
+                                              key={product.Artikelnummer}
+                                              value={product.Artikelnummer}
+                                              onSelect={() => {
+                                                toast({
+                                                  title: "Sonderprodukt ausgewählt",
+                                                  description: `${product.Bezeichnung || product.Artikelnummer}`,
+                                                });
+                                                setShowAddSoneparProduct(null);
+                                                setSoneparSearchTerm('');
+                                                // TODO: Add logic to add Sonepar product to configurator
+                                              }}
+                                              className="cursor-pointer"
+                                            >
+                                              <div className="flex flex-col gap-1 flex-1">
+                                                <div className="font-medium text-sm">
+                                                  {product.Bezeichnung || 'Keine Bezeichnung'}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                                                  <span>Art.-Nr.: {product.Artikelnummer}</span>
+                                                  {product.Kurzcode && <span>• {product.Kurzcode}</span>}
+                                                  {product.Listenpreis_EUR && (
+                                                    <span>• {product.Listenpreis_EUR} €</span>
+                                                  )}
+                                                </div>
+                                                {product.Warengruppe_Name && (
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {product.Warengruppe_Name}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      )}
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
                                     </div>
                                   );
                                 })}
@@ -2277,15 +2387,6 @@ export function ElektrosanierungConfigurator() {
             </div>
           </CardContent>
         </Card>
-          </div>
-          
-          {/* Right side - Sonepar Product Search (1/3 width) */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-4">
-              <SoneparProductSearch />
-            </div>
-          </div>
-        </div>
       </div>
       
       {/* Image Dialog */}
