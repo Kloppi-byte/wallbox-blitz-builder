@@ -455,14 +455,17 @@ export type Database = {
       }
       offers_product_groups: {
         Row: {
+          category: string | null
           description: string | null
           group_id: string
         }
         Insert: {
+          category?: string | null
           description?: string | null
           group_id: string
         }
         Update: {
+          category?: string | null
           description?: string | null
           group_id?: string
         }
@@ -481,6 +484,7 @@ export type Database = {
           stunden_geselle: number | null
           stunden_meister: number | null
           stunden_monteur: number | null
+          tags: Json
           unit: string
           unit_price: number
         }
@@ -496,8 +500,9 @@ export type Database = {
           stunden_geselle?: number | null
           stunden_meister?: number | null
           stunden_monteur?: number | null
+          tags?: Json
           unit: string
-          unit_price: number
+          unit_price?: number
         }
         Update: {
           category?: string | null
@@ -511,10 +516,43 @@ export type Database = {
           stunden_geselle?: number | null
           stunden_meister?: number | null
           stunden_monteur?: number | null
+          tags?: Json
           unit?: string
           unit_price?: number
         }
         Relationships: []
+      }
+      offers_products_prices: {
+        Row: {
+          "Eco-Heat factor": number | null
+          "Kliebisch Elektro factor": number | null
+          product_id: string
+          "Römhild Elektro factor": number | null
+          unit_price: number
+        }
+        Insert: {
+          "Eco-Heat factor"?: number | null
+          "Kliebisch Elektro factor"?: number | null
+          product_id: string
+          "Römhild Elektro factor"?: number | null
+          unit_price: number
+        }
+        Update: {
+          "Eco-Heat factor"?: number | null
+          "Kliebisch Elektro factor"?: number | null
+          product_id?: string
+          "Römhild Elektro factor"?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_products_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "offers_products"
+            referencedColumns: ["product_id"]
+          },
+        ]
       }
       offers_rates: {
         Row: {
@@ -628,7 +666,7 @@ export type Database = {
           api_keys_getmika: string | null
           betriebsnummer: string | null
           contact_person: string | null
-          email_address_contact: string | null
+          email_address_GF: string | null
           email_belegemanagement: string | null
           email_getmika: string | null
           "Gewerbeanmeldung Link": string | null
@@ -658,7 +696,7 @@ export type Database = {
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
           contact_person?: string | null
-          email_address_contact?: string | null
+          email_address_GF?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
           "Gewerbeanmeldung Link"?: string | null
@@ -688,7 +726,7 @@ export type Database = {
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
           contact_person?: string | null
-          email_address_contact?: string | null
+          email_address_GF?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
           "Gewerbeanmeldung Link"?: string | null
