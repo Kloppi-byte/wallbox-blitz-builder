@@ -339,21 +339,26 @@ export function ElektrosanierungConfigurator() {
       
       setIsSearchingSonepar(true);
       try {
+        const searchPattern = `%${soneparSearchTerm}%`;
         const { data, error } = await supabase
           .from('offers_datanorm_sonepar')
           .select('*')
-          .or(`Bezeichnung.ilike.%${soneparSearchTerm}%,Artikelnummer.ilike.%${soneparSearchTerm}%,Kurzcode.ilike.%${soneparSearchTerm}%`)
+          .or(`Bezeichnung.ilike.${searchPattern},Artikelnummer.ilike.${searchPattern},Kurzcode.ilike.${searchPattern}`)
           .limit(50);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Sonepar search error:', error);
+          throw error;
+        }
         setSoneparResults(data || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error searching Sonepar products:', err);
         toast({
           title: "Fehler",
-          description: "Sonepar Produkte konnten nicht gesucht werden.",
+          description: `Sonepar Produkte konnten nicht gesucht werden: ${err.message || 'Unbekannter Fehler'}`,
           variant: "destructive",
         });
+        setSoneparResults([]);
       } finally {
         setIsSearchingSonepar(false);
       }
