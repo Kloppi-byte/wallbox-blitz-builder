@@ -167,6 +167,8 @@ export function ElektrosanierungConfigurator() {
   
   // State for category expansion within packages
   const [expandedCategories, setExpandedCategories] = useState<Record<string, Set<string>>>({});
+  const [expandedSummaryPackages, setExpandedSummaryPackages] = useState<Set<number>>(new Set());
+  const [expandedSummaryCategories, setExpandedSummaryCategories] = useState<Record<number, Set<string>>>({});
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -1739,63 +1741,426 @@ export function ElektrosanierungConfigurator() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <h4 className="font-medium">Ausgewählte Angebotspositionen:</h4>
-              {offerLineItems.length === 0 ? <p className="text-muted-foreground">Keine Pakete ausgewählt</p> : <div className="space-y-2">
-                  {/* Group by package */}
+              {offerLineItems.length === 0 ? (
+                <p className="text-muted-foreground">Keine Pakete ausgewählt</p>
+              ) : rates && (
+                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                  {/* Package-level sections */}
                   {[...new Set(offerLineItems.map(item => item.package_id))].map(packageId => {
-                const packageItems = getLineItemsForPackage(packageId);
-                const packageName = packageItems[0]?.package_name || '';
-                return <div key={packageId} className="p-3 bg-secondary rounded">
-                        <h5 className="font-medium mb-2">{packageName}</h5>
-                        <div className="space-y-1 text-sm">
-                          {packageItems.map(item => {
-                            const finalUnitPrice = rates ? (item.unit_price * rates.aufschlag_prozent) : item.unit_price;
-                            return <div key={item.id} className="flex justify-between">
-                              <span>{item.name} ({item.quantity} {item.unit})</span>
-                              <span>{(finalUnitPrice * item.quantity).toFixed(2)} €</span>
-                            </div>;
-                          })}
-                        </div>
-                      </div>;
-              })}
-                </div>}
-              
-              {/* Cost Summary */}
-              {offerLineItems.length > 0 && rates && <div className="mt-6 p-4 bg-secondary rounded space-y-4">
-                  <h5 className="font-medium mb-2">Kostenübersicht</h5>
+                    const packageItems = getLineItemsForPackage(packageId);
+                    const packageName = packageItems[0]?.package_name || '';
+                    const isPackageExpanded = expandedSummaryPackages.has(packageId);
+                    
+                    // Group items by category within this package
+                    const categorizedItems = packageItems.reduce((acc, item) => {
+                      const category = item.category || '__uncategorized__';
+                      if (!acc[category]) acc[category] = [];
+                      acc[category].push(item);
+                      return acc;
+                    }, {} as Record<string, typeof packageItems>);
+                    
+                    const categoryKeys = Object.keys(categorizedItems).sort((a, b) => {
+                      if (a === '__uncategorized__') return 1;
+                      if (b === '__uncategorized__') return 1;
+                      return a.localeCompare(b);
+                    });
+                    
+                    // Package-level calculations
+                    const packageMaterialTotal = packageItems.reduce((sum, item) => {
+                      const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                      return sum + (finalUnitPrice * item.quantity);
+                    }, 0);
+                    
+                    const packageMeisterHours = packageItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                    const packageGesellHours = packageItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                    const packageMonteurHours = packageItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                    
+                    const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
+                      ? wagesOverride.meister 
+                      : rates.stundensatz_meister;
+                    const effectiveGeselleWage = (wagesOverride.geselle !== undefined && isFinite(wagesOverride.geselle)) 
+                      ? wagesOverride.geselle 
+                      : rates.stundensatz_geselle;
+                    const effectiveMonteurWage = (wagesOverride.monteur !== undefined && isFinite(wagesOverride.monteur)) 
+                      ? wagesOverride.monteur 
+                      : rates.stundensatz_monteur;
+                    
+                    const packageLaborTotal = (
+                      packageMeisterHours * effectiveMeisterWage +
+                      packageGesellHours * effectiveGeselleWage +
+                      packageMonteurHours * effectiveMonteurWage
+                    );
+                    
+                    return (
+                      <div key={packageId} className="border rounded-md bg-background">
+                        {/* Package Header */}
+                        <button
+                          onClick={() => {
+                            setExpandedSummaryPackages(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(packageId)) {
+                                newSet.delete(packageId);
+                              } else {
+                                newSet.add(packageId);
+                              }
+                              return newSet;
+                            });
+                          }}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium">Raum: {packageName}</span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${isPackageExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {isPackageExpanded && (
+                          <div className="px-4 pb-4 space-y-3">
+                            {/* Categories within package */}
+                            {categoryKeys.map(categoryKey => {
+                              const categoryItems = categorizedItems[categoryKey];
+                              const categoryName = categoryKey === '__uncategorized__' 
+                                ? 'Ohne Kategorie' 
+                                : categoryKey;
+                              const categoryId = `${packageId}-${categoryKey}`;
+                              const isCategoryExpanded = expandedSummaryCategories[packageId]?.has(categoryKey);
+                              
+                              return (
+                                <div key={categoryKey} className="border-l-2 border-muted pl-3">
+                                  <button
+                                    onClick={() => {
+                                      setExpandedSummaryCategories(prev => {
+                                        const packageCategories = prev[packageId] || new Set();
+                                        const newSet = new Set(packageCategories);
+                                        if (newSet.has(categoryKey)) {
+                                          newSet.delete(categoryKey);
+                                        } else {
+                                          newSet.add(categoryKey);
+                                        }
+                                        return { ...prev, [packageId]: newSet };
+                                      });
+                                    }}
+                                    className="w-full flex items-center justify-between py-2 text-sm hover:text-primary transition-colors"
+                                  >
+                                    <span className="font-medium">Kategorie: {categoryName}</span>
+                                    <ChevronDown className={`h-3 w-3 transition-transform ${isCategoryExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                  
+                                  {isCategoryExpanded && (
+                                    <div className="space-y-1 text-sm pl-2">
+                                      {categoryItems.map(item => {
+                                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                                        const itemTotal = finalUnitPrice * item.quantity;
+                                        return (
+                                          <div key={item.id} className="flex justify-between text-muted-foreground py-1">
+                                            <span>{item.name} ({item.quantity} {item.unit})</span>
+                                            <span className="font-medium">{itemTotal.toFixed(2)} €</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            
+                            {/* Package-level hours (read-only) */}
+                            <div className="pt-2 border-t text-sm space-y-1">
+                              <div className="font-medium mb-1">Arbeitsstunden (Paket):</div>
+                              <div className="text-muted-foreground pl-2 space-y-0.5">
+                                {packageMeisterHours > 0 && (
+                                  <div>Meister: {packageMeisterHours.toFixed(2)} h</div>
+                                )}
+                                {packageGesellHours > 0 && (
+                                  <div>Geselle: {packageGesellHours.toFixed(2)} h</div>
+                                )}
+                                {packageMonteurHours > 0 && (
+                                  <div>Monteur: {packageMonteurHours.toFixed(2)} h</div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Package subtotals */}
+                            <div className="pt-2 border-t text-sm space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Materialkosten (Paket) gesamt:</span>
+                                <span className="font-medium">{packageMaterialTotal.toFixed(2)} €</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Arbeitskosten (Paket) gesamt:</span>
+                                <span className="font-medium">{packageLaborTotal.toFixed(2)} €</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   
-                  {/* Material Costs Breakdown */}
-                  <div>
-                    <div className="font-medium text-sm mb-2">Materialkosten:</div>
-                    <div className="space-y-1 text-sm pl-3">
-                      {offerLineItems.map(item => {
-                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
-                        const materialCost = finalUnitPrice * item.quantity;
-                        return <div key={item.id} className="flex justify-between text-muted-foreground">
-                          <span>{item.name} ({item.quantity} {item.unit})</span>
-                          <span>{materialCost.toFixed(2)} €</span>
-                        </div>;
-                      })}
-                      <div className="flex justify-between pt-1 border-t font-medium text-foreground">
-                        <span>Materialkosten gesamt:</span>
-                        <span>{offerLineItems.reduce((sum, item) => {
-                          const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
-                          return sum + (finalUnitPrice * item.quantity);
-                        }, 0).toFixed(2)} €</span>
+                  {/* Global totals section at bottom */}
+                  <div className="pt-4 border-t-2 border-border space-y-4">
+                    {/* Editable hourly rates */}
+                    <div>
+                      <div className="font-medium mb-3">Stundensätze (€/h):</div>
+                      <div className="space-y-2 pl-2">
+                        {(() => {
+                          const formatNumber = (value: number): string => {
+                            return new Intl.NumberFormat('de-DE', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            }).format(value);
+                          };
+                          
+                          const parseInput = (value: string): number | null => {
+                            if (value === '') return null;
+                            const normalized = value.replace(',', '.');
+                            const parsed = parseFloat(normalized);
+                            return isNaN(parsed) ? null : parsed;
+                          };
+                          
+                          const isValidInput = (value: string): boolean => {
+                            return /^[0-9]*[,.]?[0-9]*$/.test(value);
+                          };
+                          
+                          const createWageHandlers = (
+                            role: 'meister' | 'geselle' | 'monteur',
+                            displayValue: string,
+                            setDisplayValue: (val: string) => void,
+                            prevValue: number,
+                            setPrevValue: (val: number) => void,
+                            currentValue: number
+                          ) => ({
+                            onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                              setPrevValue(currentValue);
+                              e.target.select();
+                            },
+                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                              const value = e.target.value;
+                              if (value === '' || isValidInput(value)) {
+                                setDisplayValue(value);
+                              }
+                            },
+                            onBlur: () => {
+                              if (displayValue === '') {
+                                setDisplayValue(formatNumber(prevValue));
+                              } else {
+                                const parsed = parseInput(displayValue);
+                                if (parsed === null || isNaN(parsed) || parsed < 0) {
+                                  setDisplayValue(formatNumber(prevValue));
+                                } else {
+                                  const finalValue = Math.round(parsed * 100) / 100;
+                                  setDisplayValue(formatNumber(finalValue));
+                                  setWagesOverride(prev => ({ ...prev, [role]: finalValue }));
+                                }
+                              }
+                            },
+                            onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setDisplayValue(formatNumber(prevValue));
+                                e.currentTarget.blur();
+                              } else if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }
+                            }
+                          });
+                          
+                          return (
+                            <>
+                              {/* Meister rate */}
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="w-20">Meister:</span>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]*[,.]?[0-9]*"
+                                  step="any"
+                                  value={meisterWageDisplay}
+                                  {...createWageHandlers(
+                                    'meister',
+                                    meisterWageDisplay,
+                                    setMeisterWageDisplay,
+                                    prevMeisterWage,
+                                    setPrevMeisterWage,
+                                    (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
+                                      ? wagesOverride.meister 
+                                      : rates.stundensatz_meister
+                                  )}
+                                  className="h-8 w-24 text-right"
+                                  aria-label="Meister Stundensatz"
+                                />
+                                <span className="text-xs">€/h</span>
+                                {wagesOverride.meister !== undefined && (
+                                  <button
+                                    onClick={() => {
+                                      setWagesOverride(prev => {
+                                        const updated = { ...prev };
+                                        delete updated.meister;
+                                        return updated;
+                                      });
+                                      setMeisterWageDisplay(formatNumber(rates.stundensatz_meister));
+                                    }}
+                                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    title="Auf Supabase-Wert zurücksetzen"
+                                  >
+                                    <RotateCcw className="h-3 w-3" />
+                                    <span>Supabase</span>
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {/* Geselle rate */}
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="w-20">Geselle:</span>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]*[,.]?[0-9]*"
+                                  step="any"
+                                  value={geselleWageDisplay}
+                                  {...createWageHandlers(
+                                    'geselle',
+                                    geselleWageDisplay,
+                                    setGeselleWageDisplay,
+                                    prevGeselleWage,
+                                    setPrevGeselleWage,
+                                    (wagesOverride.geselle !== undefined && isFinite(wagesOverride.geselle)) 
+                                      ? wagesOverride.geselle 
+                                      : rates.stundensatz_geselle
+                                  )}
+                                  className="h-8 w-24 text-right"
+                                  aria-label="Geselle Stundensatz"
+                                />
+                                <span className="text-xs">€/h</span>
+                                {wagesOverride.geselle !== undefined && (
+                                  <button
+                                    onClick={() => {
+                                      setWagesOverride(prev => {
+                                        const updated = { ...prev };
+                                        delete updated.geselle;
+                                        return updated;
+                                      });
+                                      setGeselleWageDisplay(formatNumber(rates.stundensatz_geselle));
+                                    }}
+                                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    title="Auf Supabase-Wert zurücksetzen"
+                                  >
+                                    <RotateCcw className="h-3 w-3" />
+                                    <span>Supabase</span>
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {/* Monteur rate */}
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="w-20">Monteur:</span>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  pattern="[0-9]*[,.]?[0-9]*"
+                                  step="any"
+                                  value={monteurWageDisplay}
+                                  {...createWageHandlers(
+                                    'monteur',
+                                    monteurWageDisplay,
+                                    setMonteurWageDisplay,
+                                    prevMonteurWage,
+                                    setPrevMonteurWage,
+                                    (wagesOverride.monteur !== undefined && isFinite(wagesOverride.monteur)) 
+                                      ? wagesOverride.monteur 
+                                      : rates.stundensatz_monteur
+                                  )}
+                                  className="h-8 w-24 text-right"
+                                  aria-label="Monteur Stundensatz"
+                                />
+                                <span className="text-xs">€/h</span>
+                                {wagesOverride.monteur !== undefined && (
+                                  <button
+                                    onClick={() => {
+                                      setWagesOverride(prev => {
+                                        const updated = { ...prev };
+                                        delete updated.monteur;
+                                        return updated;
+                                      });
+                                      setMonteurWageDisplay(formatNumber(rates.stundensatz_monteur));
+                                    }}
+                                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                                    title="Auf Supabase-Wert zurücksetzen"
+                                  >
+                                    <RotateCcw className="h-3 w-3" />
+                                    <span>Supabase</span>
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Labor Costs Breakdown by Role */}
-                  <div>
-                    <div className="font-medium text-sm mb-2">Arbeitskosten:</div>
-                    <div className="space-y-2 text-sm pl-3">
-                      {(() => {
-                        const totalMeisterHours = offerLineItems.reduce((sum, item) => sum + item.stunden_meister, 0);
-                        const totalGesellHours = offerLineItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
-                        const totalMonteurHours = offerLineItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                    
+                    {/* Global material total */}
+                    <div className="flex justify-between text-sm font-medium">
+                      <span>Materialkosten gesamt:</span>
+                      <span>{offerLineItems.reduce((sum, item) => {
+                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        return sum + (finalUnitPrice * item.quantity);
+                      }, 0).toFixed(2)} €</span>
+                    </div>
+                    
+                    {/* Global labor totals */}
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">Arbeitskosten gesamt:</div>
+                      <div className="pl-2 space-y-1 text-sm">
+                        {(() => {
+                          const totalMeisterHours = offerLineItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                          const totalGesellHours = offerLineItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                          const totalMonteurHours = offerLineItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                          
+                          const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
+                            ? wagesOverride.meister 
+                            : rates.stundensatz_meister;
+                          const effectiveGeselleWage = (wagesOverride.geselle !== undefined && isFinite(wagesOverride.geselle)) 
+                            ? wagesOverride.geselle 
+                            : rates.stundensatz_geselle;
+                          const effectiveMonteurWage = (wagesOverride.monteur !== undefined && isFinite(wagesOverride.monteur)) 
+                            ? wagesOverride.monteur 
+                            : rates.stundensatz_monteur;
+                          
+                          const meisterCost = totalMeisterHours * effectiveMeisterWage;
+                          const geselleCost = totalGesellHours * effectiveGeselleWage;
+                          const monteurCost = totalMonteurHours * effectiveMonteurWage;
+                          const totalLaborCost = meisterCost + geselleCost + monteurCost;
+                          
+                          return (
+                            <>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Meister</span>
+                                <span>{meisterCost.toFixed(2)} €</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Geselle</span>
+                                <span>{geselleCost.toFixed(2)} €</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Monteur</span>
+                                <span>{monteurCost.toFixed(2)} €</span>
+                              </div>
+                              <div className="flex justify-between pt-1 border-t font-medium text-foreground">
+                                <span>Arbeitskosten gesamt:</span>
+                                <span>{totalLaborCost.toFixed(2)} €</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    
+                    {/* Zwischensumme */}
+                    <div className="flex justify-between pt-3 border-t-2 border-border font-semibold text-base">
+                      <span>Zwischensumme:</span>
+                      <span>{offerLineItems.reduce((sum, item) => {
+                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        const materialCost = finalUnitPrice * item.quantity;
                         
-                        // Effective wages (override or supabase default)
                         const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
                           ? wagesOverride.meister 
                           : rates.stundensatz_meister;
@@ -1806,261 +2171,17 @@ export function ElektrosanierungConfigurator() {
                           ? wagesOverride.monteur 
                           : rates.stundensatz_monteur;
                         
-                        const meisterCost = totalMeisterHours * effectiveMeisterWage;
-                        const geselleCost = totalGesellHours * effectiveGeselleWage;
-                        const monteurCost = totalMonteurHours * effectiveMonteurWage;
-                        
-                        // Formatting helpers
-                        const formatNumber = (value: number): string => {
-                          return new Intl.NumberFormat('de-DE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          }).format(value);
-                        };
-                        
-                        const parseInput = (value: string): number | null => {
-                          if (value === '') return null;
-                          const normalized = value.replace(',', '.');
-                          const parsed = parseFloat(normalized);
-                          return isNaN(parsed) ? null : parsed;
-                        };
-                        
-                        const isValidInput = (value: string): boolean => {
-                          return /^[0-9]*[,.]?[0-9]*$/.test(value);
-                        };
-                        
-                        // Wage input handlers
-                        const createWageHandlers = (
-                          role: 'meister' | 'geselle' | 'monteur',
-                          displayValue: string,
-                          setDisplayValue: (val: string) => void,
-                          prevValue: number,
-                          setPrevValue: (val: number) => void,
-                          currentValue: number
-                        ) => ({
-                          onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                            setPrevValue(currentValue);
-                            e.target.select();
-                          },
-                          onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-                            const value = e.target.value;
-                            if (value === '' || isValidInput(value)) {
-                              setDisplayValue(value);
-                            }
-                          },
-                          onBlur: () => {
-                            if (displayValue === '') {
-                              // Revert to previous value
-                              setDisplayValue(formatNumber(prevValue));
-                            } else {
-                              const parsed = parseInput(displayValue);
-                              if (parsed === null || isNaN(parsed) || parsed < 0) {
-                                // Invalid, revert to previous
-                                setDisplayValue(formatNumber(prevValue));
-                              } else {
-                                // Valid, round to 2 decimals and commit
-                                const finalValue = Math.round(parsed * 100) / 100;
-                                setDisplayValue(formatNumber(finalValue));
-                                setWagesOverride(prev => ({ ...prev, [role]: finalValue }));
-                              }
-                            }
-                          },
-                          onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              setDisplayValue(formatNumber(prevValue));
-                              e.currentTarget.blur();
-                            } else if (e.key === 'Enter') {
-                              e.preventDefault();
-                              e.currentTarget.blur();
-                            }
-                          }
-                        });
-                        
-                        return <>
-                          {totalMeisterHours > 0 && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                <span className="whitespace-nowrap">Meister ({totalMeisterHours.toFixed(1)} Std. ×</span>
-                                <div className="flex items-center gap-2 flex-1">
-                                  <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    pattern="[0-9]*[,.]?[0-9]*"
-                                    step="any"
-                                    value={meisterWageDisplay}
-                                    {...createWageHandlers(
-                                      'meister',
-                                      meisterWageDisplay,
-                                      setMeisterWageDisplay,
-                                      prevMeisterWage,
-                                      setPrevMeisterWage,
-                                      effectiveMeisterWage
-                                    )}
-                                    className="h-7 w-20 text-xs text-right"
-                                    aria-label="Meister Stundensatz (Angebot)"
-                                  />
-                                  <span className="text-xs whitespace-nowrap">€/h)</span>
-                                  {wagesOverride.meister !== undefined && (
-                                    <button
-                                      onClick={() => {
-                                        setWagesOverride(prev => {
-                                          const updated = { ...prev };
-                                          delete updated.meister;
-                                          return updated;
-                                        });
-                                        setMeisterWageDisplay(formatNumber(rates.stundensatz_meister));
-                                      }}
-                                      className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                      title="Auf Supabase-Wert zurücksetzen"
-                                      aria-label="Meister Stundensatz zurücksetzen"
-                                    >
-                                      <RotateCcw className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                                <span className="font-medium text-foreground">{meisterCost.toFixed(2)} €</span>
-                              </div>
-                              {wagesOverride.meister !== undefined && (
-                                <div className="text-xs text-primary italic pl-2">Override aktiv</div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {totalGesellHours > 0 && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                <span className="whitespace-nowrap">Geselle ({totalGesellHours.toFixed(1)} Std. ×</span>
-                                <div className="flex items-center gap-2 flex-1">
-                                  <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    pattern="[0-9]*[,.]?[0-9]*"
-                                    step="any"
-                                    value={geselleWageDisplay}
-                                    {...createWageHandlers(
-                                      'geselle',
-                                      geselleWageDisplay,
-                                      setGeselleWageDisplay,
-                                      prevGeselleWage,
-                                      setPrevGeselleWage,
-                                      effectiveGeselleWage
-                                    )}
-                                    className="h-7 w-20 text-xs text-right"
-                                    aria-label="Geselle Stundensatz (Angebot)"
-                                  />
-                                  <span className="text-xs whitespace-nowrap">€/h)</span>
-                                  {wagesOverride.geselle !== undefined && (
-                                    <button
-                                      onClick={() => {
-                                        setWagesOverride(prev => {
-                                          const updated = { ...prev };
-                                          delete updated.geselle;
-                                          return updated;
-                                        });
-                                        setGeselleWageDisplay(formatNumber(rates.stundensatz_geselle));
-                                      }}
-                                      className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                      title="Auf Supabase-Wert zurücksetzen"
-                                      aria-label="Geselle Stundensatz zurücksetzen"
-                                    >
-                                      <RotateCcw className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                                <span className="font-medium text-foreground">{geselleCost.toFixed(2)} €</span>
-                              </div>
-                              {wagesOverride.geselle !== undefined && (
-                                <div className="text-xs text-primary italic pl-2">Override aktiv</div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {totalMonteurHours > 0 && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-muted-foreground">
-                                <span className="whitespace-nowrap">Monteur ({totalMonteurHours.toFixed(1)} Std. ×</span>
-                                <div className="flex items-center gap-2 flex-1">
-                                  <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    pattern="[0-9]*[,.]?[0-9]*"
-                                    step="any"
-                                    value={monteurWageDisplay}
-                                    {...createWageHandlers(
-                                      'monteur',
-                                      monteurWageDisplay,
-                                      setMonteurWageDisplay,
-                                      prevMonteurWage,
-                                      setPrevMonteurWage,
-                                      effectiveMonteurWage
-                                    )}
-                                    className="h-7 w-20 text-xs text-right"
-                                    aria-label="Monteur Stundensatz (Angebot)"
-                                  />
-                                  <span className="text-xs whitespace-nowrap">€/h)</span>
-                                  {wagesOverride.monteur !== undefined && (
-                                    <button
-                                      onClick={() => {
-                                        setWagesOverride(prev => {
-                                          const updated = { ...prev };
-                                          delete updated.monteur;
-                                          return updated;
-                                        });
-                                        setMonteurWageDisplay(formatNumber(rates.stundensatz_monteur));
-                                      }}
-                                      className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                      title="Auf Supabase-Wert zurücksetzen"
-                                      aria-label="Monteur Stundensatz zurücksetzen"
-                                    >
-                                      <RotateCcw className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                                <span className="font-medium text-foreground">{monteurCost.toFixed(2)} €</span>
-                              </div>
-                              {wagesOverride.monteur !== undefined && (
-                                <div className="text-xs text-primary italic pl-2">Override aktiv</div>
-                              )}
-                            </div>
-                          )}
-                          
-                          <div className="flex justify-between pt-1 border-t font-medium text-foreground">
-                            <span>Arbeitskosten gesamt:</span>
-                            <span>{(meisterCost + geselleCost + monteurCost).toFixed(2)} €</span>
-                          </div>
-                        </>;
-                      })()}
+                        const laborCost = (
+                          (item.stunden_meister * effectiveMeisterWage) +
+                          (item.stunden_geselle * effectiveGeselleWage) +
+                          (item.stunden_monteur * effectiveMonteurWage)
+                        );
+                        return sum + materialCost + laborCost;
+                      }, 0).toFixed(2)} €</span>
                     </div>
                   </div>
-
-                  {/* Total */}
-                  <div className="flex justify-between pt-2 border-t font-medium text-base">
-                    <span>Zwischensumme:</span>
-                    <span>{(offerLineItems.reduce((sum, item) => {
-                      const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
-                      const materialCost = finalUnitPrice * item.quantity;
-                      
-                      // Use effective wages (with overrides)
-                      const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
-                        ? wagesOverride.meister 
-                        : rates.stundensatz_meister;
-                      const effectiveGeselleWage = (wagesOverride.geselle !== undefined && isFinite(wagesOverride.geselle)) 
-                        ? wagesOverride.geselle 
-                        : rates.stundensatz_geselle;
-                      const effectiveMonteurWage = (wagesOverride.monteur !== undefined && isFinite(wagesOverride.monteur)) 
-                        ? wagesOverride.monteur 
-                        : rates.stundensatz_monteur;
-                      
-                      const laborCost = (
-                        (item.stunden_meister * effectiveMeisterWage) +
-                        (item.stunden_geselle * effectiveGeselleWage) +
-                        (item.stunden_monteur * effectiveMonteurWage)
-                      );
-                      return sum + materialCost + laborCost;
-                    }, 0)).toFixed(2)} €</span>
-                  </div>
-                </div>}
+                </div>
+              )}
               
               <div className="pt-4">
                 <Button onClick={handleSubmit} className="w-full" disabled={offerLineItems.length === 0}>
