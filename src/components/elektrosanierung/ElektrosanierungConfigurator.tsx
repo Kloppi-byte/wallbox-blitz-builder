@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // Import lucide icons
 import { Building, Package, CheckCircle, Minus, Plus, Search, ChevronDown, ChevronUp, X, RotateCcw } from 'lucide-react';
 
@@ -159,6 +160,10 @@ export function ElektrosanierungConfigurator() {
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
   const [showAddProduct, setShowAddProduct] = useState<number | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  
+  // State for image dialog
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -1453,7 +1458,16 @@ export function ElektrosanierungConfigurator() {
                                                           {/* Product Image */}
                                                           <div className="w-12 h-12 flex-shrink-0">
                                                             {item.image ? (
-                                                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
+                                                              <img 
+                                                                src={item.image} 
+                                                                alt={item.name} 
+                                                                className="w-full h-full object-cover rounded border cursor-zoom-in hover:opacity-80 transition-opacity" 
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  setSelectedImage({ url: item.image!, name: item.name });
+                                                                  setImageDialogOpen(true);
+                                                                }}
+                                                              />
                                                             ) : (
                                                               <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
                                                                 <Package className="h-6 w-6 text-muted-foreground" />
@@ -1917,6 +1931,24 @@ export function ElektrosanierungConfigurator() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Image Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{selectedImage?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            {selectedImage && (
+              <img 
+                src={selectedImage.url} 
+                alt={selectedImage.name} 
+                className="max-w-full max-h-[70vh] object-contain rounded"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
