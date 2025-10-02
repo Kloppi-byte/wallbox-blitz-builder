@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { ProductLineItem } from './ProductLineItem';
+import { SoneparProductSearch } from './SoneparProductSearch';
 // Import necessary UI components from '@/components/ui/...'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1311,8 +1312,12 @@ export function ElektrosanierungConfigurator() {
       <div className="container mx-auto p-4">
         <h1 className="text-3xl font-bold mb-6">Elektrosanierung</h1>
 
-        {/* Section 1: Global Project Parameters */}
-        <Card className="mb-8">
+        {/* Main Layout: Configurator on left, Product Search on right */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left side - Main configurator (2/3 width) */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Section 1: Global Project Parameters */}
+            <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building className="h-5 w-5" />
@@ -2272,6 +2277,15 @@ export function ElektrosanierungConfigurator() {
             </div>
           </CardContent>
         </Card>
+          </div>
+          
+          {/* Right side - Sonepar Product Search (1/3 width) */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4">
+              <SoneparProductSearch />
+            </div>
+          </div>
+        </div>
       </div>
       
       {/* Image Dialog */}
