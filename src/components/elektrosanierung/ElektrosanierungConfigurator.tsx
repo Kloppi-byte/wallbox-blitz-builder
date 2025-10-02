@@ -1428,9 +1428,9 @@ export function ElektrosanierungConfigurator() {
                                                     <CollapsibleContent>
                                                       <div className="p-4 pt-0 border-t space-y-4">
                                                         {/* Main Controls Row */}
-                                                        <div className="flex items-start gap-3">
-                                                          {/* 1. Quantity Counter (Left) */}
-                                                          <div className="flex-shrink-0">
+                                                        <div className="flex items-start gap-4">
+                                                          {/* 1. Quantity Counter */}
+                                                          <div className="flex-shrink-0 w-[120px]">
                                                             <Label className="text-xs font-medium mb-1.5 block">Menge</Label>
                                                             <div className="flex items-center gap-1">
                                                               <Button 
@@ -1476,7 +1476,7 @@ export function ElektrosanierungConfigurator() {
                                                           </div>
 
                                                           {/* 2. Quality Dropdown */}
-                                                          <div className="flex-shrink-0 w-32">
+                                                          <div className="flex-shrink-0 w-[140px]">
                                                             <Label className="text-xs font-medium mb-1.5 block">Qualität</Label>
                                                             <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
                                                               <SelectTrigger className="h-8 text-sm">
@@ -1492,19 +1492,31 @@ export function ElektrosanierungConfigurator() {
                                                             </Select>
                                                           </div>
 
-                                                          {/* 3. Purchase Price (Editable) */}
-                                                          <div className="flex-shrink-0">
+                                                          {/* 3. Purchase Price (Editable with Floating Placeholder) */}
+                                                          <div className="flex-shrink-0 w-[140px]">
                                                             <Label className="text-xs font-medium mb-1.5 block">Einkaufspreis</Label>
                                                             <Input 
-                                                              type="number" 
-                                                              step="0.01" 
-                                                              min="0" 
-                                                              value={getEffectivePurchasePrice(item).toFixed(2)}
+                                                              type="text"
+                                                              placeholder={item.unit_price.toFixed(2)}
+                                                              value={item.localPurchasePrice !== undefined ? item.localPurchasePrice.toFixed(2) : ''}
+                                                              onFocus={e => e.target.select()}
                                                               onChange={e => {
-                                                                const value = parseFloat(e.target.value);
-                                                                handleLocalPurchasePriceChange(item.id, isNaN(value) ? undefined : value);
+                                                                const value = e.target.value;
+                                                                if (value === '') {
+                                                                  handleLocalPurchasePriceChange(item.id, undefined);
+                                                                } else {
+                                                                  const parsed = parseFloat(value);
+                                                                  if (!isNaN(parsed)) {
+                                                                    handleLocalPurchasePriceChange(item.id, parsed);
+                                                                  }
+                                                                }
                                                               }}
-                                                              className="w-24 h-8 text-sm text-right" 
+                                                              onBlur={e => {
+                                                                if (e.target.value === '') {
+                                                                  handleLocalPurchasePriceChange(item.id, undefined);
+                                                                }
+                                                              }}
+                                                              className="h-8 text-sm text-right" 
                                                             />
                                                             <div className="flex items-center gap-1 mt-0.5">
                                                               <span className="text-xs text-muted-foreground">€ / {item.unit}</span>
@@ -1513,17 +1525,29 @@ export function ElektrosanierungConfigurator() {
                                                             <div className="mt-2">
                                                               <div className="flex items-center gap-1">
                                                                 <Input 
-                                                                  type="number" 
-                                                                  step="0.01" 
-                                                                  min="1" 
-                                                                  value={getEffectiveMarkup(item).toFixed(2)}
+                                                                  type="text"
+                                                                  placeholder={(rates?.aufschlag_prozent || 1).toFixed(2)}
+                                                                  value={item.localMarkup !== undefined ? item.localMarkup.toFixed(2) : ''}
+                                                                  onFocus={e => e.target.select()}
                                                                   onChange={e => {
-                                                                    const value = parseFloat(e.target.value);
-                                                                    handleLocalMarkupChange(item.id, isNaN(value) ? undefined : value);
+                                                                    const value = e.target.value;
+                                                                    if (value === '') {
+                                                                      handleLocalMarkupChange(item.id, undefined);
+                                                                    } else {
+                                                                      const parsed = parseFloat(value);
+                                                                      if (!isNaN(parsed)) {
+                                                                        handleLocalMarkupChange(item.id, parsed);
+                                                                      }
+                                                                    }
+                                                                  }}
+                                                                  onBlur={e => {
+                                                                    if (e.target.value === '') {
+                                                                      handleLocalMarkupChange(item.id, undefined);
+                                                                    }
                                                                   }}
                                                                   className="w-16 h-6 text-xs text-right" 
                                                                 />
-                                                                <span className="text-xs text-muted-foreground">× Aufschlag</span>
+                                                                <span className="text-xs text-muted-foreground whitespace-nowrap">× Aufschlag</span>
                                                                 {item.localMarkup !== undefined && (
                                                                   <button 
                                                                     onClick={() => handleResetMarkup(item.id)}
@@ -1537,14 +1561,14 @@ export function ElektrosanierungConfigurator() {
                                                             </div>
                                                           </div>
 
-                                                          {/* 4. Sales Price (Read-only) */}
-                                                          <div className="flex-1">
+                                                          {/* 4. Sales Price (Read-only, takes up more space) */}
+                                                          <div className="flex-1 min-w-[200px]">
                                                             <Label className="text-xs font-medium mb-1.5 block">Verkaufspreis</Label>
                                                             <div className="space-y-0.5">
-                                                              <div className="text-lg font-bold">
+                                                              <div className="text-xl font-bold">
                                                                 {formatEuro(calculateTotalSalesPrice(item))}
                                                               </div>
-                                                              <div className="text-xs text-muted-foreground">
+                                                              <div className="text-sm text-muted-foreground">
                                                                 {formatEuro(calculateSalesPricePerUnit(item))} / {item.unit}
                                                               </div>
                                                             </div>
