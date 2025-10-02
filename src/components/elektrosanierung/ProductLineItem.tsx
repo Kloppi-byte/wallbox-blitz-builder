@@ -1,10 +1,11 @@
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, FocusEvent, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Minus, Plus, X, RotateCcw } from 'lucide-react';
 import type { OfferLineItem, OfferProduct } from './ElektrosanierungConfigurator';
+
 interface ProductLineItemProps {
   item: OfferLineItem;
   alternatives: OfferProduct[];
@@ -17,6 +18,7 @@ interface ProductLineItemProps {
   onRemove: (itemId: string) => void;
   onHoursChange: (itemId: string, role: 'meister' | 'geselle' | 'monteur', totalHours: number) => void;
 }
+
 export const ProductLineItem = ({
   item,
   alternatives,
@@ -29,9 +31,16 @@ export const ProductLineItem = ({
   onRemove,
   onHoursChange
 }: ProductLineItemProps) => {
-  // Previous values for reverting on empty/invalid input
-  const [prevPurchasePrice, setPrevPurchasePrice] = useState<number>(item.unit_price);
-  const [prevMarkup, setPrevMarkup] = useState<number>(globalMarkup);
+  // Display values (what user sees while typing)
+  const [purchasePriceDisplay, setPurchasePriceDisplay] = useState<string>('');
+  const [markupDisplay, setMarkupDisplay] = useState<string>('');
+  const [meisterHoursDisplay, setMeisterHoursDisplay] = useState<string>('');
+  const [geselleHoursDisplay, setGeselleHoursDisplay] = useState<string>('');
+  const [monteurHoursDisplay, setMonteurHoursDisplay] = useState<string>('');
+
+  // Previous committed values for reverting
+  const [prevPurchasePrice, setPrevPurchasePrice] = useState<number>(0);
+  const [prevMarkup, setPrevMarkup] = useState<number>(0);
   const [prevMeisterHours, setPrevMeisterHours] = useState<number>(0);
   const [prevGeselleHours, setPrevGeselleHours] = useState<number>(0);
   const [prevMonteurHours, setPrevMonteurHours] = useState<number>(0);
@@ -63,10 +72,49 @@ export const ProductLineItem = ({
 
   // Parse input (accept both comma and dot as decimal separator)
   const parseInput = (value: string): number | null => {
+    if (value === '') return null;
     const normalized = value.replace(',', '.');
     const parsed = parseFloat(normalized);
     return isNaN(parsed) ? null : parsed;
   };
+
+  // Validate input characters (digits, comma, dot, empty)
+  const isValidInput = (value: string): boolean => {
+    return /^[0-9]*[,.]?[0-9]*$/.test(value);
+  };
+
+  // Initialize display values from props
+  useEffect(() => {
+    const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
+    const effectiveMarkup = item.localMarkup ?? globalMarkup;
+    
+    setPurchasePriceDisplay(formatNumber(effectivePurchasePrice));
+    setMarkupDisplay(formatNumber(effectiveMarkup));
+    setMeisterHoursDisplay(formatNumber(item.stunden_meister_per_unit * item.quantity));
+    setGeselleHoursDisplay(formatNumber(item.stunden_geselle_per_unit * item.quantity));
+    setMonteurHoursDisplay(formatNumber(item.stunden_monteur_per_unit * item.quantity));
+  }, [item.id]); // Only re-initialize when item changes
+
+  // Prevent scroll-wheel changes
+  const preventWheel = (e: WheelEvent) => {
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const refs = [purchasePriceRef, markupRef, meisterRef, geselleRef, monteurRef];
+    refs.forEach(ref => {
+      if (ref.current) {
+        ref.current.addEventListener('wheel', preventWheel, { passive: false });
+      }
+    });
+    return () => {
+      refs.forEach(ref => {
+        if (ref.current) {
+          ref.current.removeEventListener('wheel', preventWheel);
+        }
+      });
+    };
+  }, []);
 
   // Get effective values
   const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
@@ -74,15 +122,69 @@ export const ProductLineItem = ({
   const salesPricePerUnit = effectivePurchasePrice * effectiveMarkup;
   const totalSalesPrice = salesPricePerUnit * item.quantity;
 
-  // Handle ESC key to revert and blur
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, prevValue: number, onRevert: () => void) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onRevert();
-      e.currentTarget.blur();
+  // Generic handlers for floating edit behavior
+  const createFloatingHandlers = (
+    displayValue: string,
+    setDisplayValue: (val: string) => void,
+    prevValue: number,
+    setPrevValue: (val: number) => void,
+    currentValue: number,
+    onCommit: (val: number | undefined) => void,
+    options?: { min?: number; max?: number }
+  ) => ({
+    onFocus: (e: FocusEvent<HTMLInputElement>) => {
+      setPrevValue(currentValue);
+      e.target.select();
+    },
+    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === '' || isValidInput(value)) {
+        setDisplayValue(value);
+      }
+    },
+    onBlur: () => {
+      if (displayValue === '') {
+        // Revert to previous value
+        setDisplayValue(formatNumber(prevValue));
+        // Don't commit if reverting to default (undefined local override)
+        if (prevValue === item.unit_price || prevValue === globalMarkup) {
+          onCommit(undefined);
+        }
+      } else {
+        const parsed = parseInput(displayValue);
+        if (parsed === null || isNaN(parsed)) {
+          // Invalid, revert to previous
+          setDisplayValue(formatNumber(prevValue));
+        } else {
+          // Valid, optionally clamp
+          let finalValue = parsed;
+          if (options?.min !== undefined && finalValue < options.min) {
+            finalValue = options.min;
+          }
+          if (options?.max !== undefined && finalValue > options.max) {
+            finalValue = options.max;
+          }
+          // Round to 2 decimals
+          finalValue = Math.round(finalValue * 100) / 100;
+          setDisplayValue(formatNumber(finalValue));
+          onCommit(finalValue);
+        }
+      }
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setDisplayValue(formatNumber(prevValue));
+        e.currentTarget.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
     }
-  };
-  return <div className="p-6 space-y-5">
+  });
+
+  return (
+    <div className="p-6 space-y-5">
       {/* Upper Controls - ~2/3 of card width */}
       <div className="grid grid-cols-[auto_minmax(200px,1fr)_minmax(180px,auto)_minmax(150px,auto)_minmax(220px,1fr)_auto] gap-5 items-start">
         {/* 1. Quantity Counter */}
@@ -127,35 +229,26 @@ export const ProductLineItem = ({
           <Label htmlFor={`purchase-${item.id}`} className="text-xs font-medium">
             Einkaufspreis
           </Label>
-          <Input id={`purchase-${item.id}`} ref={purchasePriceRef} type="text" placeholder={formatNumber(item.unit_price)} value={item.localPurchasePrice !== undefined ? String(item.localPurchasePrice) : ''} onFocus={e => {
-          setPrevPurchasePrice(effectivePurchasePrice);
-          e.target.select();
-        }} onChange={e => {
-          const value = e.target.value;
-          if (value === '') {
-            onLocalPurchasePriceChange(item.id, undefined);
-          } else {
-            // Allow typing, don't validate yet
-            const numValue = parseInput(value);
-            if (numValue !== null) {
-              onLocalPurchasePriceChange(item.id, numValue);
-            }
-          }
-        }} onBlur={e => {
-          const value = e.target.value;
-          if (value === '') {
-            onLocalPurchasePriceChange(item.id, undefined);
-          } else {
-            const parsed = parseInput(value);
-            if (parsed === null || parsed < 0) {
-              // Invalid, revert to previous
-              onLocalPurchasePriceChange(item.id, undefined);
-            } else {
-              // Valid, store rounded value
-              onLocalPurchasePriceChange(item.id, Math.round(parsed * 100) / 100);
-            }
-          }
-        }} onKeyDown={e => handleKeyDown(e, prevPurchasePrice, () => onLocalPurchasePriceChange(item.id, undefined))} className="h-9 text-sm text-right" aria-describedby={`purchase-hint-${item.id}`} />
+          <Input
+            id={`purchase-${item.id}`}
+            ref={purchasePriceRef}
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*[,.]?[0-9]*"
+            step="any"
+            value={purchasePriceDisplay}
+            {...createFloatingHandlers(
+              purchasePriceDisplay,
+              setPurchasePriceDisplay,
+              prevPurchasePrice,
+              setPrevPurchasePrice,
+              effectivePurchasePrice,
+              (val) => onLocalPurchasePriceChange(item.id, val),
+              { min: 0 }
+            )}
+            className="h-9 text-sm text-right"
+            aria-describedby={`purchase-hint-${item.id}`}
+          />
           <span id={`purchase-hint-${item.id}`} className="text-xs text-muted-foreground block">
             € / {item.unit}
           </span>
@@ -163,39 +256,42 @@ export const ProductLineItem = ({
           {/* Markup (below purchase price) */}
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center gap-2">
-              <Input id={`markup-${item.id}`} ref={markupRef} type="text" placeholder={formatNumber(globalMarkup)} value={item.localMarkup !== undefined ? String(item.localMarkup) : ''} onFocus={e => {
-              setPrevMarkup(effectiveMarkup);
-              e.target.select();
-            }} onChange={e => {
-              const value = e.target.value;
-              if (value === '') {
-                onLocalMarkupChange(item.id, undefined);
-              } else {
-                const numValue = parseInput(value);
-                if (numValue !== null) {
-                  onLocalMarkupChange(item.id, numValue);
-                }
-              }
-            }} onBlur={e => {
-              const value = e.target.value;
-              if (value === '') {
-                onLocalMarkupChange(item.id, undefined);
-              } else {
-                const parsed = parseInput(value);
-                if (parsed === null || parsed < 0.5 || parsed > 5) {
-                  // Invalid, revert
-                  onLocalMarkupChange(item.id, undefined);
-                } else {
-                  onLocalMarkupChange(item.id, Math.round(parsed * 100) / 100);
-                }
-              }
-            }} onKeyDown={e => handleKeyDown(e, prevMarkup, () => onLocalMarkupChange(item.id, undefined))} className="w-20 h-7 text-xs text-right" aria-describedby={`markup-hint-${item.id}`} />
+              <Input
+                id={`markup-${item.id}`}
+                ref={markupRef}
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[,.]?[0-9]*"
+                step="any"
+                value={markupDisplay}
+                {...createFloatingHandlers(
+                  markupDisplay,
+                  setMarkupDisplay,
+                  prevMarkup,
+                  setPrevMarkup,
+                  effectiveMarkup,
+                  (val) => onLocalMarkupChange(item.id, val),
+                  { min: 0.5, max: 5 }
+                )}
+                className="w-20 h-7 text-xs text-right"
+                aria-describedby={`markup-hint-${item.id}`}
+              />
               <span id={`markup-hint-${item.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
                 × Aufschlag
               </span>
-              {item.localMarkup !== undefined && <button onClick={() => onResetMarkup(item.id)} className="text-xs text-primary hover:underline flex items-center gap-0.5" title="Auf global zurücksetzen" aria-label="Aufschlag zurücksetzen">
+              {item.localMarkup !== undefined && (
+                <button
+                  onClick={() => {
+                    onResetMarkup(item.id);
+                    setMarkupDisplay(formatNumber(globalMarkup));
+                  }}
+                  className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                  title="Auf global zurücksetzen"
+                  aria-label="Aufschlag zurücksetzen"
+                >
                   <RotateCcw className="h-3 w-3" />
-                </button>}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -235,28 +331,26 @@ export const ProductLineItem = ({
             <Label htmlFor={`meister-${item.id}`} className="text-xs font-medium">
               Meister (h)
             </Label>
-            <Input id={`meister-${item.id}`} ref={meisterRef} type="text" placeholder="0.00" value={String(item.stunden_meister_per_unit * item.quantity)} onFocus={e => {
-            setPrevMeisterHours(item.stunden_meister_per_unit * item.quantity);
-            e.target.select();
-          }} onChange={e => {
-            const value = e.target.value;
-            const numValue = parseInput(value);
-            if (numValue !== null && numValue >= 0) {
-              onHoursChange(item.id, 'meister', numValue);
-            }
-          }} onBlur={e => {
-            const value = e.target.value;
-            const parsed = parseInput(value);
-            if (parsed === null || parsed < 0) {
-              onHoursChange(item.id, 'meister', prevMeisterHours);
-            }
-          }} onKeyDown={e => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              onHoursChange(item.id, 'meister', prevMeisterHours);
-              e.currentTarget.blur();
-            }
-          }} className="h-9 text-sm text-right" aria-describedby={`meister-hint-${item.id}`} />
+            <Input
+              id={`meister-${item.id}`}
+              ref={meisterRef}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[,.]?[0-9]*"
+              step="any"
+              value={meisterHoursDisplay}
+              {...createFloatingHandlers(
+                meisterHoursDisplay,
+                setMeisterHoursDisplay,
+                prevMeisterHours,
+                setPrevMeisterHours,
+                item.stunden_meister_per_unit * item.quantity,
+                (val) => onHoursChange(item.id, 'meister', val ?? 0),
+                { min: 0 }
+              )}
+              className="h-9 text-sm text-right"
+              aria-describedby={`meister-hint-${item.id}`}
+            />
             <span id={`meister-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
               {formatNumber(item.stunden_meister_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_meister_per_unit * item.quantity)} h
             </span>
@@ -267,28 +361,26 @@ export const ProductLineItem = ({
             <Label htmlFor={`geselle-${item.id}`} className="text-xs font-medium">
               Geselle (h)
             </Label>
-            <Input id={`geselle-${item.id}`} ref={geselleRef} type="text" placeholder="0.00" value={String(item.stunden_geselle_per_unit * item.quantity)} onFocus={e => {
-            setPrevGeselleHours(item.stunden_geselle_per_unit * item.quantity);
-            e.target.select();
-          }} onChange={e => {
-            const value = e.target.value;
-            const numValue = parseInput(value);
-            if (numValue !== null && numValue >= 0) {
-              onHoursChange(item.id, 'geselle', numValue);
-            }
-          }} onBlur={e => {
-            const value = e.target.value;
-            const parsed = parseInput(value);
-            if (parsed === null || parsed < 0) {
-              onHoursChange(item.id, 'geselle', prevGeselleHours);
-            }
-          }} onKeyDown={e => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              onHoursChange(item.id, 'geselle', prevGeselleHours);
-              e.currentTarget.blur();
-            }
-          }} className="h-9 text-sm text-right" aria-describedby={`geselle-hint-${item.id}`} />
+            <Input
+              id={`geselle-${item.id}`}
+              ref={geselleRef}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[,.]?[0-9]*"
+              step="any"
+              value={geselleHoursDisplay}
+              {...createFloatingHandlers(
+                geselleHoursDisplay,
+                setGeselleHoursDisplay,
+                prevGeselleHours,
+                setPrevGeselleHours,
+                item.stunden_geselle_per_unit * item.quantity,
+                (val) => onHoursChange(item.id, 'geselle', val ?? 0),
+                { min: 0 }
+              )}
+              className="h-9 text-sm text-right"
+              aria-describedby={`geselle-hint-${item.id}`}
+            />
             <span id={`geselle-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
               {formatNumber(item.stunden_geselle_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_geselle_per_unit * item.quantity)} h
             </span>
@@ -299,33 +391,32 @@ export const ProductLineItem = ({
             <Label htmlFor={`monteur-${item.id}`} className="text-xs font-medium">
               Monteur (h)
             </Label>
-            <Input id={`monteur-${item.id}`} ref={monteurRef} type="text" placeholder="0.00" value={String(item.stunden_monteur_per_unit * item.quantity)} onFocus={e => {
-            setPrevMonteurHours(item.stunden_monteur_per_unit * item.quantity);
-            e.target.select();
-          }} onChange={e => {
-            const value = e.target.value;
-            const numValue = parseInput(value);
-            if (numValue !== null && numValue >= 0) {
-              onHoursChange(item.id, 'monteur', numValue);
-            }
-          }} onBlur={e => {
-            const value = e.target.value;
-            const parsed = parseInput(value);
-            if (parsed === null || parsed < 0) {
-              onHoursChange(item.id, 'monteur', prevMonteurHours);
-            }
-          }} onKeyDown={e => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              onHoursChange(item.id, 'monteur', prevMonteurHours);
-              e.currentTarget.blur();
-            }
-          }} className="h-9 text-sm text-right" aria-describedby={`monteur-hint-${item.id}`} />
+            <Input
+              id={`monteur-${item.id}`}
+              ref={monteurRef}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[,.]?[0-9]*"
+              step="any"
+              value={monteurHoursDisplay}
+              {...createFloatingHandlers(
+                monteurHoursDisplay,
+                setMonteurHoursDisplay,
+                prevMonteurHours,
+                setPrevMonteurHours,
+                item.stunden_monteur_per_unit * item.quantity,
+                (val) => onHoursChange(item.id, 'monteur', val ?? 0),
+                { min: 0 }
+              )}
+              className="h-9 text-sm text-right"
+              aria-describedby={`monteur-hint-${item.id}`}
+            />
             <span id={`monteur-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
               {formatNumber(item.stunden_monteur_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_monteur_per_unit * item.quantity)} h
             </span>
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
