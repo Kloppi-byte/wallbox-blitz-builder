@@ -110,7 +110,7 @@ export const ProductLineItem = ({
 
   // Initialize display values from props
   useEffect(() => {
-    const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
+    const effectivePurchasePrice = item.localPurchasePrice ?? (entityPricing?.effectivePrice || item.unit_price);
     const effectiveMarkup = item.localMarkup ?? globalMarkup;
     
     setPurchasePriceDisplay(formatNumber(effectivePurchasePrice));
@@ -118,7 +118,7 @@ export const ProductLineItem = ({
     setMeisterHoursDisplay(formatNumber(computedMeisterHours));
     setGeselleHoursDisplay(formatNumber(computedGeselleHours));
     setMonteurHoursDisplay(formatNumber(computedMonteurHours));
-  }, [item.id]); // Only re-initialize when item changes
+  }, [item.id, entityPricing?.effectivePrice, item.localPurchasePrice]); // Re-initialize when pricing changes
 
   // Auto-update hours display when quantity/hoursPerUnit changes (only if no override)
   useEffect(() => {
