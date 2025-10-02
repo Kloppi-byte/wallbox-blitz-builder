@@ -147,7 +147,8 @@ export const ProductLineItem = ({
   // Get effective values
   const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
   const effectiveMarkup = item.localMarkup ?? globalMarkup;
-  const salesPricePerUnit = effectivePurchasePrice * effectiveMarkup;
+  const markupMultiplier = 1 + (effectiveMarkup / 100); // Convert percentage to multiplier
+  const salesPricePerUnit = effectivePurchasePrice * markupMultiplier;
   const totalSalesPrice = salesPricePerUnit * item.quantity;
 
   // Generic handlers for floating edit behavior (for price/markup)
@@ -337,25 +338,25 @@ export const ProductLineItem = ({
               <Input
                 id={`markup-${item.id}`}
                 ref={markupRef}
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]*[,.]?[0-9]*"
-                step="any"
-                value={markupDisplay}
-                {...createFloatingHandlers(
-                  markupDisplay,
-                  setMarkupDisplay,
-                  prevMarkup,
-                  setPrevMarkup,
-                  effectiveMarkup,
-                  (val) => onLocalMarkupChange(item.id, val),
-                  { min: 0.5, max: 5 }
-                )}
-                className="w-20 h-7 text-xs text-right"
-                aria-describedby={`markup-hint-${item.id}`}
-              />
+                 type="text"
+                 inputMode="decimal"
+                 pattern="[0-9]*[,.]?[0-9]*"
+                 step="any"
+                 value={markupDisplay}
+                 {...createFloatingHandlers(
+                   markupDisplay,
+                   setMarkupDisplay,
+                   prevMarkup,
+                   setPrevMarkup,
+                   effectiveMarkup,
+                   (val) => onLocalMarkupChange(item.id, val),
+                   { min: 0, max: 500 }
+                 )}
+                 className="w-20 h-7 text-xs text-right"
+                 aria-describedby={`markup-hint-${item.id}`}
+               />
               <span id={`markup-hint-${item.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
-                × Aufschlag
+                % Aufschlag
               </span>
               {item.localMarkup !== undefined && (
                 <button

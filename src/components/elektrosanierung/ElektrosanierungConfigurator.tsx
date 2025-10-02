@@ -95,7 +95,7 @@ export type OfferLineItem = {
   stunden_monteur_per_unit: number;
   quantity: number;
   image: string | null;
-  localMarkup?: number; // Local override for aufschlag_prozent
+  localMarkup?: number; // Local override for aufschlag_prozent (stored as percentage, e.g., 40 = 40%)
   localPurchasePrice?: number; // Local override for unit_price
 };
 
@@ -767,14 +767,17 @@ export function ElektrosanierungConfigurator() {
     return item.localPurchasePrice ?? item.unit_price;
   };
 
-  // Get effective markup for an item
+  // Get effective markup for an item (returns percentage, e.g., 40 = 40%)
   const getEffectiveMarkup = (item: OfferLineItem): number => {
-    return item.localMarkup ?? (rates?.aufschlag_prozent || 1);
+    return item.localMarkup ?? (rates?.aufschlag_prozent || 0);
   };
 
-  // Calculate sales price per unit
+  // Calculate sales price per unit (converts percentage to multiplier)
   const calculateSalesPricePerUnit = (item: OfferLineItem): number => {
-    return getEffectivePurchasePrice(item) * getEffectiveMarkup(item);
+    const basePrice = getEffectivePurchasePrice(item);
+    const markupPercentage = getEffectiveMarkup(item);
+    const multiplier = 1 + (markupPercentage / 100);
+    return basePrice * multiplier;
   };
 
   // Calculate total sales price
@@ -1568,10 +1571,10 @@ export function ElektrosanierungConfigurator() {
                                                                {/* Expanded Product Details */}
                                                                <CollapsibleContent>
                                                                  <ProductLineItem
-                                                                   item={item}
-                                                                   alternatives={getAlternatives(item.produkt_gruppe || '')}
-                                                                   globalMarkup={rates?.aufschlag_prozent || 1}
-                                                                   onQuantityChange={handleQuantityChange}
+                                                                    item={item}
+                                                                    alternatives={getAlternatives(item.produkt_gruppe || '')}
+                                                                    globalMarkup={rates?.aufschlag_prozent || 0}
+                                                                    onQuantityChange={handleQuantityChange}
                                                                    onProductSwap={handleProductSwap}
                                                                    onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
                                                                    onLocalMarkupChange={handleLocalMarkupChange}
@@ -1767,7 +1770,8 @@ export function ElektrosanierungConfigurator() {
                     
                     // Package-level calculations
                     const packageMaterialTotal = packageItems.reduce((sum, item) => {
-                      const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                      const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
+                      const finalUnitPrice = item.unit_price * markupMultiplier;
                       return sum + (finalUnitPrice * item.quantity);
                     }, 0);
                     
@@ -1847,7 +1851,8 @@ export function ElektrosanierungConfigurator() {
                                   {isCategoryExpanded && (
                                     <div className="space-y-1 text-sm pl-2">
                                       {categoryItems.map(item => {
-                                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
+                                        const finalUnitPrice = item.unit_price * markupMultiplier;
                                         const itemTotal = finalUnitPrice * item.quantity;
                                         return (
                                           <div key={item.id} className="flex justify-between text-muted-foreground py-1">
@@ -2101,7 +2106,8 @@ export function ElektrosanierungConfigurator() {
                     <div className="flex justify-between text-sm font-medium">
                       <span>Materialkosten gesamt:</span>
                       <span>{offerLineItems.reduce((sum, item) => {
-                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
+                        const finalUnitPrice = item.unit_price * markupMultiplier;
                         return sum + (finalUnitPrice * item.quantity);
                       }, 0).toFixed(2)} €</span>
                     </div>
@@ -2158,7 +2164,8 @@ export function ElektrosanierungConfigurator() {
                     <div className="flex justify-between pt-3 border-t-2 border-border font-semibold text-base">
                       <span>Zwischensumme:</span>
                       <span>{offerLineItems.reduce((sum, item) => {
-                        const finalUnitPrice = item.unit_price * rates.aufschlag_prozent;
+                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
+                        const finalUnitPrice = item.unit_price * markupMultiplier;
                         const materialCost = finalUnitPrice * item.quantity;
                         
                         const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
