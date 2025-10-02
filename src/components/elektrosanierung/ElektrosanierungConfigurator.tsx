@@ -164,6 +164,9 @@ export function ElektrosanierungConfigurator() {
   // State for image dialog
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
+  
+  // State for category expansion within packages
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, Set<string>>>({});
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -225,7 +228,7 @@ export function ElektrosanierungConfigurator() {
         const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult] = await Promise.all([
           supabase.from('offers_packages').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
           supabase.from('offers_package_items').select('*'),
-          supabase.from('offers_product_groups').select('*'),
+          supabase.from('offers_product_groups').select('group_id, description, category'),
           supabase.from('offers_products').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
           supabase.from('offers_package_parameter_links').select('*'),
           supabase.from('offers_package_parameter_definitions').select('*')
@@ -249,14 +252,22 @@ export function ElektrosanierungConfigurator() {
           console.log('Package items data:', packageItemsResult.data);
           setPackageItems(packageItemsResult.data);
         }
-        if (productGroupsResult.data) setProductGroups(productGroupsResult.data);
+        if (productGroupsResult.data) setProductGroups(productGroupsResult.data as any);
         if (productsResult.data) {
           console.log('Products data:', productsResult.data);
-          setProducts(productsResult.data.map(product => ({
-            ...product,
-            image: (product as any).image || null,
-            tags: (product as any).tags || []
-          })));
+          // Map products and include category from product_groups
+          const productsWithCategory = productsResult.data.map(product => {
+            const productGroup = (productGroupsResult.data as any)?.find(
+              (pg: any) => pg.group_id === product.produkt_gruppe
+            );
+            return {
+              ...product,
+              image: (product as any).image || null,
+              tags: (product as any).tags || [],
+              category: productGroup?.category || null
+            };
+          });
+          setProducts(productsWithCategory);
         }
         if (paramLinksResult.data) {
           console.log('Parameter links data:', paramLinksResult.data);
@@ -1068,6 +1079,53 @@ export function ElektrosanierungConfigurator() {
   const getAlternatives = (produktGruppe: string) => {
     return products.filter(p => p.produkt_gruppe === produktGruppe && isProductAvailableForLocation(p));
   };
+  
+  // Group line items by category for a specific instance
+  const groupLineItemsByCategory = (instanceId: string) => {
+    const lineItems = getLineItemsForInstance(instanceId);
+    const grouped: Record<string, typeof lineItems> = {};
+    
+    lineItems.forEach(item => {
+      const category = item.category || '__uncategorized__';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(item);
+    });
+    
+    // Sort categories alphabetically, uncategorized last
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      if (a === '__uncategorized__') return 1;
+      if (b === '__uncategorized__') return 1;
+      return a.localeCompare(b, 'de');
+    });
+    
+    return { grouped, sortedCategories };
+  };
+  
+  // Toggle category expansion for a specific instance
+  const toggleCategoryExpansion = (instanceId: string, category: string) => {
+    setExpandedCategories(prev => {
+      const instanceCategories = prev[instanceId] || new Set();
+      const newSet = new Set(instanceCategories);
+      
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      
+      return {
+        ...prev,
+        [instanceId]: newSet
+      };
+    });
+  };
+  
+  // Check if category is expanded for a specific instance
+  const isCategoryExpanded = (instanceId: string, category: string) => {
+    return expandedCategories[instanceId]?.has(category) || false;
+  };
 
   // Helper function to get products for a package (client-side join)
   const getProductsForPackage = (packageId: number, qualitaetsstufe: string) => {
@@ -1406,117 +1464,199 @@ export function ElektrosanierungConfigurator() {
                                     <div key={instance.instanceId} className="mb-6">
                                       {instances.length > 1 && <h6 className="text-sm font-medium mb-2">Instanz {idx + 1}</h6>}
                                       
-                                      <Collapsible 
-                                        open={isProductsVisible} 
-                                        onOpenChange={(open) => {
-                                          setShowProductsForInstance(prev => {
-                                            const newSet = new Set(prev);
-                                            if (open) {
-                                              newSet.add(instance.instanceId);
-                                            } else {
-                                              newSet.delete(instance.instanceId);
-                                            }
-                                            return newSet;
-                                          });
-                                        }}
-                                      >
-                                        <CollapsibleTrigger asChild>
-                                          <Button variant="outline" className="w-full justify-between mb-3">
-                                            <span className="flex items-center gap-2">
-                                              <Package className="h-4 w-4" />
-                                              Produkte anzeigen ({lineItems.length} Artikel)
-                                            </span>
-                                            {isProductsVisible ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                          </Button>
-                                        </CollapsibleTrigger>
-                                        
-                                        <CollapsibleContent>
-                                          <div className="space-y-3">
-                                            {lineItems.map(item => {
-                                              const isExpanded = expandedProducts.has(item.id);
-                                              
-                                              return (
-                                                <div key={item.id} className="bg-background border rounded-lg overflow-hidden">
-                                                  <Collapsible
-                                                    open={isExpanded}
-                                                    onOpenChange={(open) => {
-                                                      setExpandedProducts(prev => {
-                                                        const newSet = new Set(prev);
-                                                        if (open) {
-                                                          newSet.add(item.id);
-                                                        } else {
-                                                          newSet.delete(item.id);
-                                                        }
-                                                        return newSet;
-                                                      });
-                                                    }}
-                                                  >
-                                                    {/* Compact Product View */}
-                                                    <CollapsibleTrigger asChild>
-                                                      <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                                                        <div className="flex items-center gap-4">
-                                                          {/* Product Image */}
-                                                          <div className="w-12 h-12 flex-shrink-0">
-                                                            {item.image ? (
-                                                              <img 
-                                                                src={item.image} 
-                                                                alt={item.name} 
-                                                                className="w-full h-full object-cover rounded border cursor-zoom-in hover:opacity-80 transition-opacity" 
-                                                                onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  setSelectedImage({ url: item.image!, name: item.name });
-                                                                  setImageDialogOpen(true);
-                                                                }}
-                                                              />
-                                                            ) : (
-                                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                                <Package className="h-6 w-6 text-muted-foreground" />
+                                      {/* Group products by category */}
+                                      <div className="space-y-3">
+                                        {(() => {
+                                          const { grouped, sortedCategories } = groupLineItemsByCategory(instance.instanceId);
+                                          
+                                          return sortedCategories.map(category => {
+                                            const categoryItems = grouped[category];
+                                            const isUncategorized = category === '__uncategorized__';
+                                            const displayName = isUncategorized 
+                                              ? 'Weitere Produkte' 
+                                              : category;
+                                            const isCatExpanded = isCategoryExpanded(instance.instanceId, category);
+                                            
+                                            return (
+                                              <div key={category} className="border rounded-md overflow-hidden">
+                                                <Collapsible
+                                                  open={isCatExpanded}
+                                                  onOpenChange={() => toggleCategoryExpansion(instance.instanceId, category)}
+                                                >
+                                                  <CollapsibleTrigger asChild>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      className="w-full justify-between hover:bg-accent/50 text-sm px-4 py-3"
+                                                    >
+                                                      <span className="flex items-center gap-2 font-medium">
+                                                        <Package className="h-4 w-4" />
+                                                        {displayName} ({categoryItems.length} {categoryItems.length === 1 ? 'Artikel' : 'Artikel'})
+                                                      </span>
+                                                      {isCatExpanded ? (
+                                                        <ChevronUp className="h-4 w-4" />
+                                                      ) : (
+                                                        <ChevronDown className="h-4 w-4" />
+                                                      )}
+                                                    </Button>
+                                                  </CollapsibleTrigger>
+
+                                                  <CollapsibleContent className="border-t">
+                                                    <div className="space-y-2 p-2">
+                                                      {categoryItems.map(item => {
+                                                        const isExpanded = expandedProducts.has(item.id);
+                                                        
+                                                        return (
+                                                          <div key={item.id} className="bg-background border rounded-lg overflow-hidden">
+                                                             <Collapsible
+                                                               open={isExpanded}
+                                                               onOpenChange={(open) => {
+                                                                 setExpandedProducts(prev => {
+                                                                   const newSet = new Set(prev);
+                                                                   if (open) {
+                                                                     newSet.add(item.id);
+                                                                   } else {
+                                                                     newSet.delete(item.id);
+                                                                   }
+                                                                   return newSet;
+                                                                 });
+                                                               }}
+                                                             >
+                                                               {/* Compact Product View */}
+                                                               <CollapsibleTrigger asChild>
+                                                                 <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                                                   <div className="flex items-center gap-4">
+                                                                     {/* Product Image */}
+                                                                     <div className="w-12 h-12 flex-shrink-0">
+                                                                       {item.image ? (
+                                                                         <img 
+                                                                           src={item.image} 
+                                                                           alt={item.name} 
+                                                                           className="w-full h-full object-cover rounded border cursor-zoom-in hover:opacity-80 transition-opacity" 
+                                                                           onClick={(e) => {
+                                                                             e.stopPropagation();
+                                                                             setSelectedImage({ url: item.image!, name: item.name });
+                                                                             setImageDialogOpen(true);
+                                                                           }}
+                                                                         />
+                                                                       ) : (
+                                                                         <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                                           <Package className="h-6 w-6 text-muted-foreground" />
+                                                                         </div>
+                                                                       )}
+                                                                     </div>
+
+                                                                     {/* Compact Info */}
+                                                                     <div className="flex-1 min-w-0">
+                                                                       <h5 className="font-medium text-sm truncate">{item.name}</h5>
+                                                                       <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                                                         <span>Menge: {item.quantity} {item.unit}</span>
+                                                                         <span>Preis: {formatEuro(calculateTotalSalesPrice(item))}</span>
+                                                                       </div>
+                                                                     </div>
+
+                                                                     {/* Expand Icon */}
+                                                                     <div className="flex-shrink-0">
+                                                                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                                     </div>
+                                                                   </div>
+                                                                 </div>
+                                                               </CollapsibleTrigger>
+
+                                                               {/* Expanded Product Details */}
+                                                               <CollapsibleContent>
+                                                                 <ProductLineItem
+                                                                   item={item}
+                                                                   alternatives={getAlternatives(item.produkt_gruppe || '')}
+                                                                   globalMarkup={rates?.aufschlag_prozent || 1}
+                                                                   onQuantityChange={handleQuantityChange}
+                                                                   onProductSwap={handleProductSwap}
+                                                                   onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
+                                                                   onLocalMarkupChange={handleLocalMarkupChange}
+                                                                   onResetMarkup={handleResetMarkup}
+                                                                   onRemove={handleRemoveLineItem}
+                                                                   onHoursChange={handleHoursChange}
+                                                                 />
+                                                               </CollapsibleContent>
+                                                             </Collapsible>
+                                                          </div>
+                                                        );
+                                                      })}
+                                                      
+                                                      {/* Add product button within category */}
+                                                      <div className="pt-2">
+                                                        <Popover 
+                                                          open={showAddProduct === pkg.id} 
+                                                          onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}
+                                                        >
+                                                          <PopoverTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="w-full">
+                                                              <Plus className="h-4 w-4 mr-2" />
+                                                              Produkt zu "{displayName}" hinzufügen
+                                                            </Button>
+                                                          </PopoverTrigger>
+                                                          <PopoverContent className="w-80 p-0" align="start">
+                                                            <div className="flex flex-col">
+                                                              {/* Search Input */}
+                                                              <div className="flex items-center border-b px-3 py-2">
+                                                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                <Input 
+                                                                  placeholder="Produkte durchsuchen..." 
+                                                                  value={productSearchQuery} 
+                                                                  onChange={e => setProductSearchQuery(e.target.value)} 
+                                                                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                                                                />
                                                               </div>
-                                                            )}
-                                                          </div>
-
-                                                          {/* Compact Info */}
-                                                          <div className="flex-1 min-w-0">
-                                                            <h5 className="font-medium text-sm truncate">{item.name}</h5>
-                                                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                                                              <span>Menge: {item.quantity} {item.unit}</span>
-                                                              <span>Preis: {formatEuro(calculateTotalSalesPrice(item))}</span>
+                                                              
+                                                              {/* Product List */}
+                                                              <div className="max-h-60 overflow-y-auto">
+                                                                {getFilteredProducts().length === 0 ? (
+                                                                  <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                    Keine Produkte gefunden.
+                                                                  </div>
+                                                                ) : getFilteredProducts().map(product => (
+                                                                  <div 
+                                                                    key={product.product_id} 
+                                                                    onClick={() => handleAddProduct(pkg.id, product.product_id)} 
+                                                                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
+                                                                  >
+                                                                    <div className="w-10 h-10 flex-shrink-0">
+                                                                      {product.image ? (
+                                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" />
+                                                                      ) : (
+                                                                        <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                                          <Package className="h-5 w-5 text-muted-foreground" />
+                                                                        </div>
+                                                                      )}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                      <div className="font-medium text-sm">{product.name}</div>
+                                                                      {product.description && (
+                                                                        <div className="text-xs text-muted-foreground truncate">{product.description}</div>
+                                                                      )}
+                                                                      <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
+                                                                        <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
+                                                                      </div>
+                                                                    </div>
+                                                                  </div>
+                                                                ))}
+                                                              </div>
                                                             </div>
-                                                          </div>
-
-                                                          {/* Expand Icon */}
-                                                          <div className="flex-shrink-0">
-                                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                          </div>
-                                                        </div>
+                                                          </PopoverContent>
+                                                        </Popover>
                                                       </div>
-                                                    </CollapsibleTrigger>
-
-                                                     {/* Expanded Product Details */}
-                                                     <CollapsibleContent>
-                                                       <ProductLineItem
-                                                         item={item}
-                                                         alternatives={getAlternatives(item.produkt_gruppe || '')}
-                                                         globalMarkup={rates?.aufschlag_prozent || 1}
-                                                         onQuantityChange={handleQuantityChange}
-                                                         onProductSwap={handleProductSwap}
-                                                         onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
-                                                         onLocalMarkupChange={handleLocalMarkupChange}
-                                                         onResetMarkup={handleResetMarkup}
-                                                         onRemove={handleRemoveLineItem}
-                                                         onHoursChange={handleHoursChange}
-                                                       />
-                                                     </CollapsibleContent>
-                                     </Collapsible>
-                                   </div>
-                                 );
-                               })}
-                             </div>
-                           </CollapsibleContent>
-                         </Collapsible>
-                                     
-                         {/* Add Product Button */}
-                         <div className="p-3 border-2 border-dashed border-muted rounded-lg mt-3">
+                                                    </div>
+                                                  </CollapsibleContent>
+                                                </Collapsible>
+                                              </div>
+                                            );
+                                          });
+                                        })()}
+                                      </div>
+                                      
+                          {/* Global Add Product Button (outside categories) */}
+                          <div className="p-3 border-2 border-dashed border-muted rounded-lg mt-3">
                                         <Popover open={showAddProduct === pkg.id} onOpenChange={open => setShowAddProduct(open ? pkg.id : null)}>
                                           <PopoverTrigger asChild>
                                             <Button variant="outline" size="sm" className="w-full">
