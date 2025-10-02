@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 // Import lucide icons
-import { Building, Package, CheckCircle, Minus, Plus, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building, Package, CheckCircle, Minus, Plus, Search, ChevronDown, ChevronUp, X, RotateCcw } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 // Database table types
@@ -91,6 +91,8 @@ type OfferLineItem = {
   stunden_monteur_per_unit: number;
   quantity: number;
   image: string | null;
+  localMarkup?: number; // Local override for aufschlag_prozent
+  localPurchasePrice?: number; // Local override for unit_price
 };
 
 // --- COMPONENT STATE ---
@@ -675,6 +677,57 @@ export function ElektrosanierungConfigurator() {
     setSelectedPackages(prev => prev.filter(p => p.instanceId !== instanceId));
     // Remove all line items associated with this instance
     setOfferLineItems(prev => prev.filter(item => !item.id.startsWith(instanceId)));
+  };
+
+  // Format currency in Euro (de-DE)
+  const formatEuro = (value: number): string => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  // Handler for local purchase price override
+  const handleLocalPurchasePriceChange = (itemId: string, newPrice: number | undefined) => {
+    setOfferLineItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, localPurchasePrice: newPrice } : item
+    ));
+  };
+
+  // Handler for local markup override
+  const handleLocalMarkupChange = (itemId: string, newMarkup: number | undefined) => {
+    setOfferLineItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, localMarkup: newMarkup } : item
+    ));
+  };
+
+  // Reset local markup to global
+  const handleResetMarkup = (itemId: string) => {
+    setOfferLineItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, localMarkup: undefined } : item
+    ));
+  };
+
+  // Get effective purchase price for an item
+  const getEffectivePurchasePrice = (item: OfferLineItem): number => {
+    return item.localPurchasePrice ?? item.unit_price;
+  };
+
+  // Get effective markup for an item
+  const getEffectiveMarkup = (item: OfferLineItem): number => {
+    return item.localMarkup ?? (rates?.aufschlag_prozent || 1);
+  };
+
+  // Calculate sales price per unit
+  const calculateSalesPricePerUnit = (item: OfferLineItem): number => {
+    return getEffectivePurchasePrice(item) * getEffectiveMarkup(item);
+  };
+
+  // Calculate total sales price
+  const calculateTotalSalesPrice = (item: OfferLineItem): number => {
+    return calculateSalesPricePerUnit(item) * item.quantity;
   };
 
   // Handler function for parameter changes - now instance-specific
@@ -1359,7 +1412,7 @@ export function ElektrosanierungConfigurator() {
                                                             <h5 className="font-medium text-sm truncate">{item.name}</h5>
                                                             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
                                                               <span>Menge: {item.quantity} {item.unit}</span>
-                                                              <span>Preis: {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €</span>
+                                                              <span>Preis: {formatEuro(calculateTotalSalesPrice(item))}</span>
                                                             </div>
                                                           </div>
 
@@ -1373,322 +1426,225 @@ export function ElektrosanierungConfigurator() {
 
                                                     {/* Expanded Product Details */}
                                                     <CollapsibleContent>
-                                                      <div className="p-4 pt-0 border-t">
-                                                        <div key={item.id} className="flex items-start gap-4">
-                                                          {/* Product Image */}
-                                                          <div className="w-16 h-16 flex-shrink-0">
-                                                            {item.image ? (
-                                                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded border" />
-                                                            ) : (
-                                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                                <Package className="h-8 w-8 text-muted-foreground" />
-                                                              </div>
-                                                            )}
+                                                      <div className="p-4 pt-0 border-t space-y-4">
+                                                        {/* Main Controls Row */}
+                                                        <div className="flex items-start gap-3">
+                                                          {/* 1. Quantity Counter (Left) */}
+                                                          <div className="flex-shrink-0">
+                                                            <Label className="text-xs font-medium mb-1.5 block">Menge</Label>
+                                                            <div className="flex items-center gap-1">
+                                                              <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-8 w-8 p-0" 
+                                                                onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}
+                                                              >
+                                                                <Minus className="h-3 w-3" />
+                                                              </Button>
+                                                              <Input 
+                                                                type="number" 
+                                                                min="0" 
+                                                                step="1" 
+                                                                value={item.quantity || ''} 
+                                                                onChange={e => {
+                                                                  const value = e.target.value;
+                                                                  if (value === '') {
+                                                                    setOfferLineItems(current => current.map(lineItem => 
+                                                                      lineItem.id === item.id ? { ...lineItem, quantity: '' as any } : lineItem
+                                                                    ));
+                                                                  } else {
+                                                                    handleQuantityChange(item.id, parseInt(value) || 0);
+                                                                  }
+                                                                }}
+                                                                onBlur={e => {
+                                                                  if (e.target.value === '') {
+                                                                    handleQuantityChange(item.id, 0);
+                                                                  }
+                                                                }}
+                                                                className="w-14 h-8 text-center text-sm" 
+                                                              />
+                                                              <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-8 w-8 p-0" 
+                                                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                                              >
+                                                                <Plus className="h-3 w-3" />
+                                                              </Button>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground mt-0.5 block">{item.unit}</span>
                                                           </div>
 
-                                                          {/* Product Info and Controls */}
-                                                          <div className="flex-1">
-                                                            <div className="mb-3">
-                                                              {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                                                          {/* 2. Quality Dropdown */}
+                                                          <div className="flex-shrink-0 w-32">
+                                                            <Label className="text-xs font-medium mb-1.5 block">Qualität</Label>
+                                                            <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
+                                                              <SelectTrigger className="h-8 text-sm">
+                                                                <SelectValue />
+                                                              </SelectTrigger>
+                                                              <SelectContent>
+                                                                {getAlternatives(item.produkt_gruppe || '').map(alt => (
+                                                                  <SelectItem key={alt.product_id} value={alt.product_id}>
+                                                                    {alt.qualitaetsstufe}
+                                                                  </SelectItem>
+                                                                ))}
+                                                              </SelectContent>
+                                                            </Select>
+                                                          </div>
+
+                                                          {/* 3. Purchase Price (Editable) */}
+                                                          <div className="flex-shrink-0">
+                                                            <Label className="text-xs font-medium mb-1.5 block">Einkaufspreis</Label>
+                                                            <Input 
+                                                              type="number" 
+                                                              step="0.01" 
+                                                              min="0" 
+                                                              value={getEffectivePurchasePrice(item).toFixed(2)}
+                                                              onChange={e => {
+                                                                const value = parseFloat(e.target.value);
+                                                                handleLocalPurchasePriceChange(item.id, isNaN(value) ? undefined : value);
+                                                              }}
+                                                              className="w-24 h-8 text-sm text-right" 
+                                                            />
+                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                              <span className="text-xs text-muted-foreground">€ / {item.unit}</span>
                                                             </div>
+                                                            {/* Markup (below purchase price) */}
+                                                            <div className="mt-2">
+                                                              <div className="flex items-center gap-1">
+                                                                <Input 
+                                                                  type="number" 
+                                                                  step="0.01" 
+                                                                  min="1" 
+                                                                  value={getEffectiveMarkup(item).toFixed(2)}
+                                                                  onChange={e => {
+                                                                    const value = parseFloat(e.target.value);
+                                                                    handleLocalMarkupChange(item.id, isNaN(value) ? undefined : value);
+                                                                  }}
+                                                                  className="w-16 h-6 text-xs text-right" 
+                                                                />
+                                                                <span className="text-xs text-muted-foreground">× Aufschlag</span>
+                                                                {item.localMarkup !== undefined && (
+                                                                  <button 
+                                                                    onClick={() => handleResetMarkup(item.id)}
+                                                                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                                                                    title="Auf global zurücksetzen"
+                                                                  >
+                                                                    <RotateCcw className="h-3 w-3" />
+                                                                  </button>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          </div>
 
-                                                            {/* Top row controls */}
-                                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                                              {/* Quantity */}
-                                                              <div>
-                                                                <Label className="text-sm font-medium mb-2 block">Menge</Label>
-                                                                <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}>
-                                                      <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <Input 
-                                                      type="number" 
-                                                      min="0" 
-                                                      step="1" 
-                                                      value={item.quantity || ''} 
-                                                      placeholder="0" 
-                                                      onChange={e => {
-                                                        const value = e.target.value;
-                                                        if (value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? { ...lineItem, quantity: '' as any } : lineItem
-                                                          ));
-                                                        } else {
-                                                          const num = parseInt(value) || 0;
-                                                          handleQuantityChange(item.id, num);
-                                                        }
-                                                      }}
-                                                      onBlur={e => {
-                                                        if (e.target.value === '') {
-                                                          handleQuantityChange(item.id, 0);
-                                                        }
-                                                      }}
-                                                      className="w-20 h-9 text-center" 
-                                                    />
-                                                    <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
-                                                      <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                  </div>
-                                                  <span className="text-xs text-muted-foreground mt-1 block">{item.unit}</span>
-                                                </div>
+                                                          {/* 4. Sales Price (Read-only) */}
+                                                          <div className="flex-1">
+                                                            <Label className="text-xs font-medium mb-1.5 block">Verkaufspreis</Label>
+                                                            <div className="space-y-0.5">
+                                                              <div className="text-lg font-bold">
+                                                                {formatEuro(calculateTotalSalesPrice(item))}
+                                                              </div>
+                                                              <div className="text-xs text-muted-foreground">
+                                                                {formatEuro(calculateSalesPricePerUnit(item))} / {item.unit}
+                                                              </div>
+                                                            </div>
+                                                          </div>
 
-                                                {/* Quality */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Qualität</Label>
-                                                  <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
-                                                    <SelectTrigger className="h-9">
-                                                      <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      {getAlternatives(item.produkt_gruppe || '').map(alt => (
-                                                        <SelectItem key={alt.product_id} value={alt.product_id}>
-                                                          {alt.qualitaetsstufe}
-                                                        </SelectItem>
-                                                      ))}
-                                                    </SelectContent>
-                                                  </Select>
-                                                </div>
+                                                          {/* 5. Remove Button (Far Right) */}
+                                                          <div className="flex-shrink-0 pt-5">
+                                                            <Button 
+                                                              variant="destructive" 
+                                                              size="sm" 
+                                                              className="h-8 w-8 p-0"
+                                                              onClick={() => handleRemoveLineItem(item.id)}
+                                                            >
+                                                              <X className="h-4 w-4" />
+                                                            </Button>
+                                                          </div>
+                                                        </div>
 
-                                                {/* Price */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Preis</Label>
-                                                  <div className="space-y-1">
-                                                    <span className="text-base font-semibold block">
-                                                      {rates ? ((item.unit_price * rates.aufschlag_prozent) * item.quantity).toFixed(2) : (item.unit_price * item.quantity).toFixed(2)} €
-                                                    </span>
-                                                  </div>
-                                                  <span className="text-xs text-muted-foreground mt-1 block">
-                                                    {rates ? (item.unit_price * rates.aufschlag_prozent).toFixed(2) : item.unit_price.toFixed(2)} € / {item.unit}
-                                                  </span>
-                                                </div>
+                                                        {/* 6. Hours Row (Below) */}
+                                                        <div className="grid grid-cols-3 gap-3 pt-3 border-t">
+                                                          {/* Meister Hours */}
+                                                          <div>
+                                                            <Label className="text-xs font-medium mb-1.5 block">Meister (h)</Label>
+                                                            <Input 
+                                                              type="number" 
+                                                              step="0.01" 
+                                                              min="0" 
+                                                              value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} 
+                                                              onChange={e => {
+                                                                const totalHours = parseFloat(e.target.value) || 0;
+                                                                const perUnitHours = totalHours / (item.quantity || 1);
+                                                                setOfferLineItems(current => current.map(lineItem => 
+                                                                  lineItem.id === item.id ? {
+                                                                    ...lineItem,
+                                                                    stunden_meister_per_unit: perUnitHours,
+                                                                    stunden_meister: totalHours
+                                                                  } : lineItem
+                                                                ));
+                                                              }}
+                                                              className="h-8 text-sm text-right" 
+                                                            />
+                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
+                                                              {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
+                                                            </span>
+                                                          </div>
 
-                                                {/* Remove button */}
-                                                <div className="flex items-end">
-                                                  <Button variant="destructive" size="sm" onClick={() => handleRemoveLineItem(item.id)} className="h-9 w-full">
-                                                    Entfernen
-                                                  </Button>
-                                                </div>
-                                              </div>
+                                                          {/* Geselle Hours */}
+                                                          <div>
+                                                            <Label className="text-xs font-medium mb-1.5 block">Geselle (h)</Label>
+                                                            <Input 
+                                                              type="number" 
+                                                              step="0.01" 
+                                                              min="0" 
+                                                              value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} 
+                                                              onChange={e => {
+                                                                const totalHours = parseFloat(e.target.value) || 0;
+                                                                const perUnitHours = totalHours / (item.quantity || 1);
+                                                                setOfferLineItems(current => current.map(lineItem => 
+                                                                  lineItem.id === item.id ? {
+                                                                    ...lineItem,
+                                                                    stunden_geselle_per_unit: perUnitHours,
+                                                                    stunden_geselle: totalHours
+                                                                  } : lineItem
+                                                                ));
+                                                              }}
+                                                              className="h-8 text-sm text-right" 
+                                                            />
+                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
+                                                              {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
+                                                            </span>
+                                                          </div>
 
-                                              {/* Hours row */}
-                                              <div className="grid grid-cols-3 gap-4">
-                                                {/* Meister Hours */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Meister (h)</Label>
-                                                  <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_meister_per_unit - 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_meister_per_unit: newPerUnit,
-                                                          stunden_meister: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Minus className="h-3 w-3" />
-                                                    </Button>
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.1" 
-                                                      min="0" 
-                                                      value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} 
-                                                      placeholder="0.00" 
-                                                      onChange={e => {
-                                                        const value = e.target.value;
-                                                        if (value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? { ...lineItem, stunden_meister_per_unit: 0 } : lineItem
-                                                          ));
-                                                        } else {
-                                                          const totalHours = parseFloat(value) || 0;
-                                                          const perUnitHours = totalHours / (item.quantity || 1);
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_meister_per_unit: perUnitHours,
-                                                              stunden_meister: totalHours
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      onBlur={e => {
-                                                        if (e.target.value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_meister_per_unit: 0,
-                                                              stunden_meister: 0
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      className="flex-1 h-8 text-center text-sm" 
-                                                    />
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_meister_per_unit + 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_meister_per_unit: newPerUnit,
-                                                          stunden_meister: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Plus className="h-3 w-3" />
-                                                    </Button>
-                                                  </div>
-                                                  <span className="text-xs text-muted-foreground mt-1 block">
-                                                    {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
-                                                  </span>
-                                                </div>
-
-                                                {/* Geselle Hours */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Geselle (h)</Label>
-                                                  <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_geselle_per_unit - 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_geselle_per_unit: newPerUnit,
-                                                          stunden_geselle: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Minus className="h-3 w-3" />
-                                                    </Button>
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.1" 
-                                                      min="0" 
-                                                      value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} 
-                                                      placeholder="0.00" 
-                                                      onChange={e => {
-                                                        const value = e.target.value;
-                                                        if (value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? { ...lineItem, stunden_geselle_per_unit: 0 } : lineItem
-                                                          ));
-                                                        } else {
-                                                          const totalHours = parseFloat(value) || 0;
-                                                          const perUnitHours = totalHours / (item.quantity || 1);
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_geselle_per_unit: perUnitHours,
-                                                              stunden_geselle: totalHours
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      onBlur={e => {
-                                                        if (e.target.value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_geselle_per_unit: 0,
-                                                              stunden_geselle: 0
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      className="flex-1 h-8 text-center text-sm" 
-                                                    />
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_geselle_per_unit + 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_geselle_per_unit: newPerUnit,
-                                                          stunden_geselle: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Plus className="h-3 w-3" />
-                                                    </Button>
-                                                  </div>
-                                                  <span className="text-xs text-muted-foreground mt-1 block">
-                                                    {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
-                                                  </span>
-                                                </div>
-
-                                                {/* Monteur Hours */}
-                                                <div>
-                                                  <Label className="text-sm font-medium mb-2 block">Monteur (h)</Label>
-                                                  <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_monteur_per_unit - 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_monteur_per_unit: newPerUnit,
-                                                          stunden_monteur: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Minus className="h-3 w-3" />
-                                                    </Button>
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.1" 
-                                                      min="0" 
-                                                      value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} 
-                                                      placeholder="0.00" 
-                                                      onChange={e => {
-                                                        const value = e.target.value;
-                                                        if (value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? { ...lineItem, stunden_monteur_per_unit: 0 } : lineItem
-                                                          ));
-                                                        } else {
-                                                          const totalHours = parseFloat(value) || 0;
-                                                          const perUnitHours = totalHours / (item.quantity || 1);
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_monteur_per_unit: perUnitHours,
-                                                              stunden_monteur: totalHours
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      onBlur={e => {
-                                                        if (e.target.value === '') {
-                                                          setOfferLineItems(current => current.map(lineItem => 
-                                                            lineItem.id === item.id ? {
-                                                              ...lineItem,
-                                                              stunden_monteur_per_unit: 0,
-                                                              stunden_monteur: 0
-                                                            } : lineItem
-                                                          ));
-                                                        }
-                                                      }}
-                                                      className="flex-1 h-8 text-center text-sm" 
-                                                    />
-                                                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => {
-                                                      const newPerUnit = Math.max(0, item.stunden_monteur_per_unit + 0.1);
-                                                      setOfferLineItems(current => current.map(lineItem => 
-                                                        lineItem.id === item.id ? {
-                                                          ...lineItem,
-                                                          stunden_monteur_per_unit: newPerUnit,
-                                                          stunden_monteur: newPerUnit * item.quantity
-                                                        } : lineItem
-                                                      ));
-                                                    }}>
-                                                      <Plus className="h-3 w-3" />
-                                                    </Button>
-                                                  </div>
-                                                   <span className="text-xs text-muted-foreground mt-1 block">
-                                                     {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
-                                                   </span>
-                                                 </div>
-                                               </div>
-                                             </div>
-                                           </div>
-                                         </div>
-                                       </CollapsibleContent>
+                                                          {/* Monteur Hours */}
+                                                          <div>
+                                                            <Label className="text-xs font-medium mb-1.5 block">Monteur (h)</Label>
+                                                            <Input 
+                                                              type="number" 
+                                                              step="0.01" 
+                                                              min="0" 
+                                                              value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} 
+                                                              onChange={e => {
+                                                                const totalHours = parseFloat(e.target.value) || 0;
+                                                                const perUnitHours = totalHours / (item.quantity || 1);
+                                                                setOfferLineItems(current => current.map(lineItem => 
+                                                                  lineItem.id === item.id ? {
+                                                                    ...lineItem,
+                                                                    stunden_monteur_per_unit: perUnitHours,
+                                                                    stunden_monteur: totalHours
+                                                                  } : lineItem
+                                                                ));
+                                                              }}
+                                                              className="h-8 text-sm text-right" 
+                                                            />
+                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
+                                                              {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
+                                                            </span>
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </CollapsibleContent>
                                      </Collapsible>
                                    </div>
                                  );
