@@ -45,6 +45,11 @@ export const ProductLineItem = ({
   const [prevGeselleHours, setPrevGeselleHours] = useState<number>(0);
   const [prevMonteurHours, setPrevMonteurHours] = useState<number>(0);
 
+  // Hours overrides (undefined = auto-scaling mode)
+  const [meisterHoursOverride, setMeisterHoursOverride] = useState<number | undefined>(undefined);
+  const [geselleHoursOverride, setGeselleHoursOverride] = useState<number | undefined>(undefined);
+  const [monteurHoursOverride, setMonteurHoursOverride] = useState<number | undefined>(undefined);
+
   // Refs for keyboard handling
   const purchasePriceRef = useRef<HTMLInputElement>(null);
   const markupRef = useRef<HTMLInputElement>(null);
@@ -83,6 +88,16 @@ export const ProductLineItem = ({
     return /^[0-9]*[,.]?[0-9]*$/.test(value);
   };
 
+  // Computed hours (auto-scaling)
+  const computedMeisterHours = item.stunden_meister_per_unit * item.quantity;
+  const computedGeselleHours = item.stunden_geselle_per_unit * item.quantity;
+  const computedMonteurHours = item.stunden_monteur_per_unit * item.quantity;
+
+  // Effective hours (override or computed)
+  const effectiveMeisterHours = meisterHoursOverride ?? computedMeisterHours;
+  const effectiveGeselleHours = geselleHoursOverride ?? computedGeselleHours;
+  const effectiveMonteurHours = monteurHoursOverride ?? computedMonteurHours;
+
   // Initialize display values from props
   useEffect(() => {
     const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
@@ -90,10 +105,23 @@ export const ProductLineItem = ({
     
     setPurchasePriceDisplay(formatNumber(effectivePurchasePrice));
     setMarkupDisplay(formatNumber(effectiveMarkup));
-    setMeisterHoursDisplay(formatNumber(item.stunden_meister_per_unit * item.quantity));
-    setGeselleHoursDisplay(formatNumber(item.stunden_geselle_per_unit * item.quantity));
-    setMonteurHoursDisplay(formatNumber(item.stunden_monteur_per_unit * item.quantity));
+    setMeisterHoursDisplay(formatNumber(computedMeisterHours));
+    setGeselleHoursDisplay(formatNumber(computedGeselleHours));
+    setMonteurHoursDisplay(formatNumber(computedMonteurHours));
   }, [item.id]); // Only re-initialize when item changes
+
+  // Auto-update hours display when quantity/hoursPerUnit changes (only if no override)
+  useEffect(() => {
+    if (meisterHoursOverride === undefined) {
+      setMeisterHoursDisplay(formatNumber(computedMeisterHours));
+    }
+    if (geselleHoursOverride === undefined) {
+      setGeselleHoursDisplay(formatNumber(computedGeselleHours));
+    }
+    if (monteurHoursOverride === undefined) {
+      setMonteurHoursDisplay(formatNumber(computedMonteurHours));
+    }
+  }, [computedMeisterHours, computedGeselleHours, computedMonteurHours, meisterHoursOverride, geselleHoursOverride, monteurHoursOverride]);
 
   // Prevent scroll-wheel changes
   const preventWheel = (e: WheelEvent) => {
@@ -122,7 +150,7 @@ export const ProductLineItem = ({
   const salesPricePerUnit = effectivePurchasePrice * effectiveMarkup;
   const totalSalesPrice = salesPricePerUnit * item.quantity;
 
-  // Generic handlers for floating edit behavior
+  // Generic handlers for floating edit behavior (for price/markup)
   const createFloatingHandlers = (
     displayValue: string,
     setDisplayValue: (val: string) => void,
@@ -168,6 +196,56 @@ export const ProductLineItem = ({
           finalValue = Math.round(finalValue * 100) / 100;
           setDisplayValue(formatNumber(finalValue));
           onCommit(finalValue);
+        }
+      }
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setDisplayValue(formatNumber(prevValue));
+        e.currentTarget.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
+    }
+  });
+
+  // Hours-specific floating handlers (sets override)
+  const createHoursHandlers = (
+    displayValue: string,
+    setDisplayValue: (val: string) => void,
+    prevValue: number,
+    setPrevValue: (val: number) => void,
+    effectiveHours: number,
+    setOverride: (val: number | undefined) => void,
+    role: 'meister' | 'geselle' | 'monteur'
+  ) => ({
+    onFocus: (e: FocusEvent<HTMLInputElement>) => {
+      setPrevValue(effectiveHours);
+      e.target.select();
+    },
+    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === '' || isValidInput(value)) {
+        setDisplayValue(value);
+      }
+    },
+    onBlur: () => {
+      if (displayValue === '') {
+        // Revert to previous value
+        setDisplayValue(formatNumber(prevValue));
+      } else {
+        const parsed = parseInput(displayValue);
+        if (parsed === null || isNaN(parsed) || parsed < 0) {
+          // Invalid, revert to previous
+          setDisplayValue(formatNumber(prevValue));
+        } else {
+          // Valid, set override
+          const finalValue = Math.round(parsed * 100) / 100;
+          setDisplayValue(formatNumber(finalValue));
+          setOverride(finalValue);
+          onHoursChange(item.id, role, finalValue);
         }
       }
     },
@@ -328,9 +406,30 @@ export const ProductLineItem = ({
         <div className="grid grid-cols-3 gap-4">
           {/* Meister Hours */}
           <div className="space-y-1.5">
-            <Label htmlFor={`meister-${item.id}`} className="text-xs font-medium">
-              Meister (h)
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`meister-${item.id}`} className="text-xs font-medium">
+                Meister (h)
+              </Label>
+              {meisterHoursOverride !== undefined && (
+                <>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                    Override
+                  </span>
+                  <button
+                    onClick={() => {
+                      setMeisterHoursOverride(undefined);
+                      setMeisterHoursDisplay(formatNumber(computedMeisterHours));
+                      onHoursChange(item.id, 'meister', computedMeisterHours);
+                    }}
+                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                    title="Auf Auto-Modus zurücksetzen"
+                    aria-label="Auto-Modus aktivieren"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Auto
+                  </button>
+                </>
+              )}
+            </div>
             <Input
               id={`meister-${item.id}`}
               ref={meisterRef}
@@ -339,28 +438,50 @@ export const ProductLineItem = ({
               pattern="[0-9]*[,.]?[0-9]*"
               step="any"
               value={meisterHoursDisplay}
-              {...createFloatingHandlers(
+              {...createHoursHandlers(
                 meisterHoursDisplay,
                 setMeisterHoursDisplay,
                 prevMeisterHours,
                 setPrevMeisterHours,
-                item.stunden_meister_per_unit * item.quantity,
-                (val) => onHoursChange(item.id, 'meister', val ?? 0),
-                { min: 0 }
+                effectiveMeisterHours,
+                setMeisterHoursOverride,
+                'meister'
               )}
               className="h-9 text-sm text-right"
               aria-describedby={`meister-hint-${item.id}`}
+              aria-label="Meister Gesamtstunden"
             />
             <span id={`meister-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
-              {formatNumber(item.stunden_meister_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_meister_per_unit * item.quantity)} h
+              {formatNumber(item.stunden_meister_per_unit)} h × {item.quantity} = {formatNumber(computedMeisterHours)} h
             </span>
           </div>
 
           {/* Geselle Hours */}
           <div className="space-y-1.5">
-            <Label htmlFor={`geselle-${item.id}`} className="text-xs font-medium">
-              Geselle (h)
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`geselle-${item.id}`} className="text-xs font-medium">
+                Geselle (h)
+              </Label>
+              {geselleHoursOverride !== undefined && (
+                <>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                    Override
+                  </span>
+                  <button
+                    onClick={() => {
+                      setGeselleHoursOverride(undefined);
+                      setGeselleHoursDisplay(formatNumber(computedGeselleHours));
+                      onHoursChange(item.id, 'geselle', computedGeselleHours);
+                    }}
+                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                    title="Auf Auto-Modus zurücksetzen"
+                    aria-label="Auto-Modus aktivieren"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Auto
+                  </button>
+                </>
+              )}
+            </div>
             <Input
               id={`geselle-${item.id}`}
               ref={geselleRef}
@@ -369,28 +490,50 @@ export const ProductLineItem = ({
               pattern="[0-9]*[,.]?[0-9]*"
               step="any"
               value={geselleHoursDisplay}
-              {...createFloatingHandlers(
+              {...createHoursHandlers(
                 geselleHoursDisplay,
                 setGeselleHoursDisplay,
                 prevGeselleHours,
                 setPrevGeselleHours,
-                item.stunden_geselle_per_unit * item.quantity,
-                (val) => onHoursChange(item.id, 'geselle', val ?? 0),
-                { min: 0 }
+                effectiveGeselleHours,
+                setGeselleHoursOverride,
+                'geselle'
               )}
               className="h-9 text-sm text-right"
               aria-describedby={`geselle-hint-${item.id}`}
+              aria-label="Geselle Gesamtstunden"
             />
             <span id={`geselle-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
-              {formatNumber(item.stunden_geselle_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_geselle_per_unit * item.quantity)} h
+              {formatNumber(item.stunden_geselle_per_unit)} h × {item.quantity} = {formatNumber(computedGeselleHours)} h
             </span>
           </div>
 
           {/* Monteur Hours */}
           <div className="space-y-1.5">
-            <Label htmlFor={`monteur-${item.id}`} className="text-xs font-medium">
-              Monteur (h)
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`monteur-${item.id}`} className="text-xs font-medium">
+                Monteur (h)
+              </Label>
+              {monteurHoursOverride !== undefined && (
+                <>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                    Override
+                  </span>
+                  <button
+                    onClick={() => {
+                      setMonteurHoursOverride(undefined);
+                      setMonteurHoursDisplay(formatNumber(computedMonteurHours));
+                      onHoursChange(item.id, 'monteur', computedMonteurHours);
+                    }}
+                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                    title="Auf Auto-Modus zurücksetzen"
+                    aria-label="Auto-Modus aktivieren"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Auto
+                  </button>
+                </>
+              )}
+            </div>
             <Input
               id={`monteur-${item.id}`}
               ref={monteurRef}
@@ -399,20 +542,21 @@ export const ProductLineItem = ({
               pattern="[0-9]*[,.]?[0-9]*"
               step="any"
               value={monteurHoursDisplay}
-              {...createFloatingHandlers(
+              {...createHoursHandlers(
                 monteurHoursDisplay,
                 setMonteurHoursDisplay,
                 prevMonteurHours,
                 setPrevMonteurHours,
-                item.stunden_monteur_per_unit * item.quantity,
-                (val) => onHoursChange(item.id, 'monteur', val ?? 0),
-                { min: 0 }
+                effectiveMonteurHours,
+                setMonteurHoursOverride,
+                'monteur'
               )}
               className="h-9 text-sm text-right"
               aria-describedby={`monteur-hint-${item.id}`}
+              aria-label="Monteur Gesamtstunden"
             />
             <span id={`monteur-hint-${item.id}`} className="text-xs text-muted-foreground block" title="Stunden pro Einheit × Menge">
-              {formatNumber(item.stunden_monteur_per_unit)} h × {item.quantity} = {formatNumber(item.stunden_monteur_per_unit * item.quantity)} h
+              {formatNumber(item.stunden_monteur_per_unit)} h × {item.quantity} = {formatNumber(computedMonteurHours)} h
             </span>
           </div>
         </div>
