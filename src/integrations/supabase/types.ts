@@ -315,6 +315,45 @@ export type Database = {
         }
         Relationships: []
       }
+      offers_datanorm_sonepar: {
+        Row: {
+          Artikelnummer: string
+          Bezeichnung: string | null
+          EAN: string | null
+          Einheit: string | null
+          Kurzcode: string | null
+          Listenpreis_EUR: string | null
+          Packmenge: string | null
+          Preistyp: string | null
+          Warengruppe: string | null
+          Warengruppe_Name: string | null
+        }
+        Insert: {
+          Artikelnummer: string
+          Bezeichnung?: string | null
+          EAN?: string | null
+          Einheit?: string | null
+          Kurzcode?: string | null
+          Listenpreis_EUR?: string | null
+          Packmenge?: string | null
+          Preistyp?: string | null
+          Warengruppe?: string | null
+          Warengruppe_Name?: string | null
+        }
+        Update: {
+          Artikelnummer?: string
+          Bezeichnung?: string | null
+          EAN?: string | null
+          Einheit?: string | null
+          Kurzcode?: string | null
+          Listenpreis_EUR?: string | null
+          Packmenge?: string | null
+          Preistyp?: string | null
+          Warengruppe?: string | null
+          Warengruppe_Name?: string | null
+        }
+        Relationships: []
+      }
       offers_package_items: {
         Row: {
           created_at: string | null
