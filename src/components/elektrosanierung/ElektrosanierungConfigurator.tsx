@@ -1808,7 +1808,7 @@ export function ElektrosanierungConfigurator() {
                           }}
                           className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
                         >
-                          <span className="font-medium">Raum: {packageName}</span>
+                          <span className="font-medium">{packageName}</span>
                           <ChevronDown className={`h-4 w-4 transition-transform ${isPackageExpanded ? 'rotate-180' : ''}`} />
                         </button>
                         
