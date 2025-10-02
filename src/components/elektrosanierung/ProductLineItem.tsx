@@ -17,6 +17,14 @@ interface ProductLineItemProps {
   onResetMarkup: (itemId: string) => void;
   onRemove: (itemId: string) => void;
   onHoursChange: (itemId: string, role: 'meister' | 'geselle' | 'monteur', totalHours: number) => void;
+  entityPricing?: {
+    basePrice: number;
+    factor: number;
+    effectivePrice: number;
+    missingColumn: boolean;
+    missingPrice: boolean;
+  };
+  currentLocName?: string;
 }
 
 export const ProductLineItem = ({
@@ -29,7 +37,9 @@ export const ProductLineItem = ({
   onLocalMarkupChange,
   onResetMarkup,
   onRemove,
-  onHoursChange
+  onHoursChange,
+  entityPricing,
+  currentLocName
 }: ProductLineItemProps) => {
   // Display values (what user sees while typing)
   const [purchasePriceDisplay, setPurchasePriceDisplay] = useState<string>('');
@@ -144,12 +154,20 @@ export const ProductLineItem = ({
     };
   }, []);
 
-  // Get effective values
-  const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
+  // Get effective values (with entity-specific pricing)
+  const effectivePurchasePrice = item.localPurchasePrice ?? (entityPricing?.effectivePrice || item.unit_price);
   const effectiveMarkup = item.localMarkup ?? globalMarkup;
   const markupMultiplier = 1 + (effectiveMarkup / 100); // Convert percentage to multiplier
   const salesPricePerUnit = effectivePurchasePrice * markupMultiplier;
   const totalSalesPrice = salesPricePerUnit * item.quantity;
+
+  // Format factor for display (up to 3 decimals)
+  const formatFactor = (value: number): string => {
+    return new Intl.NumberFormat('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 3
+    }).format(value);
+  };
 
   // Generic handlers for floating edit behavior (for price/markup)
   const createFloatingHandlers = (
@@ -331,6 +349,25 @@ export const ProductLineItem = ({
           <span id={`purchase-hint-${item.id}`} className="text-xs text-muted-foreground block">
             € / {item.unit}
           </span>
+          
+          {/* Entity-specific pricing breakdown */}
+          {entityPricing && !item.localPurchasePrice && (
+            <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
+              <div>
+                Basis: {formatNumber(entityPricing.basePrice)} × Faktor ({currentLocName || 'N/A'}): {formatFactor(entityPricing.factor)}
+              </div>
+              {entityPricing.missingColumn && (
+                <div className="text-amber-600">
+                  ⚠ Faktor fehlt (1,00 verwendet)
+                </div>
+              )}
+              {entityPricing.missingPrice && (
+                <div className="text-red-600">
+                  ⚠ Preis fehlt
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Markup (below purchase price) */}
           <div className="mt-3 space-y-1.5">

@@ -140,6 +140,7 @@ export function ElektrosanierungConfigurator() {
   const [packageItems, setPackageItems] = useState<OfferPackageItem[]>([]);
   const [productGroups, setProductGroups] = useState<OfferProductGroup[]>([]);
   const [products, setProducts] = useState<OfferProduct[]>([]);
+  const [productsPrices, setProductsPrices] = useState<Record<string, any>>({});
 
   // State for dynamic parameters
   const [paramLinks, setParamLinks] = useState<any[]>([]);
@@ -226,14 +227,15 @@ export function ElektrosanierungConfigurator() {
         setLoading(true);
         setError(null);
 
-        // Fetch data from all six tables concurrently using Promise.all
-        const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult] = await Promise.all([
+        // Fetch data from all seven tables concurrently using Promise.all
+        const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult, productsPricesResult] = await Promise.all([
           supabase.from('offers_packages').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
           supabase.from('offers_package_items').select('*'),
           supabase.from('offers_product_groups').select('group_id, description, category'),
           supabase.from('offers_products').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
           supabase.from('offers_package_parameter_links').select('*'),
-          supabase.from('offers_package_parameter_definitions').select('*')
+          supabase.from('offers_package_parameter_definitions').select('*'),
+          supabase.from('offers_products_prices').select('*')
         ]);
 
         // Fetch rates and locations separately to avoid type issues
@@ -247,6 +249,7 @@ export function ElektrosanierungConfigurator() {
         if (productsResult.error) throw productsResult.error;
         if (paramLinksResult.error) throw paramLinksResult.error;
         if (paramDefsResult.error) throw paramDefsResult.error;
+        if (productsPricesResult.error) throw productsPricesResult.error;
 
         // Update state with fetched data
         if (packagesResult.data) setAvailablePackages(packagesResult.data);
@@ -278,6 +281,14 @@ export function ElektrosanierungConfigurator() {
         if (paramDefsResult.data) {
           console.log('Parameter definitions data:', paramDefsResult.data);
           setParamDefs(paramDefsResult.data);
+        }
+        if (productsPricesResult.data) {
+          // Convert array to map for faster lookup
+          const pricesMap: Record<string, any> = {};
+          productsPricesResult.data.forEach((row: any) => {
+            pricesMap[row.product_id] = row;
+          });
+          setProductsPrices(pricesMap);
         }
 
         // Check for errors in rates and locs
@@ -313,6 +324,65 @@ export function ElektrosanierungConfigurator() {
     };
     fetchAllData();
   }, []);
+
+  // Helper: Build factor column key from location name
+  const factorColumnKey = (locName: string): string => {
+    return `${locName} factor`;
+  };
+
+  // Helper: Get entity-specific pricing for a product
+  const getEntityPricing = (productId: string, currentLocName: string): { 
+    basePrice: number; 
+    factor: number; 
+    effectivePrice: number;
+    missingColumn: boolean;
+    missingPrice: boolean;
+  } => {
+    const priceRow = productsPrices[productId];
+    
+    if (!priceRow) {
+      return { basePrice: 0, factor: 1.0, effectivePrice: 0, missingColumn: false, missingPrice: true };
+    }
+
+    const basePrice = priceRow.unit_price ?? 0;
+    const exactKey = factorColumnKey(currentLocName);
+    
+    // Try exact match first
+    let factor = priceRow[exactKey];
+    let missingColumn = false;
+
+    // If not found, try case-insensitive fallback
+    if (factor === undefined || factor === null) {
+      const keys = Object.keys(priceRow);
+      const normalizedKey = exactKey.toLowerCase();
+      const foundKey = keys.find(k => k.toLowerCase() === normalizedKey);
+      
+      if (foundKey) {
+        factor = priceRow[foundKey];
+      } else {
+        factor = 1.0;
+        missingColumn = true;
+      }
+    }
+
+    // Parse factor as number, default to 1.0 if invalid
+    const numericFactor = typeof factor === 'number' && !isNaN(factor) ? factor : 1.0;
+    const effectivePrice = Math.round(basePrice * numericFactor * 100) / 100;
+
+    return { 
+      basePrice, 
+      factor: numericFactor, 
+      effectivePrice,
+      missingColumn,
+      missingPrice: basePrice === 0
+    };
+  };
+
+  // Get current location name for pricing
+  const getCurrentLocName = (): string => {
+    const loc = availableLocs.find(l => l.loc_id === selectedLocId);
+    return loc?.name || '';
+  };
 
   // Generic handler for global parameter changes
   const handleGlobalParamChange = (paramKey: string, value: any) => {
@@ -762,9 +832,14 @@ export function ElektrosanierungConfigurator() {
     ));
   };
 
-  // Get effective purchase price for an item
+  // Get effective purchase price for an item (with entity-specific pricing)
   const getEffectivePurchasePrice = (item: OfferLineItem): number => {
-    return item.localPurchasePrice ?? item.unit_price;
+    if (item.localPurchasePrice !== undefined) {
+      return item.localPurchasePrice;
+    }
+    const currentLocName = getCurrentLocName();
+    const pricing = getEntityPricing(item.product_id, currentLocName);
+    return pricing.effectivePrice;
   };
 
   // Get effective markup for an item (returns percentage, e.g., 40 = 40%)
@@ -1570,18 +1645,20 @@ export function ElektrosanierungConfigurator() {
 
                                                                {/* Expanded Product Details */}
                                                                <CollapsibleContent>
-                                                                 <ProductLineItem
-                                                                    item={item}
-                                                                    alternatives={getAlternatives(item.produkt_gruppe || '')}
-                                                                    globalMarkup={rates?.aufschlag_prozent || 0}
-                                                                    onQuantityChange={handleQuantityChange}
-                                                                   onProductSwap={handleProductSwap}
-                                                                   onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
-                                                                   onLocalMarkupChange={handleLocalMarkupChange}
-                                                                   onResetMarkup={handleResetMarkup}
-                                                                   onRemove={handleRemoveLineItem}
-                                                                   onHoursChange={handleHoursChange}
-                                                                 />
+                                                                  <ProductLineItem
+                                                                     item={item}
+                                                                     alternatives={getAlternatives(item.produkt_gruppe || '')}
+                                                                     globalMarkup={rates?.aufschlag_prozent || 0}
+                                                                     onQuantityChange={handleQuantityChange}
+                                                                    onProductSwap={handleProductSwap}
+                                                                    onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
+                                                                    onLocalMarkupChange={handleLocalMarkupChange}
+                                                                    onResetMarkup={handleResetMarkup}
+                                                                    onRemove={handleRemoveLineItem}
+                                                                    onHoursChange={handleHoursChange}
+                                                                    entityPricing={getEntityPricing(item.product_id, getCurrentLocName())}
+                                                                    currentLocName={getCurrentLocName()}
+                                                                  />
                                                                </CollapsibleContent>
                                                              </Collapsible>
                                                           </div>
