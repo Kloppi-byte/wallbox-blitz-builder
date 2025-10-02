@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { CartIcon } from '@/components/cart/CartIcon';
+import { ProductLineItem } from './ProductLineItem';
 // Import necessary UI components from '@/components/ui/...'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,7 +44,9 @@ type OfferProductGroup = {
   group_id: string;
   description: string | null;
 };
-type OfferProduct = {
+
+// Export these types for use in ProductLineItem component
+export type OfferProduct = {
   product_id: string;
   name: string;
   description: string | null;
@@ -71,7 +74,7 @@ type OfferPackageParameterDefinition = {
 };
 
 // Application state types
-type OfferLineItem = {
+export type OfferLineItem = {
   id: string;
   package_id: number;
   package_name: string;
@@ -895,9 +898,37 @@ export function ElektrosanierungConfigurator() {
   const handleQuantityChange = (lineItemId: string, newQuantity: number) => {
     setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
       ...item,
-      quantity: Math.max(0, newQuantity)
-    } : item).filter(item => item.quantity > 0) // Remove items with 0 quantity
-    );
+      quantity: Math.max(1, newQuantity)
+    } : item));
+  };
+
+  // Handler for hours changes
+  const handleHoursChange = (itemId: string, role: 'meister' | 'geselle' | 'monteur', totalHours: number) => {
+    setOfferLineItems(current => current.map(item => {
+      if (item.id === itemId) {
+        const perUnitHours = totalHours / (item.quantity || 1);
+        if (role === 'meister') {
+          return {
+            ...item,
+            stunden_meister_per_unit: perUnitHours,
+            stunden_meister: totalHours
+          };
+        } else if (role === 'geselle') {
+          return {
+            ...item,
+            stunden_geselle_per_unit: perUnitHours,
+            stunden_geselle: totalHours
+          };
+        } else {
+          return {
+            ...item,
+            stunden_monteur_per_unit: perUnitHours,
+            stunden_monteur: totalHours
+          };
+        }
+      }
+      return item;
+    }));
   };
 
   // Handler function for product swaps
@@ -919,14 +950,6 @@ export function ElektrosanierungConfigurator() {
       stunden_meister_per_unit: newProduct.stunden_meister,
       stunden_geselle_per_unit: newProduct.stunden_geselle,
       stunden_monteur_per_unit: newProduct.stunden_monteur
-    } : item));
-  };
-
-  // Handler function for hours changes
-  const handleHoursChange = (lineItemId: string, field: 'stunden_meister' | 'stunden_geselle' | 'stunden_monteur', newValue: number) => {
-    setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
-      ...item,
-      [field]: Math.max(0, parseFloat(newValue.toFixed(2)))
     } : item));
   };
 
@@ -1424,251 +1447,21 @@ export function ElektrosanierungConfigurator() {
                                                       </div>
                                                     </CollapsibleTrigger>
 
-                                                    {/* Expanded Product Details */}
-                                                    <CollapsibleContent>
-                                                      <div className="p-4 pt-0 border-t space-y-4">
-                                                        {/* Main Controls Row */}
-                                                        <div className="flex items-start gap-4">
-                                                          {/* 1. Quantity Counter */}
-                                                          <div className="flex-shrink-0 w-[120px]">
-                                                            <Label className="text-xs font-medium mb-1.5 block">Menge</Label>
-                                                            <div className="flex items-center gap-1">
-                                                              <Button 
-                                                                variant="outline" 
-                                                                size="sm" 
-                                                                className="h-8 w-8 p-0" 
-                                                                onClick={() => handleQuantityChange(item.id, Math.max(0, item.quantity - 1))}
-                                                              >
-                                                                <Minus className="h-3 w-3" />
-                                                              </Button>
-                                                              <Input 
-                                                                type="number" 
-                                                                min="0" 
-                                                                step="1" 
-                                                                value={item.quantity || ''} 
-                                                                onChange={e => {
-                                                                  const value = e.target.value;
-                                                                  if (value === '') {
-                                                                    setOfferLineItems(current => current.map(lineItem => 
-                                                                      lineItem.id === item.id ? { ...lineItem, quantity: '' as any } : lineItem
-                                                                    ));
-                                                                  } else {
-                                                                    handleQuantityChange(item.id, parseInt(value) || 0);
-                                                                  }
-                                                                }}
-                                                                onBlur={e => {
-                                                                  if (e.target.value === '') {
-                                                                    handleQuantityChange(item.id, 0);
-                                                                  }
-                                                                }}
-                                                                className="w-14 h-8 text-center text-sm" 
-                                                              />
-                                                              <Button 
-                                                                variant="outline" 
-                                                                size="sm" 
-                                                                className="h-8 w-8 p-0" 
-                                                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                                                              >
-                                                                <Plus className="h-3 w-3" />
-                                                              </Button>
-                                                            </div>
-                                                            <span className="text-xs text-muted-foreground mt-0.5 block">{item.unit}</span>
-                                                          </div>
-
-                                                          {/* 2. Quality Dropdown */}
-                                                          <div className="flex-shrink-0 w-[140px]">
-                                                            <Label className="text-xs font-medium mb-1.5 block">Qualität</Label>
-                                                            <Select value={item.product_id} onValueChange={value => handleProductSwap(item.id, value)}>
-                                                              <SelectTrigger className="h-8 text-sm">
-                                                                <SelectValue />
-                                                              </SelectTrigger>
-                                                              <SelectContent>
-                                                                {getAlternatives(item.produkt_gruppe || '').map(alt => (
-                                                                  <SelectItem key={alt.product_id} value={alt.product_id}>
-                                                                    {alt.qualitaetsstufe}
-                                                                  </SelectItem>
-                                                                ))}
-                                                              </SelectContent>
-                                                            </Select>
-                                                          </div>
-
-                                                          {/* 3. Purchase Price (Editable with Floating Placeholder) */}
-                                                          <div className="flex-shrink-0 w-[140px]">
-                                                            <Label className="text-xs font-medium mb-1.5 block">Einkaufspreis</Label>
-                                                            <Input 
-                                                              type="text"
-                                                              placeholder={item.unit_price.toFixed(2)}
-                                                              value={item.localPurchasePrice !== undefined ? item.localPurchasePrice.toFixed(2) : ''}
-                                                              onFocus={e => e.target.select()}
-                                                              onChange={e => {
-                                                                const value = e.target.value;
-                                                                if (value === '') {
-                                                                  handleLocalPurchasePriceChange(item.id, undefined);
-                                                                } else {
-                                                                  const parsed = parseFloat(value);
-                                                                  if (!isNaN(parsed)) {
-                                                                    handleLocalPurchasePriceChange(item.id, parsed);
-                                                                  }
-                                                                }
-                                                              }}
-                                                              onBlur={e => {
-                                                                if (e.target.value === '') {
-                                                                  handleLocalPurchasePriceChange(item.id, undefined);
-                                                                }
-                                                              }}
-                                                              className="h-8 text-sm text-right" 
-                                                            />
-                                                            <div className="flex items-center gap-1 mt-0.5">
-                                                              <span className="text-xs text-muted-foreground">€ / {item.unit}</span>
-                                                            </div>
-                                                            {/* Markup (below purchase price) */}
-                                                            <div className="mt-2">
-                                                              <div className="flex items-center gap-1">
-                                                                <Input 
-                                                                  type="text"
-                                                                  placeholder={(rates?.aufschlag_prozent || 1).toFixed(2)}
-                                                                  value={item.localMarkup !== undefined ? item.localMarkup.toFixed(2) : ''}
-                                                                  onFocus={e => e.target.select()}
-                                                                  onChange={e => {
-                                                                    const value = e.target.value;
-                                                                    if (value === '') {
-                                                                      handleLocalMarkupChange(item.id, undefined);
-                                                                    } else {
-                                                                      const parsed = parseFloat(value);
-                                                                      if (!isNaN(parsed)) {
-                                                                        handleLocalMarkupChange(item.id, parsed);
-                                                                      }
-                                                                    }
-                                                                  }}
-                                                                  onBlur={e => {
-                                                                    if (e.target.value === '') {
-                                                                      handleLocalMarkupChange(item.id, undefined);
-                                                                    }
-                                                                  }}
-                                                                  className="w-16 h-6 text-xs text-right" 
-                                                                />
-                                                                <span className="text-xs text-muted-foreground whitespace-nowrap">× Aufschlag</span>
-                                                                {item.localMarkup !== undefined && (
-                                                                  <button 
-                                                                    onClick={() => handleResetMarkup(item.id)}
-                                                                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                                                                    title="Auf global zurücksetzen"
-                                                                  >
-                                                                    <RotateCcw className="h-3 w-3" />
-                                                                  </button>
-                                                                )}
-                                                              </div>
-                                                            </div>
-                                                          </div>
-
-                                                          {/* 4. Sales Price (Read-only, takes up more space) */}
-                                                          <div className="flex-1 min-w-[200px]">
-                                                            <Label className="text-xs font-medium mb-1.5 block">Verkaufspreis</Label>
-                                                            <div className="space-y-0.5">
-                                                              <div className="text-xl font-bold">
-                                                                {formatEuro(calculateTotalSalesPrice(item))}
-                                                              </div>
-                                                              <div className="text-sm text-muted-foreground">
-                                                                {formatEuro(calculateSalesPricePerUnit(item))} / {item.unit}
-                                                              </div>
-                                                            </div>
-                                                          </div>
-
-                                                          {/* 5. Remove Button (Far Right) */}
-                                                          <div className="flex-shrink-0 pt-5">
-                                                            <Button 
-                                                              variant="destructive" 
-                                                              size="sm" 
-                                                              className="h-8 w-8 p-0"
-                                                              onClick={() => handleRemoveLineItem(item.id)}
-                                                            >
-                                                              <X className="h-4 w-4" />
-                                                            </Button>
-                                                          </div>
-                                                        </div>
-
-                                                        {/* 6. Hours Row (Below) */}
-                                                        <div className="grid grid-cols-3 gap-3 pt-3 border-t">
-                                                          {/* Meister Hours */}
-                                                          <div>
-                                                            <Label className="text-xs font-medium mb-1.5 block">Meister (h)</Label>
-                                                            <Input 
-                                                              type="number" 
-                                                              step="0.01" 
-                                                              min="0" 
-                                                              value={(item.stunden_meister_per_unit * item.quantity).toFixed(2)} 
-                                                              onChange={e => {
-                                                                const totalHours = parseFloat(e.target.value) || 0;
-                                                                const perUnitHours = totalHours / (item.quantity || 1);
-                                                                setOfferLineItems(current => current.map(lineItem => 
-                                                                  lineItem.id === item.id ? {
-                                                                    ...lineItem,
-                                                                    stunden_meister_per_unit: perUnitHours,
-                                                                    stunden_meister: totalHours
-                                                                  } : lineItem
-                                                                ));
-                                                              }}
-                                                              className="h-8 text-sm text-right" 
-                                                            />
-                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
-                                                              {item.stunden_meister_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_meister_per_unit * item.quantity).toFixed(2)} h
-                                                            </span>
-                                                          </div>
-
-                                                          {/* Geselle Hours */}
-                                                          <div>
-                                                            <Label className="text-xs font-medium mb-1.5 block">Geselle (h)</Label>
-                                                            <Input 
-                                                              type="number" 
-                                                              step="0.01" 
-                                                              min="0" 
-                                                              value={(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} 
-                                                              onChange={e => {
-                                                                const totalHours = parseFloat(e.target.value) || 0;
-                                                                const perUnitHours = totalHours / (item.quantity || 1);
-                                                                setOfferLineItems(current => current.map(lineItem => 
-                                                                  lineItem.id === item.id ? {
-                                                                    ...lineItem,
-                                                                    stunden_geselle_per_unit: perUnitHours,
-                                                                    stunden_geselle: totalHours
-                                                                  } : lineItem
-                                                                ));
-                                                              }}
-                                                              className="h-8 text-sm text-right" 
-                                                            />
-                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
-                                                              {item.stunden_geselle_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_geselle_per_unit * item.quantity).toFixed(2)} h
-                                                            </span>
-                                                          </div>
-
-                                                          {/* Monteur Hours */}
-                                                          <div>
-                                                            <Label className="text-xs font-medium mb-1.5 block">Monteur (h)</Label>
-                                                            <Input 
-                                                              type="number" 
-                                                              step="0.01" 
-                                                              min="0" 
-                                                              value={(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} 
-                                                              onChange={e => {
-                                                                const totalHours = parseFloat(e.target.value) || 0;
-                                                                const perUnitHours = totalHours / (item.quantity || 1);
-                                                                setOfferLineItems(current => current.map(lineItem => 
-                                                                  lineItem.id === item.id ? {
-                                                                    ...lineItem,
-                                                                    stunden_monteur_per_unit: perUnitHours,
-                                                                    stunden_monteur: totalHours
-                                                                  } : lineItem
-                                                                ));
-                                                              }}
-                                                              className="h-8 text-sm text-right" 
-                                                            />
-                                                            <span className="text-xs text-muted-foreground mt-0.5 block" title="Stunden pro Einheit × Menge">
-                                                              {item.stunden_monteur_per_unit.toFixed(2)} h × {item.quantity} = {(item.stunden_monteur_per_unit * item.quantity).toFixed(2)} h
-                                                            </span>
-                                                          </div>
-                                                        </div>
-                                                      </div>
-                                                    </CollapsibleContent>
+                                                     {/* Expanded Product Details */}
+                                                     <CollapsibleContent>
+                                                       <ProductLineItem
+                                                         item={item}
+                                                         alternatives={getAlternatives(item.produkt_gruppe || '')}
+                                                         globalMarkup={rates?.aufschlag_prozent || 1}
+                                                         onQuantityChange={handleQuantityChange}
+                                                         onProductSwap={handleProductSwap}
+                                                         onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
+                                                         onLocalMarkupChange={handleLocalMarkupChange}
+                                                         onResetMarkup={handleResetMarkup}
+                                                         onRemove={handleRemoveLineItem}
+                                                         onHoursChange={handleHoursChange}
+                                                       />
+                                                     </CollapsibleContent>
                                      </Collapsible>
                                    </div>
                                  );
