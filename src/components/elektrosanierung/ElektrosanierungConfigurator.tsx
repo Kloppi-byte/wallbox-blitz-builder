@@ -1886,11 +1886,11 @@ export function ElektrosanierungConfigurator() {
                             {/* Package subtotals */}
                             <div className="pt-2 border-t text-sm space-y-1">
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Materialkosten (Paket) gesamt:</span>
+                                <span className="text-muted-foreground">Materialkosten gesamt:</span>
                                 <span className="font-medium">{packageMaterialTotal.toFixed(2)} €</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Arbeitskosten (Paket) gesamt:</span>
+                                <span className="text-muted-foreground">Arbeitskosten gesamt:</span>
                                 <span className="font-medium">{packageLaborTotal.toFixed(2)} €</span>
                               </div>
                             </div>
