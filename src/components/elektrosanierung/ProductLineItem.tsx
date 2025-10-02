@@ -113,20 +113,12 @@ export const ProductLineItem = ({
     const effectivePurchasePrice = item.localPurchasePrice ?? item.unit_price;
     const effectiveMarkup = item.localMarkup ?? globalMarkup;
     
-    // Show calculation formula if entity pricing is available and no local override
-    if (entityPricing && !item.localPurchasePrice) {
-      const basePrice = formatNumber(entityPricing.basePrice);
-      const factor = formatFactor(entityPricing.factor);
-      setPurchasePriceDisplay(`${basePrice} × Faktor (${currentLocName || 'N/A'}): ${factor}`);
-    } else {
-      setPurchasePriceDisplay(formatNumber(effectivePurchasePrice));
-    }
-    
+    setPurchasePriceDisplay(formatNumber(effectivePurchasePrice));
     setMarkupDisplay(formatNumber(effectiveMarkup));
     setMeisterHoursDisplay(formatNumber(computedMeisterHours));
     setGeselleHoursDisplay(formatNumber(computedGeselleHours));
     setMonteurHoursDisplay(formatNumber(computedMonteurHours));
-  }, [item.id, entityPricing, item.localPurchasePrice, currentLocName]); // Re-initialize when relevant props change
+  }, [item.id]); // Only re-initialize when item changes
 
   // Auto-update hours display when quantity/hoursPerUnit changes (only if no override)
   useEffect(() => {
