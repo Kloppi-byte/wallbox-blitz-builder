@@ -174,8 +174,10 @@ export function ElektrosanierungConfigurator() {
   
   // State for Sonderprodukt dialog
   const [sonderproduktDialogOpen, setSonderproduktDialogOpen] = useState(false);
+  const [sonderproduktSearchOpen, setSonderproduktSearchOpen] = useState(false);
   const [sonderproduktForm, setSonderproduktForm] = useState({
     name: '',
+    selectedProduct: null as any,
     description: '',
     unit: 'Stück',
     unit_price: 0,
@@ -1270,10 +1272,10 @@ export function ElektrosanierungConfigurator() {
 
   // Handle Sonderprodukt creation
   const handleAddSonderprodukt = () => {
-    if (!sonderproduktForm.name.trim()) {
+    if (!sonderproduktForm.selectedProduct) {
       toast({
         title: "Fehler",
-        description: "Bitte geben Sie einen Produktnamen ein.",
+        description: "Bitte wählen Sie ein Produkt aus.",
         variant: "destructive"
       });
       return;
@@ -1292,13 +1294,16 @@ export function ElektrosanierungConfigurator() {
       return;
     }
 
+    const product = sonderproduktForm.selectedProduct;
+    const productName = product.Bezeichnung || product.Artikelnummer || 'Unbenanntes Produkt';
+
     const newLineItem: OfferLineItem = {
       id: sonderproduktId,
       package_id: selectedPkg.package_id,
       package_name: selectedPkg.package_name,
       product_id: sonderproduktId,
-      name: sonderproduktForm.name,
-      description: sonderproduktForm.description || null,
+      name: productName,
+      description: sonderproduktForm.description || product.Kurzcode || null,
       unit: sonderproduktForm.unit,
       unit_price: sonderproduktForm.unit_price,
       category: 'Sonderprodukt',
@@ -1320,6 +1325,7 @@ export function ElektrosanierungConfigurator() {
     // Reset form and close dialog
     setSonderproduktForm({
       name: '',
+      selectedProduct: null,
       description: '',
       unit: 'Stück',
       unit_price: 0,
@@ -1340,6 +1346,18 @@ export function ElektrosanierungConfigurator() {
   const openSonderproduktDialog = (instanceId: string) => {
     setSonderproduktForm(prev => ({ ...prev, instanceId }));
     setSonderproduktDialogOpen(true);
+  };
+
+  const handleSonderproduktProductSelect = (product: any) => {
+    const price = product.Listenpreis_EUR ? parseFloat(product.Listenpreis_EUR.replace(',', '.')) : 0;
+    setSonderproduktForm(prev => ({
+      ...prev,
+      selectedProduct: product,
+      name: product.Bezeichnung || product.Artikelnummer,
+      unit_price: price,
+      description: product.Kurzcode || ''
+    }));
+    setSonderproduktSearchOpen(false);
   };
 
   // Helper function to get products for a package (client-side join)
@@ -1898,113 +1916,38 @@ export function ElektrosanierungConfigurator() {
                                     
                                     {/* Product List */}
                                     <div className="max-h-60 overflow-y-auto">
-                                      {getFilteredProducts().length === 0 ? (
-                                        <div className="p-4 text-center text-sm text-muted-foreground">
-                                          Keine Produkte gefunden.
-                                        </div>
-                                      ) : getFilteredProducts().map(product => (
-                                        <div 
-                                          key={product.product_id} 
-                                          onClick={() => handleAddProduct(pkg.id, product.product_id)} 
-                                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent transition-colors"
-                                        >
-                                          <div className="w-10 h-10 flex-shrink-0">
-                                            {product.image ? (
-                                              <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded border" />
-                                            ) : (
-                                              <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
-                                                <Package className="h-5 w-5 text-muted-foreground" />
+                                      {(() => {
+                                        const filteredProducts = getFilteredProducts();
+                                        
+                                        if (filteredProducts.length === 0) {
+                                          return <div className="py-6 text-center text-sm text-muted-foreground">Keine Produkte gefunden</div>;
+                                        }
+                                        
+                                        return filteredProducts.map(product => (
+                                          <button
+                                            key={product.product_id}
+                                            className="flex items-center gap-3 w-full px-3 py-2 hover:bg-accent/50 transition-colors text-left"
+                                            onClick={() => {
+                                              handleAddProduct(pkg.id, product.product_id);
+                                              setShowAddProduct(null);
+                                              setProductSearchQuery('');
+                                            }}
+                                          >
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-medium text-sm">{product.name}</div>
+                                              {product.description && (
+                                                <div className="text-xs text-muted-foreground truncate">{product.description}</div>
+                                              )}
+                                              <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
+                                                <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
                                               </div>
-                                            )}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-sm">{product.name}</div>
-                                            {product.description && (
-                                              <div className="text-xs text-muted-foreground truncate">{product.description}</div>
-                                            )}
-                                            <div className="flex items-center gap-2 mt-1">
-                                              <span className="text-xs text-muted-foreground">{product.qualitaetsstufe}</span>
-                                              <span className="text-xs font-medium">{product.unit_price?.toFixed(2)} € / {product.unit}</span>
                                             </div>
-                                          </div>
-                                        </div>
-                                      ))}
+                                          </button>
+                                        ));
+                                      })()}
                                     </div>
                                   </div>
-                                </PopoverContent>
-                              </Popover>
-                              
-                              {/* Sonepar Product Addition */}
-                              <Popover open={showAddSoneparProduct === pkg.id} onOpenChange={open => setShowAddSoneparProduct(open ? pkg.id : null)}>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" size="sm" className="w-full">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Sonepar Produkt
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[400px] p-0" align="start">
-                                  <Command>
-                                    <div className="flex items-center border-b px-3 py-2">
-                                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                      <Input 
-                                        placeholder="Mindestens 3 Zeichen..." 
-                                        value={soneparSearchTerm} 
-                                        onChange={e => setSoneparSearchTerm(e.target.value)} 
-                                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
-                                      />
-                                    </div>
-                                    <CommandList>
-                                      {isSearchingSonepar && (
-                                        <div className="py-6 text-center text-sm">Suche läuft...</div>
-                                      )}
-                                      {!isSearchingSonepar && soneparResults.length === 0 && soneparSearchTerm.length >= 3 && (
-                                        <CommandEmpty>Keine Produkte gefunden.</CommandEmpty>
-                                      )}
-                                      {!isSearchingSonepar && soneparSearchTerm.length < 3 && (
-                                        <div className="py-6 text-center text-sm text-muted-foreground">
-                                          Geben Sie mindestens 3 Zeichen ein
-                                        </div>
-                                      )}
-                                      {!isSearchingSonepar && soneparResults.length > 0 && (
-                                        <CommandGroup>
-                                          {soneparResults.map((product) => (
-                                            <CommandItem
-                                              key={product.Artikelnummer}
-                                              value={product.Artikelnummer}
-                                              onSelect={() => {
-                                                toast({
-                                                  title: "Sonderprodukt ausgewählt",
-                                                  description: `${product.Bezeichnung || product.Artikelnummer}`,
-                                                });
-                                                setShowAddSoneparProduct(null);
-                                                setSoneparSearchTerm('');
-                                                // TODO: Add logic to add Sonepar product to configurator
-                                              }}
-                                              className="cursor-pointer"
-                                            >
-                                              <div className="flex flex-col gap-1 flex-1">
-                                                <div className="font-medium text-sm">
-                                                  {product.Bezeichnung || 'Keine Bezeichnung'}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
-                                                  <span>Art.-Nr.: {product.Artikelnummer}</span>
-                                                  {product.Kurzcode && <span>• {product.Kurzcode}</span>}
-                                                  {product.Listenpreis_EUR && (
-                                                    <span>• {product.Listenpreis_EUR} €</span>
-                                                  )}
-                                                </div>
-                                                {product.Warengruppe_Name && (
-                                                  <div className="text-xs text-muted-foreground">
-                                                    {product.Warengruppe_Name}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </CommandItem>
-                                          ))}
-                                        </CommandGroup>
-                                      )}
-                                    </CommandList>
-                                  </Command>
                                 </PopoverContent>
                               </Popover>
                               
@@ -2524,12 +2467,76 @@ export function ElektrosanierungConfigurator() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="sonder-name">Produktname *</Label>
-              <Input
-                id="sonder-name"
-                value={sonderproduktForm.name}
-                onChange={(e) => setSonderproduktForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="z.B. Spezial-Installation"
-              />
+              <Popover open={sonderproduktSearchOpen} onOpenChange={setSonderproduktSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {sonderproduktForm.selectedProduct 
+                      ? (sonderproduktForm.selectedProduct.Bezeichnung || sonderproduktForm.selectedProduct.Artikelnummer)
+                      : "Produkt suchen..."}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[500px] p-0" align="start">
+                  <Command>
+                    <div className="flex items-center border-b px-3 py-2">
+                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <Input 
+                        placeholder="Mindestens 3 Zeichen..." 
+                        value={soneparSearchTerm} 
+                        onChange={e => setSoneparSearchTerm(e.target.value)} 
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0" 
+                      />
+                    </div>
+                    <CommandList>
+                      {isSearchingSonepar && (
+                        <div className="py-6 text-center text-sm">Suche läuft...</div>
+                      )}
+                      {!isSearchingSonepar && soneparResults.length === 0 && soneparSearchTerm.length >= 3 && (
+                        <CommandEmpty>Keine Produkte gefunden.</CommandEmpty>
+                      )}
+                      {!isSearchingSonepar && soneparSearchTerm.length < 3 && (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Geben Sie mindestens 3 Zeichen ein
+                        </div>
+                      )}
+                      {!isSearchingSonepar && soneparResults.length > 0 && (
+                        <CommandGroup>
+                          {soneparResults.map((product) => (
+                            <CommandItem
+                              key={product.Artikelnummer}
+                              value={product.Artikelnummer}
+                              onSelect={() => handleSonderproduktProductSelect(product)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex flex-col gap-1 flex-1">
+                                <div className="font-medium text-sm">
+                                  {product.Bezeichnung || 'Keine Bezeichnung'}
+                                </div>
+                                <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                                  <span>Art.-Nr.: {product.Artikelnummer}</span>
+                                  {product.Kurzcode && <span>• {product.Kurzcode}</span>}
+                                  {product.Listenpreis_EUR && (
+                                    <span>• {product.Listenpreis_EUR} €</span>
+                                  )}
+                                </div>
+                                {product.Warengruppe_Name && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {product.Warengruppe_Name}
+                                  </div>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div>
