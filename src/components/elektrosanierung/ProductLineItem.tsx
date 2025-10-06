@@ -280,10 +280,16 @@ export const ProductLineItem = ({
     }
   });
 
+  const isSonderprodukt = item.isSonderprodukt || false;
+
   return (
     <div className="p-6 space-y-5">
       {/* Upper Controls - ~2/3 of card width */}
-      <div className="grid grid-cols-[auto_minmax(200px,1fr)_minmax(180px,auto)_minmax(150px,auto)_minmax(220px,1fr)_auto] gap-5 items-start">
+      <div className={`grid gap-5 items-start ${
+        isSonderprodukt 
+          ? 'grid-cols-[auto_minmax(180px,auto)_minmax(150px,auto)_minmax(220px,1fr)_auto]'
+          : 'grid-cols-[auto_minmax(200px,1fr)_minmax(180px,auto)_minmax(150px,auto)_minmax(220px,1fr)_auto]'
+      }`}>
         {/* 1. Quantity Counter */}
         <div className="space-y-1.5">
           <Label htmlFor={`qty-${item.id}`} className="text-xs font-medium">
@@ -304,22 +310,24 @@ export const ProductLineItem = ({
           <span className="text-xs text-muted-foreground block">{item.unit}</span>
         </div>
 
-        {/* 2. Quality Dropdown */}
-        <div className="space-y-1.5">
-          <Label htmlFor={`quality-${item.id}`} className="text-xs font-medium">
-            Qualität
-          </Label>
-          <Select value={item.product_id} onValueChange={value => onProductSwap(item.id, value)}>
-            <SelectTrigger id={`quality-${item.id}`} className="h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {alternatives.map(alt => <SelectItem key={alt.product_id} value={alt.product_id}>
-                  {alt.qualitaetsstufe}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* 2. Quality Dropdown - hidden for Sonderprodukte */}
+        {!isSonderprodukt && (
+          <div className="space-y-1.5">
+            <Label htmlFor={`quality-${item.id}`} className="text-xs font-medium">
+              Qualität
+            </Label>
+            <Select value={item.product_id} onValueChange={value => onProductSwap(item.id, value)}>
+              <SelectTrigger id={`quality-${item.id}`} className="h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {alternatives.map(alt => <SelectItem key={alt.product_id} value={alt.product_id}>
+                    {alt.qualitaetsstufe}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* 3. Purchase Price */}
         <div className="space-y-1.5">
@@ -350,8 +358,8 @@ export const ProductLineItem = ({
             € / {item.unit}
           </span>
           
-          {/* Entity-specific pricing breakdown */}
-          {entityPricing && !item.localPurchasePrice && (
+          {/* Entity-specific pricing breakdown - hidden for Sonderprodukte */}
+          {!isSonderprodukt && entityPricing && !item.localPurchasePrice && (
             <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
               <div>
                 Basis: {formatNumber(entityPricing.basePrice)} × Faktor ({currentLocName || 'N/A'}): {formatFactor(entityPricing.factor)}

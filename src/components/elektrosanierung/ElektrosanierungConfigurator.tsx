@@ -2291,7 +2291,11 @@ export function ElektrosanierungConfigurator() {
                           }}
                           className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
                         >
-                          <span className="font-medium">{packageName}</span>
+                          <span className="font-medium">
+                            {packageItems.some(item => item.category === 'Sonderprodukt' || item.isSonderprodukt) 
+                              ? 'Sonderprodukte' 
+                              : packageName}
+                          </span>
                           <ChevronDown className={`h-4 w-4 transition-transform ${isPackageExpanded ? 'rotate-180' : ''}`} />
                         </button>
                         
@@ -2323,7 +2327,9 @@ export function ElektrosanierungConfigurator() {
                                     }}
                                     className="w-full flex items-center justify-between py-2 text-sm hover:text-primary transition-colors"
                                   >
-                                    <span className="font-medium">Kategorie: {categoryName}</span>
+                                    <span className="font-medium">
+                                      {categoryName === 'Sonderprodukt' ? 'Sonderprodukte' : `Kategorie: ${categoryName}`}
+                                    </span>
                                     <ChevronDown className={`h-3 w-3 transition-transform ${isCategoryExpanded ? 'rotate-180' : ''}`} />
                                   </button>
                                   
