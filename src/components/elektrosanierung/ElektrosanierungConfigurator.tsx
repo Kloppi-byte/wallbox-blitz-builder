@@ -97,6 +97,7 @@ export type OfferLineItem = {
   image: string | null;
   localMarkup?: number; // Local override for aufschlag_prozent (stored as percentage, e.g., 40 = 40%)
   localPurchasePrice?: number; // Local override for unit_price
+  isSonderprodukt?: boolean; // Flag for custom/special products
 };
 
 // --- COMPONENT STATE ---
@@ -151,6 +152,7 @@ export function ElektrosanierungConfigurator() {
     instanceId: string;
     package_id: number;
     name: string;
+    package_name: string;
     parameters: Record<string, any>;
   }[]>([]);
 
@@ -169,6 +171,20 @@ export function ElektrosanierungConfigurator() {
   // State for image dialog
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
+  
+  // State for Sonderprodukt dialog
+  const [sonderproduktDialogOpen, setSonderproduktDialogOpen] = useState(false);
+  const [sonderproduktForm, setSonderproduktForm] = useState({
+    name: '',
+    description: '',
+    unit: 'Stück',
+    unit_price: 0,
+    quantity: 1,
+    stunden_meister: 0,
+    stunden_geselle: 0,
+    stunden_monteur: 0,
+    instanceId: '' as string
+  });
   
   // State for category expansion within packages
   const [expandedCategories, setExpandedCategories] = useState<Record<string, Set<string>>>({});
@@ -465,6 +481,7 @@ export function ElektrosanierungConfigurator() {
         instanceId,
         package_id: packageData.id,
         name: packageData.name,
+        package_name: packageData.name,
         parameters: initialInstanceParams
       };
       setSelectedPackages(prev => [...prev, newSelectedPackage]);
@@ -665,6 +682,7 @@ export function ElektrosanierungConfigurator() {
       instanceId,
       package_id: packageData.id,
       name: packageData.name,
+      package_name: packageData.name,
       parameters: initialInstanceParams
     };
     setSelectedPackages(prev => [...prev, newSelectedPackage]);
@@ -1248,6 +1266,80 @@ export function ElektrosanierungConfigurator() {
   // Check if category is expanded for a specific instance
   const isCategoryExpanded = (instanceId: string, category: string) => {
     return expandedCategories[instanceId]?.has(category) || false;
+  };
+
+  // Handle Sonderprodukt creation
+  const handleAddSonderprodukt = () => {
+    if (!sonderproduktForm.name.trim()) {
+      toast({
+        title: "Fehler",
+        description: "Bitte geben Sie einen Produktnamen ein.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const sonderproduktId = `sonderprodukt-${Date.now()}`;
+    const instanceId = sonderproduktForm.instanceId;
+    const selectedPkg = selectedPackages.find(p => p.instanceId === instanceId);
+    
+    if (!selectedPkg) {
+      toast({
+        title: "Fehler",
+        description: "Paket nicht gefunden.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newLineItem: OfferLineItem = {
+      id: sonderproduktId,
+      package_id: selectedPkg.package_id,
+      package_name: selectedPkg.package_name,
+      product_id: sonderproduktId,
+      name: sonderproduktForm.name,
+      description: sonderproduktForm.description || null,
+      unit: sonderproduktForm.unit,
+      unit_price: sonderproduktForm.unit_price,
+      category: 'Sonderprodukt',
+      produkt_gruppe: null,
+      qualitaetsstufe: null,
+      stunden_meister: sonderproduktForm.stunden_meister * sonderproduktForm.quantity,
+      stunden_geselle: sonderproduktForm.stunden_geselle * sonderproduktForm.quantity,
+      stunden_monteur: sonderproduktForm.stunden_monteur * sonderproduktForm.quantity,
+      stunden_meister_per_unit: sonderproduktForm.stunden_meister,
+      stunden_geselle_per_unit: sonderproduktForm.stunden_geselle,
+      stunden_monteur_per_unit: sonderproduktForm.stunden_monteur,
+      quantity: sonderproduktForm.quantity,
+      image: null,
+      isSonderprodukt: true
+    };
+
+    setOfferLineItems(prev => [...prev, newLineItem]);
+    
+    // Reset form and close dialog
+    setSonderproduktForm({
+      name: '',
+      description: '',
+      unit: 'Stück',
+      unit_price: 0,
+      quantity: 1,
+      stunden_meister: 0,
+      stunden_geselle: 0,
+      stunden_monteur: 0,
+      instanceId: ''
+    });
+    setSonderproduktDialogOpen(false);
+    
+    toast({
+      title: "Erfolgreich",
+      description: "Sonderprodukt wurde hinzugefügt."
+    });
+  };
+
+  const openSonderproduktDialog = (instanceId: string) => {
+    setSonderproduktForm(prev => ({ ...prev, instanceId }));
+    setSonderproduktDialogOpen(true);
   };
 
   // Helper function to get products for a package (client-side join)
@@ -1847,7 +1939,7 @@ export function ElektrosanierungConfigurator() {
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="w-full">
                                     <Plus className="h-4 w-4 mr-2" />
-                                    Sonderprodukt hinzufügen
+                                    Sonepar Produkt
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[400px] p-0" align="start">
@@ -1915,6 +2007,17 @@ export function ElektrosanierungConfigurator() {
                                   </Command>
                                 </PopoverContent>
                               </Popover>
+                              
+                              {/* Custom Sonderprodukt Button */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openSonderproduktDialog(instance.instanceId)}
+                                className="w-full"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Sonderprodukt
+                              </Button>
                             </div>
                           </div>
                                     </div>
@@ -1924,9 +2027,9 @@ export function ElektrosanierungConfigurator() {
                             )}
                           </div>
                        })}
-                     </div>
-                   </AccordionContent>
-                 </AccordionItem>)}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>)}
             </Accordion>
           </CardContent>
         </Card>
@@ -2408,6 +2511,139 @@ export function ElektrosanierungConfigurator() {
                 className="max-w-full max-h-[70vh] object-contain rounded"
               />
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sonderprodukt Dialog */}
+      <Dialog open={sonderproduktDialogOpen} onOpenChange={setSonderproduktDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Sonderprodukt hinzufügen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="sonder-name">Produktname *</Label>
+              <Input
+                id="sonder-name"
+                value={sonderproduktForm.name}
+                onChange={(e) => setSonderproduktForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="z.B. Spezial-Installation"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="sonder-description">Beschreibung</Label>
+              <Input
+                id="sonder-description"
+                value={sonderproduktForm.description}
+                onChange={(e) => setSonderproduktForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Optionale Beschreibung"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sonder-unit">Einheit</Label>
+                <Select
+                  value={sonderproduktForm.unit}
+                  onValueChange={(value) => setSonderproduktForm(prev => ({ ...prev, unit: value }))}
+                >
+                  <SelectTrigger id="sonder-unit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Stück">Stück</SelectItem>
+                    <SelectItem value="m">m</SelectItem>
+                    <SelectItem value="m²">m²</SelectItem>
+                    <SelectItem value="Set">Set</SelectItem>
+                    <SelectItem value="Pauschal">Pauschal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="sonder-quantity">Menge</Label>
+                <Input
+                  id="sonder-quantity"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={sonderproduktForm.quantity}
+                  onChange={(e) => setSonderproduktForm(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="sonder-price">Einkaufspreis (€ pro Einheit)</Label>
+              <Input
+                id="sonder-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={sonderproduktForm.unit_price}
+                onChange={(e) => setSonderproduktForm(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            
+            <div className="border-t pt-4">
+              <Label className="text-base font-medium mb-3 block">Arbeitsstunden (pro Einheit)</Label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="sonder-meister">Meister (h)</Label>
+                  <Input
+                    id="sonder-meister"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={sonderproduktForm.stunden_meister}
+                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_meister: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="sonder-geselle">Geselle (h)</Label>
+                  <Input
+                    id="sonder-geselle"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={sonderproduktForm.stunden_geselle}
+                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_geselle: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="sonder-monteur">Monteur (h)</Label>
+                  <Input
+                    id="sonder-monteur"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={sonderproduktForm.stunden_monteur}
+                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_monteur: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Gesamtstunden: Meister {(sonderproduktForm.stunden_meister * sonderproduktForm.quantity).toFixed(2)}h, 
+                Geselle {(sonderproduktForm.stunden_geselle * sonderproduktForm.quantity).toFixed(2)}h, 
+                Monteur {(sonderproduktForm.stunden_monteur * sonderproduktForm.quantity).toFixed(2)}h
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setSonderproduktDialogOpen(false)}
+              >
+                Abbrechen
+              </Button>
+              <Button onClick={handleAddSonderprodukt}>
+                Hinzufügen
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
