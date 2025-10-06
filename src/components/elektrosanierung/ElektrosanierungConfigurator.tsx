@@ -186,7 +186,8 @@ export function ElektrosanierungConfigurator() {
     stunden_meister: 0,
     stunden_geselle: 0,
     stunden_monteur: 0,
-    instanceId: '' as string
+    instanceId: '' as string,
+    targetCategory: null as string | null
   });
   
   // Display values for Sonderprodukt floating edit
@@ -1316,7 +1317,7 @@ export function ElektrosanierungConfigurator() {
     const productName = product.Bezeichnung || product.Artikelnummer || 'Unbenanntes Produkt';
 
     const newLineItem: OfferLineItem = {
-      id: sonderproduktId,
+      id: `${instanceId}-${sonderproduktId}`,
       package_id: selectedPkg.package_id,
       package_name: selectedPkg.package_name,
       product_id: sonderproduktId,
@@ -1324,7 +1325,7 @@ export function ElektrosanierungConfigurator() {
       description: sonderproduktForm.description || product.Kurzcode || null,
       unit: sonderproduktForm.unit,
       unit_price: sonderproduktForm.unit_price,
-      category: 'Sonderprodukt',
+      category: sonderproduktForm.targetCategory || 'Sonderprodukt',
       produkt_gruppe: null,
       qualitaetsstufe: null,
       stunden_meister: sonderproduktForm.stunden_meister * sonderproduktForm.quantity,
@@ -1352,7 +1353,8 @@ export function ElektrosanierungConfigurator() {
       stunden_meister: 0,
       stunden_geselle: 0,
       stunden_monteur: 0,
-      instanceId: ''
+      instanceId: '',
+      targetCategory: null
     });
     setSonderproduktDialogOpen(false);
     
@@ -1362,7 +1364,7 @@ export function ElektrosanierungConfigurator() {
     });
   };
 
-  const openSonderproduktDialog = (instanceId: string) => {
+  const openSonderproduktDialog = (instanceId: string, targetCategory?: string) => {
     // Reset form
     setSonderproduktForm({
       name: '',
@@ -1375,7 +1377,8 @@ export function ElektrosanierungConfigurator() {
       stunden_meister: 0,
       stunden_geselle: 0,
       stunden_monteur: 0,
-      instanceId
+      instanceId,
+      targetCategory: targetCategory || null
     });
     setSonderPriceDisplay('0,00');
     setSonderMeisterDisplay('0,00');
@@ -2067,11 +2070,11 @@ export function ElektrosanierungConfigurator() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => openSonderproduktDialog(instance.instanceId)}
+                                onClick={() => openSonderproduktDialog(instance.instanceId, category)}
                                 className="w-full"
                               >
                                 <Plus className="h-4 w-4 mr-2" />
-                                Sonderprodukt
+                                Sonderprodukt in Kategorie
                               </Button>
                             </div>
                           </div>
