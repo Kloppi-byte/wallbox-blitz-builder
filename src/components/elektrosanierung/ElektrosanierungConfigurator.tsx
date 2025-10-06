@@ -181,12 +181,25 @@ export function ElektrosanierungConfigurator() {
     description: '',
     unit: 'Stück',
     unit_price: 0,
+    originalUnitPrice: 0, // Store original price from Sonepar
     quantity: 1,
     stunden_meister: 0,
     stunden_geselle: 0,
     stunden_monteur: 0,
     instanceId: '' as string
   });
+  
+  // Display values for Sonderprodukt floating edit
+  const [sonderPriceDisplay, setSonderPriceDisplay] = useState<string>('0,00');
+  const [sonderMeisterDisplay, setSonderMeisterDisplay] = useState<string>('0,00');
+  const [sonderGeselleDisplay, setSonderGeselleDisplay] = useState<string>('0,00');
+  const [sonderMonteurDisplay, setSonderMonteurDisplay] = useState<string>('0,00');
+  
+  // Previous values for Sonderprodukt
+  const [prevSonderPrice, setPrevSonderPrice] = useState<number>(0);
+  const [prevSonderMeister, setPrevSonderMeister] = useState<number>(0);
+  const [prevSonderGeselle, setPrevSonderGeselle] = useState<number>(0);
+  const [prevSonderMonteur, setPrevSonderMonteur] = useState<number>(0);
   
   // State for category expansion within packages
   const [expandedCategories, setExpandedCategories] = useState<Record<string, Set<string>>>({});
@@ -1329,6 +1342,7 @@ export function ElektrosanierungConfigurator() {
       description: '',
       unit: 'Stück',
       unit_price: 0,
+      originalUnitPrice: 0,
       quantity: 1,
       stunden_meister: 0,
       stunden_geselle: 0,
@@ -1344,7 +1358,24 @@ export function ElektrosanierungConfigurator() {
   };
 
   const openSonderproduktDialog = (instanceId: string) => {
-    setSonderproduktForm(prev => ({ ...prev, instanceId }));
+    // Reset form
+    setSonderproduktForm({
+      name: '',
+      selectedProduct: null,
+      description: '',
+      unit: 'Stück',
+      unit_price: 0,
+      originalUnitPrice: 0,
+      quantity: 1,
+      stunden_meister: 0,
+      stunden_geselle: 0,
+      stunden_monteur: 0,
+      instanceId
+    });
+    setSonderPriceDisplay('0,00');
+    setSonderMeisterDisplay('0,00');
+    setSonderGeselleDisplay('0,00');
+    setSonderMonteurDisplay('0,00');
     setSonderproduktDialogOpen(true);
   };
 
@@ -1355,10 +1386,86 @@ export function ElektrosanierungConfigurator() {
       selectedProduct: product,
       name: product.Bezeichnung || product.Artikelnummer,
       unit_price: price,
+      originalUnitPrice: price,
       description: product.Kurzcode || ''
     }));
+    setSonderPriceDisplay(formatNumber(price));
     setSonderproduktSearchOpen(false);
   };
+  
+  // Format number helper for Sonderprodukt
+  const formatNumber = (value: number): string => {
+    return new Intl.NumberFormat('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+  
+  // Parse input helper
+  const parseInput = (value: string): number | null => {
+    if (value === '') return null;
+    const normalized = value.replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? null : parsed;
+  };
+  
+  // Validate input characters
+  const isValidInput = (value: string): boolean => {
+    return /^[0-9]*[,.]?[0-9]*$/.test(value);
+  };
+  
+  // Create floating handlers for Sonderprodukt fields
+  const createSonderFloatingHandlers = (
+    displayValue: string,
+    setDisplayValue: (val: string) => void,
+    prevValue: number,
+    setPrevValue: (val: number) => void,
+    currentValue: number,
+    onCommit: (val: number) => void,
+    options?: { min?: number; max?: number }
+  ) => ({
+    onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+      setPrevValue(currentValue);
+      e.target.select();
+    },
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === '' || isValidInput(value)) {
+        setDisplayValue(value);
+      }
+    },
+    onBlur: () => {
+      if (displayValue === '') {
+        setDisplayValue(formatNumber(prevValue));
+      } else {
+        const parsed = parseInput(displayValue);
+        if (parsed === null || isNaN(parsed)) {
+          setDisplayValue(formatNumber(prevValue));
+        } else {
+          let finalValue = parsed;
+          if (options?.min !== undefined && finalValue < options.min) {
+            finalValue = options.min;
+          }
+          if (options?.max !== undefined && finalValue > options.max) {
+            finalValue = options.max;
+          }
+          finalValue = Math.round(finalValue * 100) / 100;
+          setDisplayValue(formatNumber(finalValue));
+          onCommit(finalValue);
+        }
+      }
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setDisplayValue(formatNumber(prevValue));
+        e.currentTarget.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
+    }
+  });
 
   // Helper function to get products for a package (client-side join)
   const getProductsForPackage = (packageId: number, qualitaetsstufe: string) => {
@@ -2584,14 +2691,37 @@ export function ElektrosanierungConfigurator() {
             
             <div>
               <Label htmlFor="sonder-price">Einkaufspreis (€ pro Einheit)</Label>
-              <Input
-                id="sonder-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={sonderproduktForm.unit_price}
-                onChange={(e) => setSonderproduktForm(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-              />
+              <div className="relative">
+                <Input
+                  id="sonder-price"
+                  type="text"
+                  inputMode="decimal"
+                  value={sonderPriceDisplay}
+                  {...createSonderFloatingHandlers(
+                    sonderPriceDisplay,
+                    setSonderPriceDisplay,
+                    prevSonderPrice,
+                    setPrevSonderPrice,
+                    sonderproduktForm.unit_price,
+                    (val) => setSonderproduktForm(prev => ({ ...prev, unit_price: val })),
+                    { min: 0 }
+                  )}
+                  className="pr-10"
+                />
+                {sonderproduktForm.unit_price !== sonderproduktForm.originalUnitPrice && sonderproduktForm.originalUnitPrice > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSonderproduktForm(prev => ({ ...prev, unit_price: prev.originalUnitPrice }));
+                      setSonderPriceDisplay(formatNumber(sonderproduktForm.originalUnitPrice));
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                    title="Auf Originalpreis zurücksetzen"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
             
             <div className="border-t pt-4">
@@ -2601,11 +2731,18 @@ export function ElektrosanierungConfigurator() {
                   <Label htmlFor="sonder-meister">Meister (h)</Label>
                   <Input
                     id="sonder-meister"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={sonderproduktForm.stunden_meister}
-                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_meister: parseFloat(e.target.value) || 0 }))}
+                    type="text"
+                    inputMode="decimal"
+                    value={sonderMeisterDisplay}
+                    {...createSonderFloatingHandlers(
+                      sonderMeisterDisplay,
+                      setSonderMeisterDisplay,
+                      prevSonderMeister,
+                      setPrevSonderMeister,
+                      sonderproduktForm.stunden_meister,
+                      (val) => setSonderproduktForm(prev => ({ ...prev, stunden_meister: val })),
+                      { min: 0 }
+                    )}
                   />
                 </div>
                 
@@ -2613,11 +2750,18 @@ export function ElektrosanierungConfigurator() {
                   <Label htmlFor="sonder-geselle">Geselle (h)</Label>
                   <Input
                     id="sonder-geselle"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={sonderproduktForm.stunden_geselle}
-                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_geselle: parseFloat(e.target.value) || 0 }))}
+                    type="text"
+                    inputMode="decimal"
+                    value={sonderGeselleDisplay}
+                    {...createSonderFloatingHandlers(
+                      sonderGeselleDisplay,
+                      setSonderGeselleDisplay,
+                      prevSonderGeselle,
+                      setPrevSonderGeselle,
+                      sonderproduktForm.stunden_geselle,
+                      (val) => setSonderproduktForm(prev => ({ ...prev, stunden_geselle: val })),
+                      { min: 0 }
+                    )}
                   />
                 </div>
                 
@@ -2625,11 +2769,18 @@ export function ElektrosanierungConfigurator() {
                   <Label htmlFor="sonder-monteur">Monteur (h)</Label>
                   <Input
                     id="sonder-monteur"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={sonderproduktForm.stunden_monteur}
-                    onChange={(e) => setSonderproduktForm(prev => ({ ...prev, stunden_monteur: parseFloat(e.target.value) || 0 }))}
+                    type="text"
+                    inputMode="decimal"
+                    value={sonderMonteurDisplay}
+                    {...createSonderFloatingHandlers(
+                      sonderMonteurDisplay,
+                      setSonderMonteurDisplay,
+                      prevSonderMonteur,
+                      setPrevSonderMonteur,
+                      sonderproduktForm.stunden_monteur,
+                      (val) => setSonderproduktForm(prev => ({ ...prev, stunden_monteur: val })),
+                      { min: 0 }
+                    )}
                   />
                 </div>
               </div>
