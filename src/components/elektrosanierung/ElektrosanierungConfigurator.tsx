@@ -1820,9 +1820,10 @@ export function ElektrosanierungConfigurator() {
                                           return sortedCategories.map(category => {
                                             const categoryItems = grouped[category];
                                             const isUncategorized = category === '__uncategorized__';
-                                            const displayName = isUncategorized 
-                                              ? 'Weitere Produkte' 
-                                              : category;
+                                            const isSonderprodukt = category === 'Sonderprodukt' || categoryItems.some(item => item.isSonderprodukt);
+                                            const displayName = isSonderprodukt 
+                                              ? 'Sonderprodukte'
+                                              : (isUncategorized ? 'Weitere Produkte' : category);
                                             const isCatExpanded = isCategoryExpanded(instance.instanceId, category);
                                             
                                             return (
