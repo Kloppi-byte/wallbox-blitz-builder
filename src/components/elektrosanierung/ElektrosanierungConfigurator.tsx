@@ -2250,6 +2250,127 @@ export function ElektrosanierungConfigurator() {
                   </AccordionContent>
                 </AccordionItem>)}
               
+              {/* Schutzorgane Section (Category 7) */}
+              {schutzorganeItems.length > 0 && (
+                <AccordionItem value="category-schutzorgane">
+                  <AccordionTrigger>7. Schutzorgane (automatisch generiert)</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4">
+                      <div className="border rounded-md overflow-hidden bg-accent/5">
+                        <Collapsible
+                          open={isCategoryExpanded('schutzorgane-auto', 'Schutzorgan')}
+                          onOpenChange={() => toggleCategoryExpansion('schutzorgane-auto', 'Schutzorgan')}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-between hover:bg-accent/50 text-sm px-4 py-3"
+                            >
+                              <span className="flex items-center gap-2 font-medium">
+                                <Package className="h-4 w-4" />
+                                Schutzorgane ({schutzorganeItems.length} {schutzorganeItems.length === 1 ? 'Artikel' : 'Artikel'})
+                              </span>
+                              {isCategoryExpanded('schutzorgane-auto', 'Schutzorgan') ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+
+                          <CollapsibleContent className="border-t">
+                            <div className="space-y-2 p-2">
+                              {schutzorganeItems.map(item => {
+                                const isExpanded = expandedProducts.has(item.id);
+                                
+                                return (
+                                  <div key={item.id} className="bg-background border rounded-lg overflow-hidden">
+                                    <Collapsible
+                                      open={isExpanded}
+                                      onOpenChange={(open) => {
+                                        setExpandedProducts(prev => {
+                                          const newSet = new Set(prev);
+                                          if (open) {
+                                            newSet.add(item.id);
+                                          } else {
+                                            newSet.delete(item.id);
+                                          }
+                                          return newSet;
+                                        });
+                                      }}
+                                    >
+                                      {/* Compact Product View */}
+                                      <CollapsibleTrigger asChild>
+                                        <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                          <div className="flex items-center gap-4">
+                                            {/* Product Image */}
+                                            <div className="w-12 h-12 flex-shrink-0">
+                                              {item.image ? (
+                                                <img 
+                                                  src={item.image} 
+                                                  alt={item.name} 
+                                                  className="w-full h-full object-cover rounded border cursor-zoom-in hover:opacity-80 transition-opacity" 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedImage({ url: item.image!, name: item.name });
+                                                    setImageDialogOpen(true);
+                                                  }}
+                                                />
+                                              ) : (
+                                                <div className="w-full h-full bg-muted rounded border flex items-center justify-center">
+                                                  <Package className="h-6 w-6 text-muted-foreground" />
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {/* Compact Info */}
+                                            <div className="flex-1 min-w-0">
+                                              <h5 className="font-medium text-sm truncate">{item.name}</h5>
+                                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                                <span>Menge: {item.quantity} {item.unit}</span>
+                                                <span>Preis: {formatEuro(calculateTotalSalesPrice(item))}</span>
+                                              </div>
+                                            </div>
+
+                                            {/* Expand Icon */}
+                                            <div className="flex-shrink-0">
+                                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </CollapsibleTrigger>
+
+                                      {/* Expanded Product Details */}
+                                      <CollapsibleContent>
+                                        <ProductLineItem
+                                          item={item}
+                                          alternatives={getAlternatives(item.produkt_gruppe || '')}
+                                          globalMarkup={rates?.aufschlag_prozent || 0}
+                                          onQuantityChange={handleQuantityChange}
+                                          onProductSwap={handleProductSwap}
+                                          onLocalPurchasePriceChange={handleLocalPurchasePriceChange}
+                                          onLocalMarkupChange={handleLocalMarkupChange}
+                                          onResetMarkup={handleResetMarkup}
+                                          onRemove={handleRemoveLineItem}
+                                          onHoursChange={handleHoursChange}
+                                          entityPricing={getEntityPricing(item.product_id, getCurrentLocName())}
+                                          currentLocName={getCurrentLocName()}
+                                        />
+                                      </CollapsibleContent>
+                                    </Collapsible>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              
               {/* Sonderprodukte Section */}
               {getSonderprodukte().length > 0 && (
                 <AccordionItem value="category-sonderprodukte">
