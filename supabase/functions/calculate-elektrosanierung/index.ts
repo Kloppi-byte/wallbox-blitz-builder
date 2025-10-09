@@ -212,9 +212,16 @@ serve(async (req) => {
     }
 
     console.log('Calculated pricing:', pricing)
+    console.log('Protection devices (Schutzorgane):', distributionComponents)
 
     return new Response(
-      JSON.stringify({ pricing }),
+      JSON.stringify({ 
+        pricing,
+        schutzorgane: distributionComponents.map(comp => ({
+          produkt_gruppe_id: comp.produkt_gruppe_id,
+          quantity: comp.quantity
+        }))
+      }),
       { 
         headers: { 
           ...corsHeaders, 

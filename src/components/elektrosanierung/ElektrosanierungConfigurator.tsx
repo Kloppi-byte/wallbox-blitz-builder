@@ -158,6 +158,9 @@ export function ElektrosanierungConfigurator() {
 
   // State to hold the offer line items
   const [offerLineItems, setOfferLineItems] = useState<OfferLineItem[]>([]);
+  
+  // State for automatically generated protection devices (Schutzorgane)
+  const [schutzorganeItems, setSchutzorganeItems] = useState<OfferLineItem[]>([]);
 
   // State for detail view
   const [detailsPackageId, setDetailsPackageId] = useState<number | null>(null);
@@ -890,23 +893,38 @@ export function ElektrosanierungConfigurator() {
 
   // Handler for local purchase price override
   const handleLocalPurchasePriceChange = (itemId: string, newPrice: number | undefined) => {
-    setOfferLineItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, localPurchasePrice: newPrice } : item
-    ));
+    const updatePrice = (item: OfferLineItem) => 
+      item.id === itemId ? { ...item, localPurchasePrice: newPrice } : item;
+    
+    if (itemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(prev => prev.map(updatePrice));
+    } else {
+      setOfferLineItems(prev => prev.map(updatePrice));
+    }
   };
 
   // Handler for local markup override
   const handleLocalMarkupChange = (itemId: string, newMarkup: number | undefined) => {
-    setOfferLineItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, localMarkup: newMarkup } : item
-    ));
+    const updateMarkup = (item: OfferLineItem) => 
+      item.id === itemId ? { ...item, localMarkup: newMarkup } : item;
+    
+    if (itemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(prev => prev.map(updateMarkup));
+    } else {
+      setOfferLineItems(prev => prev.map(updateMarkup));
+    }
   };
 
   // Reset local markup to global
   const handleResetMarkup = (itemId: string) => {
-    setOfferLineItems(prev => prev.map(item => 
-      item.id === itemId ? { ...item, localMarkup: undefined } : item
-    ));
+    const resetMarkup = (item: OfferLineItem) => 
+      item.id === itemId ? { ...item, localMarkup: undefined } : item;
+    
+    if (itemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(prev => prev.map(resetMarkup));
+    } else {
+      setOfferLineItems(prev => prev.map(resetMarkup));
+    }
   };
 
   // Get effective purchase price for an item (with entity-specific pricing)
@@ -1096,19 +1114,141 @@ export function ElektrosanierungConfigurator() {
     });
     
     setOfferLineItems(recalculatedLineItems);
+    
+    // Calculate Schutzorgane based on current line items
+    calculateSchutzorgane(recalculatedLineItems);
   }, [selectedPackages, globalParams, products, packageItems, availablePackages]);
+  
+  // Function to calculate and update Schutzorgane (protection devices)
+  const calculateSchutzorgane = (currentLineItems: OfferLineItem[]) => {
+    // Count consumers from current line items
+    let socketCount = 0;
+    let lightCount = 0;
+    let stoveCount = 0;
+
+    for (const item of currentLineItems) {
+      if (item.produkt_gruppe === 'GRP-SOC-SKT') {
+        socketCount += item.quantity; // Single sockets count as 1
+      } else if (item.produkt_gruppe === 'GRP-SOC-DBL') {
+        socketCount += item.quantity * 2; // Double sockets count as 2
+      } else if (item.produkt_gruppe === 'GRP-SWI-AUS') {
+        lightCount += item.quantity;
+      } else if (item.produkt_gruppe === 'GRP-SOC-HERD') {
+        stoveCount += item.quantity;
+      }
+    }
+
+    // Apply technical rules to calculate required protection devices
+    const schutzorganeComponents: Array<{ produkt_gruppe_id: string, quantity: number }> = [];
+
+    // LS switches for sockets (1-pole 16A per 8 sockets)
+    const lsSockets = Math.ceil(socketCount / 8);
+    if (lsSockets > 0) {
+      schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-MCB-B16', quantity: lsSockets });
+    }
+
+    // LS switches for lights (1-pole 10A per 10 lights)
+    const lsLights = Math.ceil(lightCount / 10);
+    if (lsLights > 0) {
+      schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-MCB-B10', quantity: lsLights });
+    }
+
+    // LS switches for stoves (3-pole 16A per stove)
+    if (stoveCount > 0) {
+      schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-MCB-B16-3P', quantity: stoveCount });
+    }
+
+    // Total LS switches
+    const totalLs = lsSockets + lsLights + stoveCount;
+
+    // FI switches (RCD 40A per 6 LS switches)
+    const fiSwitches = Math.ceil(totalLs / 6);
+    if (fiSwitches > 0) {
+      schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-RCD-40A', quantity: fiSwitches });
+    }
+
+    // Load disconnect switch (1x if any LS switches)
+    if (totalLs > 0) {
+      schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-LTS-35A', quantity: 1 });
+    }
+
+    // Convert to line items
+    const schutzorganeLineItems: OfferLineItem[] = [];
+    const schutzorganeInstanceId = 'schutzorgane-auto';
+    
+    schutzorganeComponents.forEach(comp => {
+      // Find product for this protection device in the current quality level
+      let product = products.find(prod => 
+        prod.produkt_gruppe === comp.produkt_gruppe_id && 
+        prod.qualitaetsstufe === globalParams.qualitaetsstufe &&
+        isProductAvailableForLocation(prod)
+      );
+      
+      // Fallback to Standard if not found
+      if (!product) {
+        product = products.find(prod => 
+          prod.produkt_gruppe === comp.produkt_gruppe_id && 
+          prod.qualitaetsstufe === 'Standard' &&
+          isProductAvailableForLocation(prod)
+        );
+      }
+      
+      // Fallback to Basic if still not found
+      if (!product) {
+        product = products.find(prod => 
+          prod.produkt_gruppe === comp.produkt_gruppe_id && 
+          prod.qualitaetsstufe === 'Basic' &&
+          isProductAvailableForLocation(prod)
+        );
+      }
+      
+      if (product) {
+        schutzorganeLineItems.push({
+          id: `${schutzorganeInstanceId}-${product.product_id}`,
+          package_id: -1, // Virtual package ID for Schutzorgane
+          package_name: 'Schutzorgane (automatisch generiert aus gewählten Paketen)',
+          product_id: product.product_id,
+          name: product.name,
+          description: product.description,
+          unit: product.unit,
+          unit_price: product.unit_price,
+          category: product.category,
+          produkt_gruppe: product.produkt_gruppe,
+          qualitaetsstufe: product.qualitaetsstufe,
+          stunden_meister: product.stunden_meister * comp.quantity,
+          stunden_geselle: product.stunden_geselle * comp.quantity,
+          stunden_monteur: product.stunden_monteur * comp.quantity,
+          stunden_meister_per_unit: product.stunden_meister,
+          stunden_geselle_per_unit: product.stunden_geselle,
+          stunden_monteur_per_unit: product.stunden_monteur,
+          quantity: comp.quantity,
+          image: product.image
+        });
+      }
+    });
+    
+    setSchutzorganeItems(schutzorganeLineItems);
+  };
 
   // Handler function for quantity changes
   const handleQuantityChange = (lineItemId: string, newQuantity: number) => {
-    setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
-      ...item,
-      quantity: Math.max(1, newQuantity)
-    } : item));
+    // Check if this is a Schutzorgan item
+    if (lineItemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
+        ...item,
+        quantity: Math.max(1, newQuantity)
+      } : item));
+    } else {
+      setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
+        ...item,
+        quantity: Math.max(1, newQuantity)
+      } : item));
+    }
   };
 
   // Handler for hours changes
   const handleHoursChange = (itemId: string, role: 'meister' | 'geselle' | 'monteur', totalHours: number) => {
-    setOfferLineItems(current => current.map(item => {
+    const updateItem = (item: OfferLineItem) => {
       if (item.id === itemId) {
         const perUnitHours = totalHours / (item.quantity || 1);
         if (role === 'meister') {
@@ -1132,14 +1272,22 @@ export function ElektrosanierungConfigurator() {
         }
       }
       return item;
-    }));
+    };
+    
+    // Check if this is a Schutzorgan item
+    if (itemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(current => current.map(updateItem));
+    } else {
+      setOfferLineItems(current => current.map(updateItem));
+    }
   };
 
   // Handler function for product swaps
   const handleProductSwap = (lineItemId: string, newProductId: string) => {
     const newProduct = products.find(p => p.product_id === newProductId);
     if (!newProduct) return;
-    setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
+    
+    const updateItem = (item: OfferLineItem) => item.id === lineItemId ? {
       ...item,
       product_id: newProduct.product_id,
       name: newProduct.name,
@@ -1154,12 +1302,24 @@ export function ElektrosanierungConfigurator() {
       stunden_meister_per_unit: newProduct.stunden_meister,
       stunden_geselle_per_unit: newProduct.stunden_geselle,
       stunden_monteur_per_unit: newProduct.stunden_monteur
-    } : item));
+    } : item;
+    
+    // Check if this is a Schutzorgan item
+    if (lineItemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(currentItems => currentItems.map(updateItem));
+    } else {
+      setOfferLineItems(currentItems => currentItems.map(updateItem));
+    }
   };
 
   // Handler function for removing line items
   const handleRemoveLineItem = (lineItemId: string) => {
-    setOfferLineItems(currentItems => currentItems.filter(item => item.id !== lineItemId));
+    // Check if this is a Schutzorgan item
+    if (lineItemId.startsWith('schutzorgane-auto')) {
+      setSchutzorganeItems(currentItems => currentItems.filter(item => item.id !== lineItemId));
+    } else {
+      setOfferLineItems(currentItems => currentItems.filter(item => item.id !== lineItemId));
+    }
   };
 
   // Handler function for adding a product to a package
@@ -2250,8 +2410,10 @@ export function ElektrosanierungConfigurator() {
                     
                     // Package-level calculations
                     const packageMaterialTotal = packageItems.reduce((sum, item) => {
-                      const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
-                      const finalUnitPrice = item.unit_price * markupMultiplier;
+                      const effectivePurchasePrice = getEffectivePurchasePrice(item);
+                      const effectiveMarkup = getEffectiveMarkup(item);
+                      const markupMultiplier = 1 + (effectiveMarkup / 100);
+                      const finalUnitPrice = effectivePurchasePrice * markupMultiplier;
                       return sum + (finalUnitPrice * item.quantity);
                     }, 0);
                     
@@ -2337,13 +2499,11 @@ export function ElektrosanierungConfigurator() {
                                   {isCategoryExpanded && (
                                     <div className="space-y-1 text-sm pl-2">
                                       {categoryItems.map(item => {
-                                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
-                                        const finalUnitPrice = item.unit_price * markupMultiplier;
-                                        const itemTotal = finalUnitPrice * item.quantity;
+                                        const itemTotal = calculateTotalSalesPrice(item);
                                         return (
                                           <div key={item.id} className="flex justify-between text-muted-foreground py-1">
                                             <span>{item.name} ({item.quantity} {item.unit})</span>
-                                            <span className="font-medium">{itemTotal.toFixed(2)} €</span>
+                                            <span className="font-medium">{formatEuro(itemTotal)}</span>
                                           </div>
                                         );
                                       })}
@@ -2588,10 +2748,8 @@ export function ElektrosanierungConfigurator() {
                     {/* Global material total */}
                     <div className="flex justify-between text-sm font-medium">
                       <span>Materialkosten gesamt:</span>
-                      <span>{offerLineItems.reduce((sum, item) => {
-                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
-                        const finalUnitPrice = item.unit_price * markupMultiplier;
-                        return sum + (finalUnitPrice * item.quantity);
+                      <span>{[...offerLineItems, ...schutzorganeItems].reduce((sum, item) => {
+                        return sum + calculateTotalSalesPrice(item);
                       }, 0).toFixed(2)} €</span>
                     </div>
                     
@@ -2600,9 +2758,10 @@ export function ElektrosanierungConfigurator() {
                       <div className="font-medium text-sm">Arbeitskosten gesamt:</div>
                       <div className="pl-2 space-y-1 text-sm">
                         {(() => {
-                          const totalMeisterHours = offerLineItems.reduce((sum, item) => sum + item.stunden_meister, 0);
-                          const totalGesellHours = offerLineItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
-                          const totalMonteurHours = offerLineItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                          const allItems = [...offerLineItems, ...schutzorganeItems];
+                          const totalMeisterHours = allItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                          const totalGesellHours = allItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                          const totalMonteurHours = allItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
                           
                           const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
                             ? wagesOverride.meister 
@@ -2646,10 +2805,8 @@ export function ElektrosanierungConfigurator() {
                     {/* Zwischensumme */}
                     <div className="flex justify-between pt-3 border-t-2 border-border font-semibold text-base">
                       <span>Zwischensumme:</span>
-                      <span>{offerLineItems.reduce((sum, item) => {
-                        const markupMultiplier = 1 + (rates.aufschlag_prozent / 100);
-                        const finalUnitPrice = item.unit_price * markupMultiplier;
-                        const materialCost = finalUnitPrice * item.quantity;
+                      <span>{[...offerLineItems, ...schutzorganeItems].reduce((sum, item) => {
+                        const materialCost = calculateTotalSalesPrice(item);
                         
                         const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
                           ? wagesOverride.meister 
@@ -2674,7 +2831,7 @@ export function ElektrosanierungConfigurator() {
               )}
               
               <div className="pt-4">
-                <Button onClick={handleSubmit} className="w-full" disabled={offerLineItems.length === 0}>
+                <Button onClick={handleSubmit} className="w-full" disabled={offerLineItems.length === 0 && schutzorganeItems.length === 0}>
                   In den Warenkorb
                 </Button>
               </div>
