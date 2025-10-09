@@ -63,28 +63,130 @@ serve(async (req) => {
 
     console.log('Package items:', packageItems)
 
-    // Calculate total costs based on package items and products
+    // Build initial cart from package items
+    const initialCart: Array<{ produkt_gruppe_id: string, quantity: number }> = []
+    
+    for (const item of packageItems || []) {
+      const product = item.offers_products
+      const baseQuantity = item.quantity_base || 0
+      const quantity = baseQuantity
+      
+      if (product && quantity > 0) {
+        initialCart.push({
+          produkt_gruppe_id: item.produkt_gruppe_id,
+          quantity: quantity
+        })
+      }
+    }
+
+    console.log('Initial cart:', initialCart)
+
+    // Calculate distribution components based on configured items
+    function calculateDistribution(cart: Array<{ produkt_gruppe_id: string, quantity: number }>) {
+      // Count consumers
+      let socketCount = 0
+      let lightCount = 0
+      let stoveCount = 0
+
+      for (const item of cart) {
+        if (item.produkt_gruppe_id === 'GRP-SOC-SKT') {
+          socketCount += item.quantity // Single sockets count as 1
+        } else if (item.produkt_gruppe_id === 'GRP-SOC-DBL') {
+          socketCount += item.quantity * 2 // Double sockets count as 2
+        } else if (item.produkt_gruppe_id === 'GRP-SWI-AUS') {
+          lightCount += item.quantity
+        } else if (item.produkt_gruppe_id === 'GRP-SOC-HERD') {
+          stoveCount += item.quantity
+        }
+      }
+
+      console.log('Consumer counts:', { socketCount, lightCount, stoveCount })
+
+      // Apply technical rules
+      const components: Array<{ produkt_gruppe_id: string, quantity: number }> = []
+
+      // LS switches for sockets (1-pole 16A per 8 sockets)
+      const lsSockets = Math.ceil(socketCount / 8)
+      if (lsSockets > 0) {
+        components.push({ produkt_gruppe_id: 'GRP-MCB-B16', quantity: lsSockets })
+      }
+
+      // LS switches for lights (1-pole 10A per 10 lights)
+      const lsLights = Math.ceil(lightCount / 10)
+      if (lsLights > 0) {
+        components.push({ produkt_gruppe_id: 'GRP-MCB-B10', quantity: lsLights })
+      }
+
+      // LS switches for stoves (3-pole 16A per stove)
+      if (stoveCount > 0) {
+        components.push({ produkt_gruppe_id: 'GRP-MCB-B16-3P', quantity: stoveCount })
+      }
+
+      // Total LS switches
+      const totalLs = lsSockets + lsLights + stoveCount
+
+      // FI switches (RCD 40A per 6 LS switches)
+      const fiSwitches = Math.ceil(totalLs / 6)
+      if (fiSwitches > 0) {
+        components.push({ produkt_gruppe_id: 'GRP-RCD-40A', quantity: fiSwitches })
+      }
+
+      // Load disconnect switch (1x if any LS switches)
+      if (totalLs > 0) {
+        components.push({ produkt_gruppe_id: 'GRP-LTS-35A', quantity: 1 })
+      }
+
+      console.log('Calculated distribution components:', components)
+      return components
+    }
+
+    // Calculate distribution components
+    const distributionComponents = calculateDistribution(initialCart)
+
+    // Merge distribution components with initial cart
+    const finalCart = [...initialCart]
+    for (const comp of distributionComponents) {
+      const existing = finalCart.find(item => item.produkt_gruppe_id === comp.produkt_gruppe_id)
+      if (existing) {
+        existing.quantity += comp.quantity
+      } else {
+        finalCart.push(comp)
+      }
+    }
+
+    console.log('Final cart:', finalCart)
+
+    // Fetch product details for all items in final cart
+    const productIds = finalCart.map(item => item.produkt_gruppe_id)
+    const { data: products, error: productsError } = await supabaseClient
+      .from('offers_products')
+      .select('*')
+      .in('produkt_gruppe', productIds)
+
+    if (productsError) {
+      throw new Error(`Failed to fetch products: ${productsError.message}`)
+    }
+
+    console.log('Fetched products:', products)
+
+    // Calculate total costs based on final cart
     let totalMaterialCosts = 0
     let monteurHours = 0
     let geselleHours = 0
     let meisterHours = 0
 
-    for (const item of packageItems || []) {
-      const product = item.offers_products
-      const baseQuantity = item.quantity_base || 0
-      
-      // For now, use base quantity (room/floor calculations would need additional parameters)
-      const quantity = baseQuantity
+    for (const item of finalCart) {
+      const product = products?.find(p => p.produkt_gruppe === item.produkt_gruppe_id)
       
       if (product) {
         // Calculate material costs with markup from rates
         const finalUnitPrice = (product.unit_price || 0) * rates.aufschlag_prozent
-        totalMaterialCosts += finalUnitPrice * quantity
+        totalMaterialCosts += finalUnitPrice * item.quantity
         
         // Calculate labor hours by type
-        monteurHours += (product.stunden_monteur || 0) * quantity
-        geselleHours += (product.stunden_geselle || 0) * quantity
-        meisterHours += (product.stunden_meister || 0) * quantity
+        monteurHours += (product.stunden_monteur || 0) * item.quantity
+        geselleHours += (product.stunden_geselle || 0) * item.quantity
+        meisterHours += (product.stunden_meister || 0) * item.quantity
       }
     }
 
