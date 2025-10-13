@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Cart, CartItem, CartContextType } from '@/types/cart';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -249,20 +248,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         generatedAt: new Date().toISOString(),
       };
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const webhookUrl = "https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06";
       
-      const response = await fetch(
-        `https://dxhfmmrywxhfwulnkqgk.supabase.co/functions/v1/generate-quote`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(webhookData),
-        }
-      );
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
