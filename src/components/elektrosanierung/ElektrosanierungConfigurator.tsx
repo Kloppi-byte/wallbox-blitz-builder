@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
@@ -219,6 +220,7 @@ export function ElektrosanierungConfigurator() {
   const {
     addItem
   } = useCart();
+  const navigate = useNavigate();
 
   // Fetch rates when location changes
   useEffect(() => {
@@ -1731,7 +1733,7 @@ export function ElektrosanierungConfigurator() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             
-            <CartIcon onClick={() => {}} />
+            <CartIcon onClick={() => navigate('/checkout')} />
           </div>
         </div>
       </div>
