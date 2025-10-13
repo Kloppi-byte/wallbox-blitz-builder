@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Cart, CartItem, CartContextType } from '@/types/cart';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -248,19 +249,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         generatedAt: new Date().toISOString(),
       };
 
-      const webhookUrl = "https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06";
-      const queryParams = new URLSearchParams();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      Object.entries(webhookData).forEach(([key, value]) => {
-        queryParams.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-      });
-
-      const response = await fetch(`${webhookUrl}?${queryParams.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `https://dxhfmmrywxhfwulnkqgk.supabase.co/functions/v1/generate-quote`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(webhookData),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -268,13 +270,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       const result = await response.json();
       
-      if (result.pdfUrl) {
-        window.open(result.pdfUrl, '_blank');
+      if (result.success) {
         clearCart();
         toast({
           title: "Angebot erstellt",
           description: "Ihr Gesamtangebot wurde erfolgreich generiert.",
         });
+        
+        // If PDF URL is available, open it
+        if (result.pdfUrl) {
+          window.open(result.pdfUrl, '_blank');
+        }
       }
     } catch (error) {
       console.error('Error generating quote:', error);
