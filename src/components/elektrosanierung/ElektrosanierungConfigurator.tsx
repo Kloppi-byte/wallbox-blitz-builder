@@ -1660,7 +1660,7 @@ export function ElektrosanierungConfigurator() {
 
   // Handle form submission - send to backend webhook
   const handleSubmit = async () => {
-    if (offerLineItems.length === 0) {
+    if (offerLineItems.length === 0 && schutzorganeItems.length === 0) {
       toast({
         title: "Keine Auswahl",
         description: "Bitte wählen Sie mindestens ein Paket aus.",
@@ -1668,53 +1668,53 @@ export function ElektrosanierungConfigurator() {
       });
       return;
     }
-    try {
-      const payload = {
-        global_parameters: globalParams,
-        selected_package_ids: selectedPackages.map(p => p.package_id),
+
+    // Combine all line items for cart
+    const allLineItems = [...offerLineItems, ...schutzorganeItems];
+
+    // Calculate totals from current state
+    const materialCosts = allLineItems.reduce((sum, item) => {
+      const effectivePrice = item.localPurchasePrice ?? item.unit_price;
+      const effectiveMarkup = item.localMarkup ?? (rates?.aufschlag_prozent || 0);
+      const markupMultiplier = 1 + (effectiveMarkup / 100);
+      return sum + (effectivePrice * markupMultiplier * item.quantity);
+    }, 0);
+
+    const laborCosts = allLineItems.reduce((sum, item) => {
+      const meisterCost = item.stunden_meister * (wagesOverride.meister ?? (rates?.stundensatz_meister || 0));
+      const geselleCost = item.stunden_geselle * (wagesOverride.geselle ?? (rates?.stundensatz_geselle || 0));
+      const monteurCost = item.stunden_monteur * (wagesOverride.monteur ?? (rates?.stundensatz_monteur || 0));
+      return sum + meisterCost + geselleCost + monteurCost;
+    }, 0);
+
+    const travelCosts = 0; // No travel costs in configurator
+    const subtotal = materialCosts + laborCosts + travelCosts;
+    const total = subtotal;
+
+    // Add to cart with all configured items
+    addItem({
+      productType: 'elektrosanierung',
+      name: 'Elektrosanierung Konfiguration',
+      configuration: {
+        globalParams,
+        selectedPackages,
+        offerLineItems: allLineItems,
         loc_id: selectedLocId
-      };
-
-      // Send to backend webhook for calculation
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('calculate-elektrosanierung', {
-        body: payload
-      });
-      if (error) {
-        throw error;
+      },
+      pricing: {
+        materialCosts,
+        laborCosts,
+        travelCosts,
+        subtotal,
+        subsidy: 0,
+        total
       }
+    });
 
-      // Add calculated result to cart
-      addItem({
-        productType: 'elektrosanierung',
-        name: 'Elektrosanierung Konfiguration',
-        configuration: {
-          globalParams,
-          selectedPackages,
-          loc_id: selectedLocId
-        },
-        pricing: data?.pricing || {
-          materialCosts: 0,
-          laborCosts: 0,
-          travelCosts: 0,
-          subtotal: 0,
-          subsidy: 0,
-          total: 0
-        }
-      });
-      toast({
-        title: "Erfolgreich hinzugefügt",
-        description: "Konfiguration wurde zum Warenkorb hinzugefügt."
-      });
-    } catch (err: any) {
-      toast({
-        title: "Fehler",
-        description: "Berechnung konnte nicht durchgeführt werden: " + err.message,
-        variant: "destructive"
-      });
-    }
+    toast({
+      title: "Erfolgreich hinzugefügt",
+      description: "Konfiguration wurde zum Warenkorb hinzugefügt."
+    });
   };
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
