@@ -136,6 +136,138 @@ export type Database = {
           },
         ]
       }
+      Fahrzeuge: {
+        Row: {
+          Fahrgestellnummer: string | null
+          "Fahrzeug-Ident.nr": string | null
+          Fahrzeugbesitzer: string | null
+          Fahrzeuglieferant: string | null
+          "Fahrzeugnutzer (Partner-ID)": string | null
+          Fahrzeugtyp: string | null
+          ID: string
+          Kennzeichen: string | null
+          "Laufzeit und Laufleistung": string | null
+          Lieferdatum: string | null
+          "Link Fahrzeugbrief": string | null
+          "Link Fahrzeugschein": string | null
+          "Link Leasingvertrag/Mietvertrag": string | null
+          "Link Übergabeprotokoll": string | null
+          "Link Versicherungsbestätigung": string | null
+          "Mail Fahrzeuglieferant Kontakt": string | null
+          "Rate/monat (netto)": string | null
+          Status: string | null
+          Vertragsnummer: string | null
+          Zustand: string | null
+        }
+        Insert: {
+          Fahrgestellnummer?: string | null
+          "Fahrzeug-Ident.nr"?: string | null
+          Fahrzeugbesitzer?: string | null
+          Fahrzeuglieferant?: string | null
+          "Fahrzeugnutzer (Partner-ID)"?: string | null
+          Fahrzeugtyp?: string | null
+          ID: string
+          Kennzeichen?: string | null
+          "Laufzeit und Laufleistung"?: string | null
+          Lieferdatum?: string | null
+          "Link Fahrzeugbrief"?: string | null
+          "Link Fahrzeugschein"?: string | null
+          "Link Leasingvertrag/Mietvertrag"?: string | null
+          "Link Übergabeprotokoll"?: string | null
+          "Link Versicherungsbestätigung"?: string | null
+          "Mail Fahrzeuglieferant Kontakt"?: string | null
+          "Rate/monat (netto)"?: string | null
+          Status?: string | null
+          Vertragsnummer?: string | null
+          Zustand?: string | null
+        }
+        Update: {
+          Fahrgestellnummer?: string | null
+          "Fahrzeug-Ident.nr"?: string | null
+          Fahrzeugbesitzer?: string | null
+          Fahrzeuglieferant?: string | null
+          "Fahrzeugnutzer (Partner-ID)"?: string | null
+          Fahrzeugtyp?: string | null
+          ID?: string
+          Kennzeichen?: string | null
+          "Laufzeit und Laufleistung"?: string | null
+          Lieferdatum?: string | null
+          "Link Fahrzeugbrief"?: string | null
+          "Link Fahrzeugschein"?: string | null
+          "Link Leasingvertrag/Mietvertrag"?: string | null
+          "Link Übergabeprotokoll"?: string | null
+          "Link Versicherungsbestätigung"?: string | null
+          "Mail Fahrzeuglieferant Kontakt"?: string | null
+          "Rate/monat (netto)"?: string | null
+          Status?: string | null
+          Vertragsnummer?: string | null
+          Zustand?: string | null
+        }
+        Relationships: []
+      }
+      Geräteübersicht_IT_Geräte: {
+        Row: {
+          "Benötigt ab...": string | null
+          Besteller: string | null
+          Eingangsdatum: string | null
+          ID: string
+          "IT Gerätetyp": string | null
+          "IT-Lieferant": string | null
+          "IT-Nutzer": string | null
+          Lieferadresse: string | null
+          "Mail Besteller": string | null
+          "Mail HWG Besteller": string | null
+          "Mail IT-Lieferant": string | null
+          monatliche_Kosten: string | null
+          partner_id: string | null
+          "Phone Besteller": string | null
+          Seriennummer: string | null
+          Status: string | null
+          Typ: string | null
+          "Verantwortlicher HWG": string | null
+        }
+        Insert: {
+          "Benötigt ab..."?: string | null
+          Besteller?: string | null
+          Eingangsdatum?: string | null
+          ID: string
+          "IT Gerätetyp"?: string | null
+          "IT-Lieferant"?: string | null
+          "IT-Nutzer"?: string | null
+          Lieferadresse?: string | null
+          "Mail Besteller"?: string | null
+          "Mail HWG Besteller"?: string | null
+          "Mail IT-Lieferant"?: string | null
+          monatliche_Kosten?: string | null
+          partner_id?: string | null
+          "Phone Besteller"?: string | null
+          Seriennummer?: string | null
+          Status?: string | null
+          Typ?: string | null
+          "Verantwortlicher HWG"?: string | null
+        }
+        Update: {
+          "Benötigt ab..."?: string | null
+          Besteller?: string | null
+          Eingangsdatum?: string | null
+          ID?: string
+          "IT Gerätetyp"?: string | null
+          "IT-Lieferant"?: string | null
+          "IT-Nutzer"?: string | null
+          Lieferadresse?: string | null
+          "Mail Besteller"?: string | null
+          "Mail HWG Besteller"?: string | null
+          "Mail IT-Lieferant"?: string | null
+          monatliche_Kosten?: string | null
+          partner_id?: string | null
+          "Phone Besteller"?: string | null
+          Seriennummer?: string | null
+          Status?: string | null
+          Typ?: string | null
+          "Verantwortlicher HWG"?: string | null
+        }
+        Relationships: []
+      }
       hero_nutzer: {
         Row: {
           created_at: string
@@ -170,6 +302,54 @@ export type Database = {
             referencedColumns: ["partner_id"]
           },
         ]
+      }
+      "Hilti Ontrack Connect": {
+        Row: {
+          created_at: string
+          current_location: string | null
+          id: number
+          manufacturer_model: string | null
+          monthly_rate: number | null
+          ontrack_id: string | null
+          org_reference: string | null
+          raw: Json | null
+          rent_start_date: string | null
+          serial_number: string | null
+          source_updated_at: string | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_location?: string | null
+          id?: number
+          manufacturer_model?: string | null
+          monthly_rate?: number | null
+          ontrack_id?: string | null
+          org_reference?: string | null
+          raw?: Json | null
+          rent_start_date?: string | null
+          serial_number?: string | null
+          source_updated_at?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_location?: string | null
+          id?: number
+          manufacturer_model?: string | null
+          monthly_rate?: number | null
+          ontrack_id?: string | null
+          org_reference?: string | null
+          raw?: Json | null
+          rent_start_date?: string | null
+          serial_number?: string | null
+          source_updated_at?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: []
       }
       "Hilti Werkzeugübersicht": {
         Row: {
@@ -256,6 +436,108 @@ export type Database = {
           Reparaturkosten?: string | null
           Serialnummer?: string | null
           Startdatum?: string | null
+          Vertragsart?: string | null
+          Vertragsbeginn?: string | null
+          Vertragsdauer?: number | null
+          Vertragsende?: string | null
+          "Voraussichtliches Enddatum"?: string | null
+        }
+        Relationships: []
+      }
+      Hilti_Geräteübersicht: {
+        Row: {
+          Abrechnungshäufigkeit: string | null
+          "Anfallende Gebühren": string | null
+          "Anzahl der Reparaturen": string | null
+          Artikelnummer: number | null
+          Auftragsnummer: string | null
+          Beschreibung: string | null
+          Bestellzeichen: string | null
+          Diebstahlabsicherung: string | null
+          Equipmentnummer: string | null
+          Garantiezeitraum: string | null
+          "Geräte Status": string | null
+          "Geräte-Generation": string | null
+          "Geräte-Typ": string | null
+          ID: number | null
+          Inventarnummer: string | null
+          Kaufdatum: string | null
+          "Laufzeit Monate": number | null
+          "Leihgerät möglich": string | null
+          "letzte Reparatur": string | null
+          "Monatliche Gebühr": string | null
+          "Organisatorische Referenz": string | null
+          partner_id: string | null
+          Reparaturkosten: string | null
+          Serialnummer: string | null
+          Startdatum: string | null
+          unique_id: string
+          Vertragsart: string | null
+          Vertragsbeginn: string | null
+          Vertragsdauer: number | null
+          Vertragsende: string | null
+          "Voraussichtliches Enddatum": string | null
+        }
+        Insert: {
+          Abrechnungshäufigkeit?: string | null
+          "Anfallende Gebühren"?: string | null
+          "Anzahl der Reparaturen"?: string | null
+          Artikelnummer?: number | null
+          Auftragsnummer?: string | null
+          Beschreibung?: string | null
+          Bestellzeichen?: string | null
+          Diebstahlabsicherung?: string | null
+          Equipmentnummer?: string | null
+          Garantiezeitraum?: string | null
+          "Geräte Status"?: string | null
+          "Geräte-Generation"?: string | null
+          "Geräte-Typ"?: string | null
+          ID?: number | null
+          Inventarnummer?: string | null
+          Kaufdatum?: string | null
+          "Laufzeit Monate"?: number | null
+          "Leihgerät möglich"?: string | null
+          "letzte Reparatur"?: string | null
+          "Monatliche Gebühr"?: string | null
+          "Organisatorische Referenz"?: string | null
+          partner_id?: string | null
+          Reparaturkosten?: string | null
+          Serialnummer?: string | null
+          Startdatum?: string | null
+          unique_id?: string
+          Vertragsart?: string | null
+          Vertragsbeginn?: string | null
+          Vertragsdauer?: number | null
+          Vertragsende?: string | null
+          "Voraussichtliches Enddatum"?: string | null
+        }
+        Update: {
+          Abrechnungshäufigkeit?: string | null
+          "Anfallende Gebühren"?: string | null
+          "Anzahl der Reparaturen"?: string | null
+          Artikelnummer?: number | null
+          Auftragsnummer?: string | null
+          Beschreibung?: string | null
+          Bestellzeichen?: string | null
+          Diebstahlabsicherung?: string | null
+          Equipmentnummer?: string | null
+          Garantiezeitraum?: string | null
+          "Geräte Status"?: string | null
+          "Geräte-Generation"?: string | null
+          "Geräte-Typ"?: string | null
+          ID?: number | null
+          Inventarnummer?: string | null
+          Kaufdatum?: string | null
+          "Laufzeit Monate"?: number | null
+          "Leihgerät möglich"?: string | null
+          "letzte Reparatur"?: string | null
+          "Monatliche Gebühr"?: string | null
+          "Organisatorische Referenz"?: string | null
+          partner_id?: string | null
+          Reparaturkosten?: string | null
+          Serialnummer?: string | null
+          Startdatum?: string | null
+          unique_id?: string
           Vertragsart?: string | null
           Vertragsbeginn?: string | null
           Vertragsdauer?: number | null
@@ -361,6 +643,7 @@ export type Database = {
           multipliers_hours: Json | null
           multipliers_material: Json | null
           package_id: number
+          product_selector: Json | null
           produkt_gruppe_id: string
           quantity_base: number | null
         }
@@ -370,6 +653,7 @@ export type Database = {
           multipliers_hours?: Json | null
           multipliers_material?: Json | null
           package_id: number
+          product_selector?: Json | null
           produkt_gruppe_id: string
           quantity_base?: number | null
         }
@@ -379,6 +663,7 @@ export type Database = {
           multipliers_hours?: Json | null
           multipliers_material?: Json | null
           package_id?: number
+          product_selector?: Json | null
           produkt_gruppe_id?: string
           quantity_base?: number | null
         }
@@ -704,12 +989,16 @@ export type Database = {
           "API Key Hero Account": string | null
           api_keys_getmika: string | null
           betriebsnummer: string | null
+          BIC: string | null
           contact_person: string | null
           email_address_GF: string | null
           email_belegemanagement: string | null
           email_getmika: string | null
+          Finanzamt: string | null
+          "Geburtsdatum GF1": string | null
           "Gewerbeanmeldung Link": string | null
           Gewerk: string | null
+          "Handelsregister Ort": string | null
           "Handwerkskarte Link": string | null
           hrb_nr: string | null
           iban: string | null
@@ -723,7 +1012,9 @@ export type Database = {
           plz: string[] | null
           "Private Mail LOC Gründer": string | null
           rechtsform: string | null
+          "SMTP Key Google <> HERO": string | null
           "SMTP Key Google <> Offpaper": string | null
+          "Steueranmeldung Link": string | null
           steuernummer: string | null
           ust_id: string | null
           Website: string | null
@@ -734,12 +1025,16 @@ export type Database = {
           "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
+          BIC?: string | null
           contact_person?: string | null
           email_address_GF?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
+          Finanzamt?: string | null
+          "Geburtsdatum GF1"?: string | null
           "Gewerbeanmeldung Link"?: string | null
           Gewerk?: string | null
+          "Handelsregister Ort"?: string | null
           "Handwerkskarte Link"?: string | null
           hrb_nr?: string | null
           iban?: string | null
@@ -753,7 +1048,9 @@ export type Database = {
           plz?: string[] | null
           "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
+          "SMTP Key Google <> HERO"?: string | null
           "SMTP Key Google <> Offpaper"?: string | null
+          "Steueranmeldung Link"?: string | null
           steuernummer?: string | null
           ust_id?: string | null
           Website?: string | null
@@ -764,12 +1061,16 @@ export type Database = {
           "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
           betriebsnummer?: string | null
+          BIC?: string | null
           contact_person?: string | null
           email_address_GF?: string | null
           email_belegemanagement?: string | null
           email_getmika?: string | null
+          Finanzamt?: string | null
+          "Geburtsdatum GF1"?: string | null
           "Gewerbeanmeldung Link"?: string | null
           Gewerk?: string | null
+          "Handelsregister Ort"?: string | null
           "Handwerkskarte Link"?: string | null
           hrb_nr?: string | null
           iban?: string | null
@@ -783,7 +1084,9 @@ export type Database = {
           plz?: string[] | null
           "Private Mail LOC Gründer"?: string | null
           rechtsform?: string | null
+          "SMTP Key Google <> HERO"?: string | null
           "SMTP Key Google <> Offpaper"?: string | null
+          "Steueranmeldung Link"?: string | null
           steuernummer?: string | null
           ust_id?: string | null
           Website?: string | null
@@ -1052,6 +1355,8 @@ export type Database = {
           bestelldetails: Json | null
           bestellstatus: string | null
           id: number
+          Lieferadresse: string | null
+          mitarbeiter: string | null
           partner_id: string
           updated_on: string | null
         }
@@ -1061,6 +1366,8 @@ export type Database = {
           bestelldetails?: Json | null
           bestellstatus?: string | null
           id?: number
+          Lieferadresse?: string | null
+          mitarbeiter?: string | null
           partner_id: string
           updated_on?: string | null
         }
@@ -1070,6 +1377,8 @@ export type Database = {
           bestelldetails?: Json | null
           bestellstatus?: string | null
           id?: number
+          Lieferadresse?: string | null
+          mitarbeiter?: string | null
           partner_id?: string
           updated_on?: string | null
         }
@@ -1086,6 +1395,7 @@ export type Database = {
       task_status: {
         Row: {
           created_at: string
+          deadline: string | null
           id: string
           notes: string | null
           partner_id: string
@@ -1096,6 +1406,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deadline?: string | null
           id?: string
           notes?: string | null
           partner_id: string
@@ -1106,6 +1417,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deadline?: string | null
           id?: string
           notes?: string | null
           partner_id?: string
@@ -1291,6 +1603,7 @@ export type Database = {
           Angebotsnummer_Anbieter: string | null
           Artikelbezeichnung: string | null
           Artikelnummer: string | null
+          Auftragsnummer_Anbieter: number | null
           "bestelldetails Provider": Json | null
           Bestellstatus: string | null
           id: number
@@ -1306,6 +1619,7 @@ export type Database = {
           Angebotsnummer_Anbieter?: string | null
           Artikelbezeichnung?: string | null
           Artikelnummer?: string | null
+          Auftragsnummer_Anbieter?: number | null
           "bestelldetails Provider"?: Json | null
           Bestellstatus?: string | null
           id?: number
@@ -1321,6 +1635,7 @@ export type Database = {
           Angebotsnummer_Anbieter?: string | null
           Artikelbezeichnung?: string | null
           Artikelnummer?: string | null
+          Auftragsnummer_Anbieter?: number | null
           "bestelldetails Provider"?: Json | null
           Bestellstatus?: string | null
           id?: number
@@ -1362,6 +1677,16 @@ export type Database = {
       get_hero_onboarding_status: {
         Args: { p_partner_id: string }
         Returns: string
+      }
+      get_it_equipment: {
+        Args: { p_partner_id: string }
+        Returns: {
+          id: string
+          it_nutzer: string
+          seriennummer: string
+          status: string
+          typ: string
+        }[]
       }
       get_steuerberater_onboarding_status: {
         Args: { p_partner_id: string }
