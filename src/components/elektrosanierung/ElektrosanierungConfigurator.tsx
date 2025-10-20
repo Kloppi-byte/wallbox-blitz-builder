@@ -405,6 +405,46 @@ export function ElektrosanierungConfigurator() {
     return () => clearTimeout(timeoutId);
   }, [soneparSearchTerm, toast]);
 
+  // Helper: Call Edge Function to calculate product selections
+  const calculateWithEdgeFunction = async (
+    packageIds: number[],
+    params: Record<string, any>
+  ): Promise<{
+    finalCart: Array<{ produkt_gruppe_id: string; quantity: number; selected_product_id?: string }>;
+    schutzorgane: any[];
+  } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('calculate-elektrosanierung', {
+        body: {
+          selected_package_ids: packageIds,
+          global_parameters: params,
+          location_id: selectedLocId
+        }
+      });
+
+      if (error) {
+        console.error('Edge Function error:', error);
+        toast({
+          title: "Berechnung fehlgeschlagen",
+          description: `Die automatische Produktauswahl konnte nicht berechnet werden: ${error.message}`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      console.log('Edge Function response:', data);
+      return data;
+    } catch (err: any) {
+      console.error('Error calling calculate edge function:', err);
+      toast({
+        title: "Fehler",
+        description: "Die Berechnung konnte nicht durchgeführt werden.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   // Helper: Build factor column key from location name
   const factorColumnKey = (locName: string): string => {
     return `${locName} factor`;
@@ -473,7 +513,7 @@ export function ElektrosanierungConfigurator() {
   };
 
   // Handler function for package selection
-  const handlePackageSelection = (packageData: OfferPackage, checked: boolean) => {
+  const handlePackageSelection = async (packageData: OfferPackage, checked: boolean) => {
     if (checked) {
       // Create a new selected package instance with parameters
       const instanceId = `${packageData.id}-${Date.now()}`;
@@ -507,13 +547,35 @@ export function ElektrosanierungConfigurator() {
       };
       setSelectedPackages(prev => [...prev, newSelectedPackage]);
 
+      // Call Edge Function to get calculated products with product_selector logic
+      const allParams = { ...globalParams, ...initialInstanceParams };
+      const edgeResult = await calculateWithEdgeFunction([packageData.id], allParams);
+
       // Resolve all products for this package and add to offer line items
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       const newLineItems: OfferLineItem[] = [];
       packageItemsForPackage.forEach(item => {
+        // Check if Edge Function selected a specific product for this group
+        const edgeCartItem = edgeResult?.finalCart.find(
+          (cartItem: any) => cartItem.produkt_gruppe_id === item.produkt_gruppe_id
+        );
+        
+        let product: OfferProduct | undefined;
+        
+        // If Edge Function selected a specific product_id, use it
+        if (edgeCartItem?.selected_product_id) {
+          product = products.find(prod => 
+            prod.product_id === edgeCartItem.selected_product_id && 
+            isProductAvailableForLocation(prod)
+          );
+          console.log(`Using product_selector: ${edgeCartItem.selected_product_id} for ${item.produkt_gruppe_id}`);
+        }
+        
         // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
         // Also filter by location tags
-        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
+        if (!product) {
+          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
+        }
         
         if (!product && packageData.quality_level) {
           product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
@@ -675,7 +737,7 @@ export function ElektrosanierungConfigurator() {
   };
 
   // Handler function to add another instance of an already selected package
-  const handleAddAnotherInstance = (packageData: OfferPackage) => {
+  const handleAddAnotherInstance = async (packageData: OfferPackage) => {
     // Create a new selected package instance with parameters
     const instanceId = `${packageData.id}-${Date.now()}`;
     
@@ -707,14 +769,36 @@ export function ElektrosanierungConfigurator() {
       parameters: initialInstanceParams
     };
     setSelectedPackages(prev => [...prev, newSelectedPackage]);
+    
+    // Call Edge Function to get calculated products with product_selector logic
+    const allParams = { ...globalParams, ...initialInstanceParams };
+    const edgeResult = await calculateWithEdgeFunction([packageData.id], allParams);
 
     // Resolve all products for this package and add to offer line items
     const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
     const newLineItems: OfferLineItem[] = [];
     packageItemsForPackage.forEach(item => {
+      // Check if Edge Function selected a specific product for this group
+      const edgeCartItem = edgeResult?.finalCart.find(
+        (cartItem: any) => cartItem.produkt_gruppe_id === item.produkt_gruppe_id
+      );
+      
+      let product: OfferProduct | undefined;
+      
+      // If Edge Function selected a specific product_id, use it
+      if (edgeCartItem?.selected_product_id) {
+        product = products.find(prod => 
+          prod.product_id === edgeCartItem.selected_product_id && 
+          isProductAvailableForLocation(prod)
+        );
+        console.log(`Using product_selector: ${edgeCartItem.selected_product_id} for ${item.produkt_gruppe_id}`);
+      }
+      
       // Implement fallback hierarchy: selected quality → package quality → Standard → Basic
       // Also filter by location tags
-      let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
+      if (!product) {
+        product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
+      }
       
       if (!product && packageData.quality_level) {
         product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
