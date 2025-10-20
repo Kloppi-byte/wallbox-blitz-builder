@@ -78,6 +78,37 @@ serve(async (req) => {
     // Identify which items are "schutzorgane" (protection devices)
     const schutzorganeGroups = ['GRP-MCB-B16', 'GRP-MCB-B10', 'GRP-MCB-B16-3P', 'GRP-RCD-40A', 'GRP-LTS-35A'];
 
+    // Helper to normalize multipliers into a consistent array of rules
+    // Supports: null, object (e.g., { raumgroesse: 1, qualitaetsfaktor: { Standard: 1, Premium: 2 }}),
+    // and array of either typed rules or param objects
+    function normalizeMultipliers(raw: any, params: Record<string, any>): Array<any> {
+      const out: Array<any> = [];
+      if (!raw) return out;
+      const arr = Array.isArray(raw) ? raw : [raw];
+      for (const entry of arr) {
+        if (!entry) continue;
+        if (typeof entry === 'object' && 'type' in entry) {
+          // Already a typed rule (e.g., { type: 'group_ref', ... })
+          out.push(entry);
+          continue;
+        }
+        // Treat as param-object: { key: number | mapping }
+        for (const key of Object.keys(entry)) {
+          const val = (entry as any)[key];
+          if (typeof val === 'number') {
+            out.push({ type: 'param_ref', param_key: key, factor: val });
+          } else if (val && typeof val === 'object') {
+            // Mapping like { Standard: 1, Premium: 2 }
+            const selectedQuality = params?.qualitaetsfaktor ?? params?.qualitaetsstufe ?? 'Standard';
+            const f = typeof val[selectedQuality] === 'number' ? val[selectedQuality]
+                  : (typeof val['Standard'] === 'number' ? val['Standard'] : 0);
+            out.push({ type: 'param_ref', param_key: key, factor: f });
+          }
+        }
+      }
+      return out;
+    }
+
     // Topological sort to handle dependencies between items
     function topologicalSort(items: Array<any>): Array<any> {
       const graph = new Map<string, Set<string>>();
@@ -92,7 +123,7 @@ serve(async (req) => {
       // Build dependency graph from multipliers_material
       // If item A references item B, then B -> A (B must be processed before A)
       for (const item of items) {
-        const multipliers = Array.isArray(item.multipliers_material) ? item.multipliers_material : [];
+        const multipliers = normalizeMultipliers(item.multipliers_material, {});
         for (const mult of multipliers) {
           if (mult.type === 'group_ref') {
             // item depends on mult.group_id, so mult.group_id -> item
@@ -108,7 +139,7 @@ serve(async (req) => {
       
       // Kahn's algorithm
       const queue = items.filter(item => inDegree.get(item.produkt_gruppe_id) === 0);
-      const sorted = [];
+      const sorted: any[] = [];
       
       while (queue.length > 0) {
         const current = queue.shift()!;
@@ -139,19 +170,23 @@ serve(async (req) => {
     ): number {
       let quantity = item.quantity_base || 0;
       
-      const multipliers = item.multipliers_material || [];
+      const multipliers = normalizeMultipliers(item.multipliers_material, params);
       
       for (const mult of multipliers) {
         if (mult.type === 'group_ref') {
           const refQty = resolvedQuantities.get(mult.group_id) || 0;
-          const value = mult.op === 'ceil' 
+          const value = mult.op === 'ceil'
             ? Math.ceil(refQty * mult.factor)
             : mult.op === 'floor'
             ? Math.floor(refQty * mult.factor)
             : refQty * mult.factor;
           quantity += value;
         } else if (mult.type === 'param_ref') {
-          const paramValue = params[mult.param_key] || 0;
+          const raw = params[mult.param_key];
+          let paramValue = 0;
+          if (typeof raw === 'boolean') paramValue = raw ? 1 : 0;
+          else if (typeof raw === 'number') paramValue = raw;
+          else if (typeof raw === 'string') paramValue = parseFloat(raw) || 0;
           const value = mult.op === 'ceil'
             ? Math.ceil(paramValue * mult.factor)
             : mult.op === 'floor'
@@ -224,9 +259,10 @@ serve(async (req) => {
           continue;
         }
         
-        // Check if this item has product selector rules
-        if (item?.product_selector?.type === 'product_selector') {
-          const rules = item.product_selector.rules || [];
+        // Check if this item has product selector rules (normalize array/object)
+        const psel = Array.isArray(item?.product_selector) ? item!.product_selector[0] : item?.product_selector;
+        if (psel?.type === 'product_selector') {
+          const rules = psel.rules || [];
           // Find the first rule where quantity is within the max threshold
           for (const rule of rules) {
             if (!rule.max || quantity <= rule.max) {
@@ -241,7 +277,7 @@ serve(async (req) => {
         }
         
         // If product_selector is used to pick size, quantity should always be 1 (we only pick the right model)
-        const finalQuantity = item?.product_selector?.type === 'product_selector' ? 1 : quantity;
+        const finalQuantity = (psel?.type === 'product_selector') ? 1 : quantity;
         
         finalCart.push({ produkt_gruppe_id, quantity: finalQuantity, selected_product_id });
       }
