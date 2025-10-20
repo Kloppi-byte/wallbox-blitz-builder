@@ -48,13 +48,10 @@ serve(async (req) => {
 
     console.log('Fetched rates:', rates)
 
-    // Fetch package items for selected packages
+    // Fetch package items for selected packages (include product_selector field)
     const { data: packageItems, error: packageItemsError } = await supabaseClient
       .from('offers_package_items')
-      .select(`
-        *,
-        offers_products!inner(*)
-      `)
+      .select('package_id, produkt_gruppe_id, quantity_base, multipliers_material, multipliers_hours, product_selector')
       .in('package_id', selected_package_ids)
 
     if (packageItemsError) {
@@ -160,18 +157,52 @@ serve(async (req) => {
     console.log('Resolved quantities:', Object.fromEntries(resolvedQuantities));
 
     // Build final cart from resolved quantities (exclude zero quantities)
-    const finalCart = Array.from(resolvedQuantities.entries())
-      .filter(([_, qty]) => qty > 0)
-      .map(([produkt_gruppe_id, quantity]) => ({ produkt_gruppe_id, quantity }));
+    // Apply product selector logic if configured
+    const finalCart: Array<{ produkt_gruppe_id: string; quantity: number; selected_product_id?: string }> = [];
+    
+    for (const [produkt_gruppe_id, quantity] of resolvedQuantities.entries()) {
+      if (quantity > 0) {
+        const item = sortedItems.find(pi => pi.produkt_gruppe_id === produkt_gruppe_id);
+        let selected_product_id: string | undefined;
+        
+        // Check if this item has product selector rules
+        if (item?.product_selector?.type === 'product_selector') {
+          const rules = item.product_selector.rules || [];
+          // Find the first rule where quantity is within the max threshold
+          for (const rule of rules) {
+            if (!rule.max || quantity <= rule.max) {
+              selected_product_id = rule.product_id;
+              break;
+            }
+          }
+          // Fallback to last rule if no match found
+          if (!selected_product_id && rules.length > 0) {
+            selected_product_id = rules[rules.length - 1].product_id;
+          }
+        }
+        
+        finalCart.push({ produkt_gruppe_id, quantity, selected_product_id });
+      }
+    }
 
     console.log('Final cart:', finalCart)
 
     // Fetch product details for all items in final cart
-    const productIds = finalCart.map(item => item.produkt_gruppe_id)
-    const { data: products, error: productsError } = await supabaseClient
+    const productGroupIds = finalCart.map(item => item.produkt_gruppe_id)
+    const selectedProductIds = finalCart.filter(item => item.selected_product_id).map(item => item.selected_product_id!)
+    
+    // Build query to fetch both group-based and specific selected products
+    let query = supabaseClient
       .from('offers_products')
       .select('*')
-      .in('produkt_gruppe', productIds)
+      
+    if (selectedProductIds.length > 0) {
+      query = query.or(`produkt_gruppe.in.(${productGroupIds.join(',')}),product_id.in.(${selectedProductIds.join(',')})`)
+    } else {
+      query = query.in('produkt_gruppe', productGroupIds)
+    }
+    
+    const { data: products, error: productsError } = await query
 
     if (productsError) {
       throw new Error(`Failed to fetch products: ${productsError.message}`)
@@ -186,7 +217,10 @@ serve(async (req) => {
     let meisterHours = 0
 
     for (const item of finalCart) {
-      const product = products?.find(p => p.produkt_gruppe === item.produkt_gruppe_id)
+      // If a specific product was selected, use only that; otherwise use first from group
+      const product = item.selected_product_id
+        ? products?.find(p => p.product_id === item.selected_product_id)
+        : products?.find(p => p.produkt_gruppe === item.produkt_gruppe_id)
       
       if (product) {
         // Calculate material costs with markup from rates
