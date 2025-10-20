@@ -63,96 +63,106 @@ serve(async (req) => {
 
     console.log('Package items:', packageItems)
 
-    // Build initial cart from package items
-    const initialCart: Array<{ produkt_gruppe_id: string, quantity: number }> = []
-    
-    for (const item of packageItems || []) {
-      const product = item.offers_products
-      const baseQuantity = item.quantity_base || 0
-      const quantity = baseQuantity
+    // Identify which items are "schutzorgane" (protection devices)
+    const schutzorganeGroups = ['GRP-MCB-B16', 'GRP-MCB-B10', 'GRP-MCB-B16-3P', 'GRP-RCD-40A', 'GRP-LTS-35A'];
+
+    // Topological sort to handle dependencies between items
+    function topologicalSort(items: Array<any>): Array<any> {
+      const graph = new Map<string, Set<string>>();
+      const inDegree = new Map<string, number>();
       
-      if (product && quantity > 0) {
-        initialCart.push({
-          produkt_gruppe_id: item.produkt_gruppe_id,
-          quantity: quantity
-        })
+      // Initialize graph
+      for (const item of items) {
+        graph.set(item.produkt_gruppe_id, new Set());
+        inDegree.set(item.produkt_gruppe_id, 0);
       }
-    }
-
-    console.log('Initial cart:', initialCart)
-
-    // Calculate distribution components based on configured items
-    function calculateDistribution(cart: Array<{ produkt_gruppe_id: string, quantity: number }>) {
-      // Count consumers
-      let socketCount = 0
-      let lightCount = 0
-      let stoveCount = 0
-
-      for (const item of cart) {
-        if (item.produkt_gruppe_id === 'GRP-SOC-SKT') {
-          socketCount += item.quantity // Single sockets count as 1
-        } else if (item.produkt_gruppe_id === 'GRP-SOC-DBL') {
-          socketCount += item.quantity * 2 // Double sockets count as 2
-        } else if (item.produkt_gruppe_id === 'GRP-SWI-AUS') {
-          lightCount += item.quantity
-        } else if (item.produkt_gruppe_id === 'GRP-SOC-HERD') {
-          stoveCount += item.quantity
+      
+      // Build dependency graph from multipliers_material
+      for (const item of items) {
+        const multipliers = item.multipliers_material || [];
+        for (const mult of multipliers) {
+          if (mult.type === 'group_ref') {
+            graph.get(item.produkt_gruppe_id)?.add(mult.group_id);
+            inDegree.set(mult.group_id, (inDegree.get(mult.group_id) || 0) + 1);
+          }
         }
       }
-
-      console.log('Consumer counts:', { socketCount, lightCount, stoveCount })
-
-      // Apply technical rules
-      const components: Array<{ produkt_gruppe_id: string, quantity: number }> = []
-
-      // LS switches for sockets (1-pole 16A per 8 sockets)
-      const lsSockets = Math.ceil(socketCount / 8)
-      if (lsSockets > 0) {
-        components.push({ produkt_gruppe_id: 'GRP-MCB-B16', quantity: lsSockets })
+      
+      // Kahn's algorithm
+      const queue = items.filter(item => inDegree.get(item.produkt_gruppe_id) === 0);
+      const sorted = [];
+      
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        sorted.push(current);
+        
+        const neighbors = graph.get(current.produkt_gruppe_id) || new Set();
+        for (const neighbor of neighbors) {
+          inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
+          if (inDegree.get(neighbor) === 0) {
+            const neighborItem = items.find(i => i.produkt_gruppe_id === neighbor);
+            if (neighborItem) queue.push(neighborItem);
+          }
+        }
       }
-
-      // LS switches for lights (1-pole 10A per 10 lights)
-      const lsLights = Math.ceil(lightCount / 10)
-      if (lsLights > 0) {
-        components.push({ produkt_gruppe_id: 'GRP-MCB-B10', quantity: lsLights })
+      
+      if (sorted.length !== items.length) {
+        throw new Error('Circular dependency detected in package item multipliers');
       }
-
-      // LS switches for stoves (3-pole 16A per stove)
-      if (stoveCount > 0) {
-        components.push({ produkt_gruppe_id: 'GRP-MCB-B16-3P', quantity: stoveCount })
-      }
-
-      // Total LS switches
-      const totalLs = lsSockets + lsLights + stoveCount
-
-      // FI switches (RCD 40A per 6 LS switches)
-      const fiSwitches = Math.ceil(totalLs / 6)
-      if (fiSwitches > 0) {
-        components.push({ produkt_gruppe_id: 'GRP-RCD-40A', quantity: fiSwitches })
-      }
-
-      // Load disconnect switch (1x if any LS switches)
-      if (totalLs > 0) {
-        components.push({ produkt_gruppe_id: 'GRP-LTS-35A', quantity: 1 })
-      }
-
-      console.log('Calculated distribution components:', components)
-      return components
+      
+      return sorted;
     }
 
-    // Calculate distribution components
-    const distributionComponents = calculateDistribution(initialCart)
-
-    // Merge distribution components with initial cart
-    const finalCart = [...initialCart]
-    for (const comp of distributionComponents) {
-      const existing = finalCart.find(item => item.produkt_gruppe_id === comp.produkt_gruppe_id)
-      if (existing) {
-        existing.quantity += comp.quantity
-      } else {
-        finalCart.push(comp)
+    // Evaluate multipliers for a single item
+    function evaluateMultipliers(
+      item: any,
+      resolvedQuantities: Map<string, number>,
+      params: Record<string, any>
+    ): number {
+      let quantity = item.quantity_base || 0;
+      
+      const multipliers = item.multipliers_material || [];
+      
+      for (const mult of multipliers) {
+        if (mult.type === 'group_ref') {
+          const refQty = resolvedQuantities.get(mult.group_id) || 0;
+          const value = mult.op === 'ceil' 
+            ? Math.ceil(refQty * mult.factor)
+            : mult.op === 'floor'
+            ? Math.floor(refQty * mult.factor)
+            : refQty * mult.factor;
+          quantity += value;
+        } else if (mult.type === 'param_ref') {
+          const paramValue = params[mult.param_key] || 0;
+          const value = mult.op === 'ceil'
+            ? Math.ceil(paramValue * mult.factor)
+            : mult.op === 'floor'
+            ? Math.floor(paramValue * mult.factor)
+            : paramValue * mult.factor;
+          quantity += value;
+        }
       }
+      
+      return quantity;
     }
+
+    // Sort items topologically to handle dependencies
+    const sortedItems = topologicalSort(packageItems || []);
+    
+    // Resolve quantities iteratively
+    const resolvedQuantities = new Map<string, number>();
+    
+    for (const item of sortedItems) {
+      const quantity = evaluateMultipliers(item, resolvedQuantities, global_parameters);
+      resolvedQuantities.set(item.produkt_gruppe_id, quantity);
+    }
+
+    console.log('Resolved quantities:', Object.fromEntries(resolvedQuantities));
+
+    // Build final cart from resolved quantities (exclude zero quantities)
+    const finalCart = Array.from(resolvedQuantities.entries())
+      .filter(([_, qty]) => qty > 0)
+      .map(([produkt_gruppe_id, quantity]) => ({ produkt_gruppe_id, quantity }));
 
     console.log('Final cart:', finalCart)
 
@@ -211,16 +221,21 @@ serve(async (req) => {
       total: Math.round(total * 100) / 100
     }
 
+    // Separate schutzorgane from final cart for response
+    const schutzorgane = finalCart
+      .filter(item => schutzorganeGroups.includes(item.produkt_gruppe_id))
+      .map(item => ({
+        produkt_gruppe_id: item.produkt_gruppe_id,
+        quantity: item.quantity
+      }));
+
     console.log('Calculated pricing:', pricing)
-    console.log('Protection devices (Schutzorgane):', distributionComponents)
+    console.log('Protection devices (Schutzorgane):', schutzorgane)
 
     return new Response(
       JSON.stringify({ 
         pricing,
-        schutzorgane: distributionComponents.map(comp => ({
-          produkt_gruppe_id: comp.produkt_gruppe_id,
-          quantity: comp.quantity
-        }))
+        schutzorgane
       }),
       { 
         headers: { 
