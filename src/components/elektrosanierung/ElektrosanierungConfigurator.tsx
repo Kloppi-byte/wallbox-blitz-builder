@@ -705,27 +705,30 @@ export function ElektrosanierungConfigurator() {
             }
           }
           
-          newLineItems.push({
-            id: `${instanceId}-${product.product_id}-${Math.random()}`,
-            package_id: packageData.id,
-            package_name: packageData.name,
-            product_id: product.product_id,
-            name: product.name,
-            description: product.description,
-            unit: product.unit,
-            unit_price: product.unit_price,
-            category: product.category,
-            produkt_gruppe: product.produkt_gruppe,
-            qualitaetsstufe: product.qualitaetsstufe,
-          stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
-          stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
-          stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
-          stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
-          stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
-          stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-          quantity: Math.round(calculatedQuantity),
-          image: product.image
-          });
+          // Only add line items with positive quantity
+          if (calculatedQuantity > 0) {
+            newLineItems.push({
+              id: `${instanceId}-${product.product_id}-${Math.random()}`,
+              package_id: packageData.id,
+              package_name: packageData.name,
+              product_id: product.product_id,
+              name: product.name,
+              description: product.description,
+              unit: product.unit,
+              unit_price: product.unit_price,
+              category: product.category,
+              produkt_gruppe: product.produkt_gruppe,
+              qualitaetsstufe: product.qualitaetsstufe,
+              stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+              stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+              stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+              stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+              stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+              stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+              quantity: Math.round(calculatedQuantity),
+              image: product.image
+            });
+          }
         }
       });
       setOfferLineItems(prev => [...prev, ...newLineItems]);
@@ -928,27 +931,30 @@ export function ElektrosanierungConfigurator() {
           }
         }
         
-        newLineItems.push({
-          id: `${instanceId}-${product.product_id}-${Math.random()}`,
-          package_id: packageData.id,
-          package_name: packageData.name,
-          product_id: product.product_id,
-          name: product.name,
-          description: product.description,
-          unit: product.unit,
-          unit_price: product.unit_price,
-          category: product.category,
-          produkt_gruppe: product.produkt_gruppe,
-          qualitaetsstufe: product.qualitaetsstufe,
-          stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
-          stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
-          stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
-          stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
-          stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
-          stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-          quantity: Math.round(calculatedQuantity),
-          image: product.image
-        });
+        // Only add line items with positive quantity
+        if (calculatedQuantity > 0) {
+          newLineItems.push({
+            id: `${instanceId}-${product.product_id}-${Math.random()}`,
+            package_id: packageData.id,
+            package_name: packageData.name,
+            product_id: product.product_id,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            unit_price: product.unit_price,
+            category: product.category,
+            produkt_gruppe: product.produkt_gruppe,
+            qualitaetsstufe: product.qualitaetsstufe,
+            stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+            stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+            stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+            stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+            stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+            stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+            quantity: Math.round(calculatedQuantity),
+            image: product.image
+          });
+        }
       }
     });
     setOfferLineItems(prev => [...prev, ...newLineItems]);
