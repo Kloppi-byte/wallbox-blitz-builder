@@ -202,7 +202,10 @@ serve(async (req) => {
           }
         }
         
-        finalCart.push({ produkt_gruppe_id, quantity, selected_product_id });
+        // If product_selector is used to pick size, quantity should always be 1 (we only pick the right model)
+        const finalQuantity = item?.product_selector?.type === 'product_selector' ? 1 : quantity;
+        
+        finalCart.push({ produkt_gruppe_id, quantity: finalQuantity, selected_product_id });
       }
     }
 
