@@ -1307,14 +1307,19 @@ export function ElektrosanierungConfigurator() {
       schutzorganeComponents.push({ produkt_gruppe_id: 'GRP-LTS-35A', quantity: 1 });
     }
 
-    // Convert to line items
+    // Convert to line items (coalesce duplicates by group)
     const schutzorganeLineItems: OfferLineItem[] = [];
     const schutzorganeInstanceId = 'schutzorgane-auto';
-    
+
+    const aggregated = new Map<string, number>();
     schutzorganeComponents.forEach(comp => {
+      aggregated.set(comp.produkt_gruppe_id, (aggregated.get(comp.produkt_gruppe_id) || 0) + comp.quantity);
+    });
+    
+    for (const [groupId, qty] of aggregated.entries()) {
       // Find product for this protection device in the current quality level
       let product = products.find(prod => 
-        prod.produkt_gruppe === comp.produkt_gruppe_id && 
+        prod.produkt_gruppe === groupId && 
         prod.qualitaetsstufe === globalParams.qualitaetsstufe &&
         isProductAvailableForLocation(prod)
       );
@@ -1322,7 +1327,7 @@ export function ElektrosanierungConfigurator() {
       // Fallback to Standard if not found
       if (!product) {
         product = products.find(prod => 
-          prod.produkt_gruppe === comp.produkt_gruppe_id && 
+          prod.produkt_gruppe === groupId && 
           prod.qualitaetsstufe === 'Standard' &&
           isProductAvailableForLocation(prod)
         );
@@ -1331,7 +1336,7 @@ export function ElektrosanierungConfigurator() {
       // Fallback to Basic if still not found
       if (!product) {
         product = products.find(prod => 
-          prod.produkt_gruppe === comp.produkt_gruppe_id && 
+          prod.produkt_gruppe === groupId && 
           prod.qualitaetsstufe === 'Basic' &&
           isProductAvailableForLocation(prod)
         );
@@ -1350,17 +1355,17 @@ export function ElektrosanierungConfigurator() {
           category: product.category,
           produkt_gruppe: product.produkt_gruppe,
           qualitaetsstufe: product.qualitaetsstufe,
-          stunden_meister: product.stunden_meister * comp.quantity,
-          stunden_geselle: product.stunden_geselle * comp.quantity,
-          stunden_monteur: product.stunden_monteur * comp.quantity,
+          stunden_meister: product.stunden_meister * qty,
+          stunden_geselle: product.stunden_geselle * qty,
+          stunden_monteur: product.stunden_monteur * qty,
           stunden_meister_per_unit: product.stunden_meister,
           stunden_geselle_per_unit: product.stunden_geselle,
           stunden_monteur_per_unit: product.stunden_monteur,
-          quantity: comp.quantity,
+          quantity: qty,
           image: product.image
         });
       }
-    });
+    }
     
     setSchutzorganeItems(schutzorganeLineItems);
   };
