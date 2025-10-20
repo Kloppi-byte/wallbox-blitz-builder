@@ -177,14 +177,52 @@ serve(async (req) => {
 
     console.log('Resolved quantities:', Object.fromEntries(resolvedQuantities));
 
+    // Calculate global UV size based on total LS switches across all packages
+    let totalLsAcrossAllPackages = 0;
+    const lsGroups = ['GRP-MCB-B16', 'GRP-MCB-B10', 'GRP-MCB-B16-3P'];
+    for (const [groupId, qty] of resolvedQuantities.entries()) {
+      if (lsGroups.includes(groupId)) {
+        totalLsAcrossAllPackages += qty;
+      }
+    }
+
+    // Calculate RCD count and total slots for UV selection
+    let selectedUvProductId: string | undefined;
+    if (totalLsAcrossAllPackages > 0) {
+      const rcdCount = Math.ceil(totalLsAcrossAllPackages / 6);
+      const totalSlots = totalLsAcrossAllPackages + 1 + (rcdCount * 3); // LS + SPD-T2 + (RCD * 3)
+      
+      if (totalSlots <= 12) {
+        selectedUvProductId = 'UV-KVT-VU12NC';
+      } else if (totalSlots <= 24) {
+        selectedUvProductId = 'UV-KVT-VU24NC';
+      } else if (totalSlots <= 36) {
+        selectedUvProductId = 'UV-KVT-VU36NC';
+      } else if (totalSlots <= 48) {
+        selectedUvProductId = 'UV-KVT-VU48NC';
+      } else {
+        selectedUvProductId = 'UV-KVT-VU60NC';
+      }
+      
+      console.log('UV calculation:', { totalLsAcrossAllPackages, rcdCount, totalSlots, selectedUvProductId });
+    }
+
     // Build final cart from resolved quantities (exclude zero quantities)
-    // Apply product selector logic if configured
+    // Apply product selector logic if configured OR use global UV selection
     const finalCart: Array<{ produkt_gruppe_id: string; quantity: number; selected_product_id?: string }> = [];
     
     for (const [produkt_gruppe_id, quantity] of resolvedQuantities.entries()) {
       if (quantity > 0) {
         const item = sortedItems.find(pi => pi.produkt_gruppe_id === produkt_gruppe_id);
         let selected_product_id: string | undefined;
+        
+        // Special handling for UV - use global calculation
+        if (produkt_gruppe_id === 'GRP-UV-KVT') {
+          selected_product_id = selectedUvProductId;
+          // Force quantity to 1 for UV
+          finalCart.push({ produkt_gruppe_id, quantity: 1, selected_product_id });
+          continue;
+        }
         
         // Check if this item has product selector rules
         if (item?.product_selector?.type === 'product_selector') {
