@@ -418,7 +418,7 @@ export function ElektrosanierungConfigurator() {
         body: {
           selected_package_ids: packageIds,
           global_parameters: params,
-          location_id: selectedLocId
+          loc_id: selectedLocId
         }
       });
 

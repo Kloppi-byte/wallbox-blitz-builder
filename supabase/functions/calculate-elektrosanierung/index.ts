@@ -35,15 +35,30 @@ serve(async (req) => {
       loc_id
     })
 
-    // Fetch rates for the specified location
-    const { data: rates, error: ratesError } = await supabaseClient
-      .from('offers_rates')
-      .select('*')
-      .eq('loc_id', loc_id || '1')
-      .single()
+    // Fetch rates for the specified location (robust: handle missing/unknown loc_id)
+    let rates: any = null;
+    let ratesError: any = null;
 
-    if (ratesError) {
-      throw new Error(`Failed to fetch rates: ${ratesError.message}`)
+    if (loc_id) {
+      const { data, error } = await supabaseClient
+        .from('offers_rates')
+        .select('*')
+        .eq('loc_id', loc_id)
+        .maybeSingle();
+      rates = data;
+      ratesError = error;
+    } else {
+      const { data, error } = await supabaseClient
+        .from('offers_rates')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      rates = data;
+      ratesError = error;
+    }
+
+    if (ratesError || !rates) {
+      throw new Error(`Failed to fetch rates: ${ratesError?.message || 'No rates configured'}`)
     }
 
     console.log('Fetched rates:', rates)
@@ -269,7 +284,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         pricing,
-        schutzorgane
+        schutzorgane,
+        finalCart
       }),
       { 
         headers: { 
