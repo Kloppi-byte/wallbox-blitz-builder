@@ -1370,14 +1370,98 @@ export function ElektrosanierungConfigurator() {
     setSchutzorganeItems(schutzorganeLineItems);
   };
 
+  // Recalculate UV size based on current Schutzorgane quantities
+  const recalculateUVSize = async () => {
+    // Count total LS switches from Schutzorgane
+    let totalLs = 0;
+    schutzorganeItems.forEach(item => {
+      if (item.produkt_gruppe === 'GRP-MCB-B16' || 
+          item.produkt_gruppe === 'GRP-MCB-B10' || 
+          item.produkt_gruppe === 'GRP-MCB-B16-3P') {
+        totalLs += item.quantity;
+      }
+    });
+
+    if (totalLs === 0) return; // No LS switches, no UV needed
+
+    // Calculate RCD count: 1 RCD per 6 LS switches
+    const rcdCount = Math.ceil(totalLs / 6);
+    
+    // Calculate total space units: LS (1 slot each) + SPD-T2 (1 slot) + RCD (3 slots each)
+    const totalSlots = totalLs + 1 + (rcdCount * 3);
+
+    console.log('UV recalculation:', { totalLs, rcdCount, totalSlots });
+
+    // Determine which UV to select based on total slots
+    let selectedUV = 'UV-KVT-VU12NC';
+    if (totalSlots <= 12) {
+      selectedUV = 'UV-KVT-VU12NC';
+    } else if (totalSlots <= 24) {
+      selectedUV = 'UV-KVT-VU24NC';
+    } else if (totalSlots <= 36) {
+      selectedUV = 'UV-KVT-VU36NC';
+    } else if (totalSlots <= 48) {
+      selectedUV = 'UV-KVT-VU48NC';
+    } else {
+      selectedUV = 'UV-KVT-VU60NC';
+    }
+
+    // Find the UV product
+    const uvProduct = products.find(prod => 
+      prod.product_id === selectedUV && 
+      isProductAvailableForLocation(prod)
+    );
+
+    if (!uvProduct) {
+      console.error('UV product not found:', selectedUV);
+      return;
+    }
+
+    // Update existing UV line item or add new one
+    setOfferLineItems(currentItems => {
+      const uvExists = currentItems.some(item => item.produkt_gruppe === 'GRP-UV-KVT');
+      
+      if (uvExists) {
+        // Update existing UV
+        return currentItems.map(item => {
+          if (item.produkt_gruppe === 'GRP-UV-KVT') {
+            return {
+              ...item,
+              product_id: uvProduct.product_id,
+              name: uvProduct.name,
+              description: uvProduct.description,
+              unit_price: uvProduct.unit_price,
+              qualitaetsstufe: uvProduct.qualitaetsstufe,
+              quantity: 1,
+              stunden_meister: uvProduct.stunden_meister,
+              stunden_geselle: uvProduct.stunden_geselle,
+              stunden_monteur: uvProduct.stunden_monteur,
+              stunden_meister_per_unit: uvProduct.stunden_meister,
+              stunden_geselle_per_unit: uvProduct.stunden_geselle,
+              stunden_monteur_per_unit: uvProduct.stunden_monteur,
+              image: uvProduct.image
+            };
+          }
+          return item;
+        });
+      }
+      
+      return currentItems;
+    });
+  };
+
+
   // Handler function for quantity changes
-  const handleQuantityChange = (lineItemId: string, newQuantity: number) => {
+  const handleQuantityChange = async (lineItemId: string, newQuantity: number) => {
     // Check if this is a Schutzorgan item
     if (lineItemId.startsWith('schutzorgane-auto')) {
       setSchutzorganeItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
         ...item,
         quantity: Math.max(1, newQuantity)
       } : item));
+      
+      // Recalculate UV size based on updated Schutzorgane quantities
+      await recalculateUVSize();
     } else {
       setOfferLineItems(currentItems => currentItems.map(item => item.id === lineItemId ? {
         ...item,
