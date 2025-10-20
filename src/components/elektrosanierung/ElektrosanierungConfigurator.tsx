@@ -560,6 +560,16 @@ export function ElektrosanierungConfigurator() {
           (cartItem: any) => cartItem.produkt_gruppe_id === item.produkt_gruppe_id
         );
         
+        // Skip items with zero quantity from edge function
+        if (edgeResult && edgeCartItem && edgeCartItem.quantity <= 0) {
+          return;
+        }
+        
+        // Skip items not in edge function cart at all (edge function filtered them out)
+        if (edgeResult && !edgeCartItem) {
+          return;
+        }
+        
         let product: OfferProduct | undefined;
         
         // If Edge Function selected a specific product_id, use it
@@ -590,56 +600,64 @@ export function ElektrosanierungConfigurator() {
         }
         
         if (product) {
-          // Calculate quantity: start with quantity_base and ADD multiplier terms
-          let calculatedQuantity = item.quantity_base || 0;
+          // Use edge function quantity if available, otherwise calculate
+          let calculatedQuantity: number;
           
-          // Merge global and instance parameters for calculations
-          const allParams = { ...globalParams, ...newSelectedPackage.parameters };
-          
-          // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
-          if (item.multipliers_material && typeof item.multipliers_material === 'object') {
-            const multipliers = item.multipliers_material as Record<string, any>;
+          if (edgeCartItem?.quantity !== undefined) {
+            // Use the quantity calculated by the edge function
+            calculatedQuantity = edgeCartItem.quantity;
+          } else {
+            // Fallback: Calculate quantity: start with quantity_base and ADD multiplier terms
+            calculatedQuantity = item.quantity_base || 0;
             
-            for (const formulaKey in multipliers) {
-              const factor = multipliers[formulaKey];
+            // Merge global and instance parameters for calculations
+            const allParams = { ...globalParams, ...newSelectedPackage.parameters };
+            
+            // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
+            if (item.multipliers_material && typeof item.multipliers_material === 'object') {
+              const multipliers = item.multipliers_material as Record<string, any>;
               
-              // Check if factor is an object (lookup table for additive values)
-              if (typeof factor === 'object' && factor !== null) {
-                // Object-based additive: look up the parameter value in the object
-                const paramValue = allParams[formulaKey];
-                if (paramValue !== undefined && paramValue !== null) {
-                  const additiveValue = factor[String(paramValue)];
-                  if (additiveValue !== undefined) {
-                    calculatedQuantity += Number(additiveValue);
+              for (const formulaKey in multipliers) {
+                const factor = multipliers[formulaKey];
+                
+                // Check if factor is an object (lookup table for additive values)
+                if (typeof factor === 'object' && factor !== null) {
+                  // Object-based additive: look up the parameter value in the object
+                  const paramValue = allParams[formulaKey];
+                  if (paramValue !== undefined && paramValue !== null) {
+                    const additiveValue = factor[String(paramValue)];
+                    if (additiveValue !== undefined) {
+                      calculatedQuantity += Number(additiveValue);
+                    }
                   }
-                }
-              } else if (typeof factor === 'number') {
-                // Number-based multiplicative: use existing formula logic
-                // Split the formula key by '*' to get individual parameter names
-                const paramNames = formulaKey.split('*').map(name => name.trim());
-                
-                // Calculate the term value by multiplying all parameter values
-                let termValue = 1.0;
-                let allParamsFound = true;
-                
-                for (const paramName of paramNames) {
-                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                    // Convert boolean to 1/0 for calculations
-                    const paramValue = typeof allParams[paramName] === 'boolean'
-                      ? (allParams[paramName] ? 1 : 0)
-                      : allParams[paramName];
-                    
-                    termValue *= paramValue;
-                  } else {
-                    allParamsFound = false;
-                    termValue = 0;
-                    break;
+                } else if (typeof factor === 'number') {
+                  // Number-based multiplicative: use existing formula logic
+                  // Split the formula key by '*' to get individual parameter names
+                  const paramNames = formulaKey.split('*').map(name => name.trim());
+                  
+                  // Calculate the term value by multiplying all parameter values
+                  let termValue = 1.0;
+                  let allParamsFound = true;
+                  
+                  for (const paramName of paramNames) {
+                    if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                      // Convert boolean to 1/0 for calculations
+                      const paramValue = typeof allParams[paramName] === 'boolean'
+                        ? (allParams[paramName] ? 1 : 0)
+                        : allParams[paramName];
+                      
+                      termValue *= paramValue;
+                    } else {
+                      allParamsFound = false;
+                      termValue = 0;
+                      break;
+                    }
                   }
-                }
-                
-                // ADD the final term (termValue * factor) to total quantity
-                if (allParamsFound || termValue !== 0) {
-                  calculatedQuantity += termValue * factor;
+                  
+                  // ADD the final term (termValue * factor) to total quantity
+                  if (allParamsFound || termValue !== 0) {
+                    calculatedQuantity += termValue * factor;
+                  }
                 }
               }
             }
@@ -786,6 +804,16 @@ export function ElektrosanierungConfigurator() {
         (cartItem: any) => cartItem.produkt_gruppe_id === item.produkt_gruppe_id
       );
       
+      // Skip items with zero quantity from edge function
+      if (edgeResult && edgeCartItem && edgeCartItem.quantity <= 0) {
+        return;
+      }
+      
+      // Skip items not in edge function cart at all (edge function filtered them out)
+      if (edgeResult && !edgeCartItem) {
+        return;
+      }
+      
       let product: OfferProduct | undefined;
       
       // If Edge Function selected a specific product_id, use it
@@ -816,56 +844,64 @@ export function ElektrosanierungConfigurator() {
       }
       
       if (product) {
-        // Calculate quantity: start with quantity_base and ADD multiplier terms
-        let calculatedQuantity = item.quantity_base || 0;
+        // Use edge function quantity if available, otherwise calculate
+        let calculatedQuantity: number;
         
-        // Merge global and instance parameters for calculations
-        const allParams = { ...globalParams, ...newSelectedPackage.parameters };
-        
-        // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
-        if (item.multipliers_material && typeof item.multipliers_material === 'object') {
-          const multipliers = item.multipliers_material as Record<string, any>;
+        if (edgeCartItem?.quantity !== undefined) {
+          // Use the quantity calculated by the edge function
+          calculatedQuantity = edgeCartItem.quantity;
+        } else {
+          // Fallback: Calculate quantity: start with quantity_base and ADD multiplier terms
+          calculatedQuantity = item.quantity_base || 0;
           
-          for (const formulaKey in multipliers) {
-            const factor = multipliers[formulaKey];
+          // Merge global and instance parameters for calculations
+          const allParams = { ...globalParams, ...newSelectedPackage.parameters };
+          
+          // Apply material multipliers with formula parser (supports "param" and "param1 * param2")
+          if (item.multipliers_material && typeof item.multipliers_material === 'object') {
+            const multipliers = item.multipliers_material as Record<string, any>;
             
-            // Check if factor is an object (lookup table for additive values)
-            if (typeof factor === 'object' && factor !== null) {
-              // Object-based additive: look up the parameter value in the object
-              const paramValue = allParams[formulaKey];
-              if (paramValue !== undefined && paramValue !== null) {
-                const additiveValue = factor[String(paramValue)];
-                if (additiveValue !== undefined) {
-                  calculatedQuantity += Number(additiveValue);
+            for (const formulaKey in multipliers) {
+              const factor = multipliers[formulaKey];
+              
+              // Check if factor is an object (lookup table for additive values)
+              if (typeof factor === 'object' && factor !== null) {
+                // Object-based additive: look up the parameter value in the object
+                const paramValue = allParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    calculatedQuantity += Number(additiveValue);
+                  }
                 }
-              }
-            } else if (typeof factor === 'number') {
-              // Number-based multiplicative: use existing formula logic
-              // Split the formula key by '*' to get individual parameter names
-              const paramNames = formulaKey.split('*').map(name => name.trim());
-              
-              // Calculate the term value by multiplying all parameter values
-              let termValue = 1.0;
-              let allParamsFound = true;
-              
-              for (const paramName of paramNames) {
-                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                  // Convert boolean to 1/0 for calculations
-                  const paramValue = typeof allParams[paramName] === 'boolean'
-                    ? (allParams[paramName] ? 1 : 0)
-                    : allParams[paramName];
-                  
-                  termValue *= paramValue;
-                } else {
-                  allParamsFound = false;
-                  termValue = 0;
-                  break;
+              } else if (typeof factor === 'number') {
+                // Number-based multiplicative: use existing formula logic
+                // Split the formula key by '*' to get individual parameter names
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                
+                // Calculate the term value by multiplying all parameter values
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                    // Convert boolean to 1/0 for calculations
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
+                    
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
                 }
-              }
-              
-              // ADD the final term (termValue * factor) to total quantity
-              if (allParamsFound || termValue !== 0) {
-                calculatedQuantity += termValue * factor;
+                
+                // ADD the final term (termValue * factor) to total quantity
+                if (allParamsFound || termValue !== 0) {
+                  calculatedQuantity += termValue * factor;
+                }
               }
             }
           }
