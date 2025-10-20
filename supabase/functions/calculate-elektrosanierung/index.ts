@@ -90,12 +90,18 @@ serve(async (req) => {
       }
       
       // Build dependency graph from multipliers_material
+      // If item A references item B, then B -> A (B must be processed before A)
       for (const item of items) {
         const multipliers = item.multipliers_material || [];
         for (const mult of multipliers) {
           if (mult.type === 'group_ref') {
-            graph.get(item.produkt_gruppe_id)?.add(mult.group_id);
-            inDegree.set(mult.group_id, (inDegree.get(mult.group_id) || 0) + 1);
+            // item depends on mult.group_id, so mult.group_id -> item
+            // Add edge from dependency TO dependent
+            const depItem = items.find(i => i.produkt_gruppe_id === mult.group_id);
+            if (depItem) {
+              graph.get(mult.group_id)?.add(item.produkt_gruppe_id);
+              inDegree.set(item.produkt_gruppe_id, (inDegree.get(item.produkt_gruppe_id) || 0) + 1);
+            }
           }
         }
       }
