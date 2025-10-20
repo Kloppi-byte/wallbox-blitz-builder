@@ -92,7 +92,7 @@ serve(async (req) => {
       // Build dependency graph from multipliers_material
       // If item A references item B, then B -> A (B must be processed before A)
       for (const item of items) {
-        const multipliers = item.multipliers_material || [];
+        const multipliers = Array.isArray(item.multipliers_material) ? item.multipliers_material : [];
         for (const mult of multipliers) {
           if (mult.type === 'group_ref') {
             // item depends on mult.group_id, so mult.group_id -> item
