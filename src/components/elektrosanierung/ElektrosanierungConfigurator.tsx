@@ -32,7 +32,7 @@ const SCHUTZORGANE_GROUPS = [
   'GRP-SPD-T12',
   'GRP-LTS-35A',
   'GRP-HV-HAUPTSCHALTER-63A',
-  'GRP-UV-KVT'
+  'GRP-AFDD'
 ];
 
 // --- TYPE DEFINITIONS ---
@@ -832,45 +832,66 @@ export function ElektrosanierungConfigurator() {
         
         // Apply material multipliers (including group_ref)
         if (item.multipliers_material) {
-          for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
+          // Handle array-shaped group_ref multipliers directly
+          if (Array.isArray(item.multipliers_material) && 
+              item.multipliers_material.length > 0 && 
+              item.multipliers_material[0]?.type === 'group_ref') {
             
-            if (typeof factor === 'object' && factor !== null) {
-              // Handle group_ref multipliers
-              if (factor.type === 'group_ref') {
-                const groupId = factor.group_id;
-                const groupFactor = factor.factor || 1;
+            // Sum all group references
+            for (const entry of item.multipliers_material) {
+              if (entry.type === 'group_ref') {
+                const groupId = entry.group_id;
+                const groupFactor = entry.factor || 1;
                 const referencedQty = resolvedQuantities.get(groupId) || 0;
                 calculatedQuantity += referencedQty * groupFactor;
-                continue;
-              }
-              
-              const paramValue = allParams[formulaKey];
-              if (paramValue !== undefined && paramValue !== null) {
-                const additiveValue = factor[String(paramValue)];
-                if (additiveValue !== undefined) {
-                  calculatedQuantity += Number(additiveValue);
+                
+                if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
+                  console.log(`  + ${groupId}: ${referencedQty} * ${groupFactor} = ${referencedQty * groupFactor}`);
                 }
               }
-            } else if (typeof factor === 'number') {
-              const paramNames = formulaKey.split('*').map(name => name.trim());
-              let termValue = 1.0;
-              let allParamsFound = true;
+            }
+          } else {
+            // Handle object-shaped multipliers and compound formulas
+            for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
               
-              for (const paramName of paramNames) {
-                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                  const paramValue = typeof allParams[paramName] === 'boolean'
-                    ? (allParams[paramName] ? 1 : 0)
-                    : allParams[paramName];
-                  termValue *= paramValue;
-                } else {
-                  allParamsFound = false;
-                  termValue = 0;
-                  break;
+              if (typeof factor === 'object' && factor !== null) {
+                // Handle group_ref multipliers from normalized entries
+                if (factor.type === 'group_ref') {
+                  const groupId = factor.group_id;
+                  const groupFactor = factor.factor || 1;
+                  const referencedQty = resolvedQuantities.get(groupId) || 0;
+                  calculatedQuantity += referencedQty * groupFactor;
+                  continue;
                 }
-              }
-              
-              if (allParamsFound || termValue !== 0) {
-                calculatedQuantity += termValue * factor;
+                
+                const paramValue = allParams[formulaKey];
+                if (paramValue !== undefined && paramValue !== null) {
+                  const additiveValue = factor[String(paramValue)];
+                  if (additiveValue !== undefined) {
+                    calculatedQuantity += Number(additiveValue);
+                  }
+                }
+              } else if (typeof factor === 'number') {
+                const paramNames = formulaKey.split('*').map(name => name.trim());
+                let termValue = 1.0;
+                let allParamsFound = true;
+                
+                for (const paramName of paramNames) {
+                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                    const paramValue = typeof allParams[paramName] === 'boolean'
+                      ? (allParams[paramName] ? 1 : 0)
+                      : allParams[paramName];
+                    termValue *= paramValue;
+                  } else {
+                    allParamsFound = false;
+                    termValue = 0;
+                    break;
+                  }
+                }
+                
+                if (allParamsFound || termValue !== 0) {
+                  calculatedQuantity += termValue * factor;
+                }
               }
             }
           }
