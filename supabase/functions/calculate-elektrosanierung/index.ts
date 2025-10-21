@@ -171,6 +171,7 @@ serve(async (req) => {
     function evaluateMultipliers(
       item: any,
       resolvedQuantities: Map<string, number>,
+      packageResolvedQuantities: Map<string, number>,
       params: Record<string, any>
     ): number {
       let quantity = item.quantity_base || 0;
@@ -179,7 +180,11 @@ serve(async (req) => {
       
       for (const mult of multipliers) {
         if (mult.type === 'group_ref') {
-          const refQty = resolvedQuantities.get(mult.group_id) || 0;
+          // Check scope: 'package' or 'global' (default)
+          const scope = mult.scope || 'global';
+          const refQty = scope === 'package'
+            ? (packageResolvedQuantities.get(mult.group_id) || 0)
+            : (resolvedQuantities.get(mult.group_id) || 0);
           const value = mult.op === 'ceil'
             ? Math.ceil(refQty * mult.factor)
             : mult.op === 'floor'
@@ -222,15 +227,41 @@ serve(async (req) => {
       return quantity;
     }
 
-    // Sort items topologically to handle dependencies
-    const sortedItems = topologicalSort(packageItems || []);
+    // Group items by package for package-scoped processing
+    const itemsByPackage = new Map<number, any[]>();
+    for (const item of packageItems || []) {
+      if (!itemsByPackage.has(item.package_id)) {
+        itemsByPackage.set(item.package_id, []);
+      }
+      itemsByPackage.get(item.package_id)!.push(item);
+    }
     
-    // Resolve quantities iteratively
+    // Global resolved quantities (across all packages)
     const resolvedQuantities = new Map<string, number>();
     
-    for (const item of sortedItems) {
-      const quantity = evaluateMultipliers(item, resolvedQuantities, global_parameters);
-      resolvedQuantities.set(item.produkt_gruppe_id, quantity);
+    // Process each package independently for package-scoped references
+    for (const [packageId, items] of itemsByPackage) {
+      // Package-scoped quantities (reset for each package)
+      const packageResolvedQuantities = new Map<string, number>();
+      
+      // Sort items within this package topologically
+      const sortedPackageItems = topologicalSort(items);
+      
+      for (const item of sortedPackageItems) {
+        const quantity = evaluateMultipliers(
+          item,
+          resolvedQuantities,
+          packageResolvedQuantities,
+          global_parameters
+        );
+        
+        // Update both package-scoped and global quantities
+        packageResolvedQuantities.set(item.produkt_gruppe_id, quantity);
+        
+        // For global map, accumulate quantities if the group already exists
+        const existingQty = resolvedQuantities.get(item.produkt_gruppe_id) || 0;
+        resolvedQuantities.set(item.produkt_gruppe_id, existingQty + quantity);
+      }
     }
 
     console.log('Resolved quantities:', Object.fromEntries(resolvedQuantities));
