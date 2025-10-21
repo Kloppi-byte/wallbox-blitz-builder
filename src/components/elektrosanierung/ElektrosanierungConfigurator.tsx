@@ -743,7 +743,7 @@ export function ElektrosanierungConfigurator() {
               stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
               stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
               stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-              quantity: Math.round(calculatedQuantity),
+              quantity: Math.max(1, Math.round(calculatedQuantity)),
               image: product.image
             });
           }
@@ -977,7 +977,7 @@ export function ElektrosanierungConfigurator() {
             stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
             stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
             stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-            quantity: Math.round(calculatedQuantity),
+            quantity: Math.max(1, Math.round(calculatedQuantity)),
             image: product.image
           });
         }
@@ -1217,13 +1217,13 @@ export function ElektrosanierungConfigurator() {
           }
           
           // Only add line items with positive quantity
-          if (Math.round(calculatedQuantity) > 0) {
+          if (calculatedQuantity > 0) {
             const mapKey = `${selectedPackage.instanceId}-${product.product_id}`;
             const existingItem = itemsMap.get(mapKey);
             
             if (existingItem) {
               // Merge: sum quantities and hours
-              existingItem.quantity += Math.round(calculatedQuantity);
+              existingItem.quantity += Math.max(1, Math.round(calculatedQuantity));
               existingItem.stunden_meister += product.stunden_meister * hoursMultiplier * calculatedQuantity;
               existingItem.stunden_geselle += product.stunden_geselle * hoursMultiplier * calculatedQuantity;
               existingItem.stunden_monteur += product.stunden_monteur * hoursMultiplier * calculatedQuantity;
@@ -1247,7 +1247,7 @@ export function ElektrosanierungConfigurator() {
                 stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
                 stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
                 stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-                quantity: Math.round(calculatedQuantity),
+                quantity: Math.max(1, Math.round(calculatedQuantity)),
                 image: product.image
               });
             }
