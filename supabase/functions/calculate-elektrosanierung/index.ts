@@ -161,7 +161,10 @@ serve(async (req) => {
       }
       
       if (sorted.length !== items.length) {
-        throw new Error('Circular dependency detected in package item multipliers');
+        // Find items that are part of the cycle
+        const unsortedItems = items.filter(item => !sorted.includes(item));
+        const cycleItems = unsortedItems.map(item => item.produkt_gruppe_id).join(', ');
+        throw new Error(`Circular dependency detected in package item multipliers. Items involved: ${cycleItems}`);
       }
       
       return sorted;
