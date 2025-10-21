@@ -784,12 +784,19 @@ export function ElektrosanierungConfigurator() {
           let calculatedQuantity = item.quantity_base || 0;
           const allParams = { ...globalParams, ...selectedPackage.parameters };
           
+          // Helper to normalize multiplier entries (handles both array and object shapes)
+          const normalizeMultiplierEntries = (raw: any): [string, any][] => {
+            if (Array.isArray(raw)) {
+              return raw.flatMap(obj => Object.entries(obj));
+            } else if (raw && typeof raw === 'object') {
+              return Object.entries(raw);
+            }
+            return [];
+          };
+          
           // Apply material multipliers
-          if (item.multipliers_material && typeof item.multipliers_material === 'object') {
-            const multipliers = item.multipliers_material as Record<string, any>;
-            
-            for (const formulaKey in multipliers) {
-              const factor = multipliers[formulaKey];
+          if (item.multipliers_material) {
+            for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
               
               if (typeof factor === 'object' && factor !== null) {
                 const paramValue = allParams[formulaKey];
@@ -826,14 +833,14 @@ export function ElektrosanierungConfigurator() {
 
           // Calculate hours multiplier
           let hoursMultiplier = 1.0;
+          let floorValue: number | undefined;
           
-          if (item.multipliers_hours && typeof item.multipliers_hours === 'object') {
-            const multipliers = item.multipliers_hours as Record<string, any>;
-            
-            for (const formulaKey in multipliers) {
-              if (formulaKey === 'floor') continue;
-              
-              const factor = multipliers[formulaKey];
+          if (item.multipliers_hours) {
+            for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_hours)) {
+              if (formulaKey === 'floor') {
+                floorValue = factor;
+                continue;
+              }
               
               if (typeof factor === 'object' && factor !== null) {
                 const paramValue = allParams[formulaKey];
@@ -867,8 +874,8 @@ export function ElektrosanierungConfigurator() {
               }
             }
             
-            if (multipliers.floor !== undefined) {
-              hoursMultiplier = Math.max(hoursMultiplier, multipliers.floor);
+            if (floorValue !== undefined) {
+              hoursMultiplier = Math.max(hoursMultiplier, floorValue);
             }
           }
           
