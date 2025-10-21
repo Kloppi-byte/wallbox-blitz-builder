@@ -53,6 +53,7 @@ type OfferPackageItem = {
   quantity_base: number;
   multipliers_material?: any;
   multipliers_hours?: any;
+  product_selector?: any; // selection rules from DB (optional)
   created_at: string;
 };
 type OfferProductGroup = {
@@ -725,20 +726,52 @@ export function ElektrosanierungConfigurator() {
         // Previously skipped product_selector-controlled items here, but this caused items to disappear on recalculation.
         // We now include them and select products via the same fallback hierarchy to ensure reliability.
 
-        // Find product with fallback hierarchy
-        // Also filter by location tags
-        let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
+        // Resolve product: prefer explicit selector if provided, then fallback hierarchy
+        let product: OfferProduct | undefined;
+        const selector = (item as any).product_selector;
+        const preferredId = Array.isArray(selector)
+          ? (selector.find((e: any) => e && typeof e.selected_product_id === 'string')?.selected_product_id as string | undefined)
+          : undefined;
+        if (preferredId) {
+          product = products.find(
+            (prod) => prod.product_id === preferredId && isProductAvailableForLocation(prod)
+          );
+        }
+        
+        if (!product) {
+          product = products.find(
+            (prod) =>
+              prod.produkt_gruppe === item.produkt_gruppe_id &&
+              prod.qualitaetsstufe === globalParams.qualitaetsstufe &&
+              isProductAvailableForLocation(prod)
+          );
+        }
         
         if (!product && packageData.quality_level) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === packageData.quality_level && isProductAvailableForLocation(prod));
+          product = products.find(
+            (prod) =>
+              prod.produkt_gruppe === item.produkt_gruppe_id &&
+              prod.qualitaetsstufe === packageData.quality_level &&
+              isProductAvailableForLocation(prod)
+          );
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Standard' && isProductAvailableForLocation(prod));
+          product = products.find(
+            (prod) =>
+              prod.produkt_gruppe === item.produkt_gruppe_id &&
+              prod.qualitaetsstufe === 'Standard' &&
+              isProductAvailableForLocation(prod)
+          );
         }
         
         if (!product) {
-          product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === 'Basic' && isProductAvailableForLocation(prod));
+          product = products.find(
+            (prod) =>
+              prod.produkt_gruppe === item.produkt_gruppe_id &&
+              prod.qualitaetsstufe === 'Basic' &&
+              isProductAvailableForLocation(prod)
+          );
         }
         
         if (product) {
