@@ -827,8 +827,14 @@ export function ElektrosanierungConfigurator() {
       packageItemsForPackage.forEach(item => {
         const allParams = { ...globalParams, ...selectedPackage.parameters };
         
+        // Detect if item has product_selector rules
+        const hasProductSelector = item.product_selector && 
+          Array.isArray(item.product_selector) && 
+          item.product_selector.length > 0;
+
         // Calculate quantity with merged parameters
         let calculatedQuantity = item.quantity_base || 0;
+        let selectionQuantity = 0; // For product_selector evaluation (sizing, not quantity)
         
         // Apply material multipliers (including group_ref)
         if (item.multipliers_material) {
@@ -843,10 +849,18 @@ export function ElektrosanierungConfigurator() {
                 const groupId = entry.group_id;
                 const groupFactor = entry.factor || 1;
                 const referencedQty = resolvedQuantities.get(groupId) || 0;
-                calculatedQuantity += referencedQty * groupFactor;
+                const contribution = referencedQty * groupFactor;
+                
+                if (hasProductSelector) {
+                  // For items with product_selector: use for sizing only
+                  selectionQuantity += contribution;
+                } else {
+                  // For regular items: add to actual quantity
+                  calculatedQuantity += contribution;
+                }
                 
                 if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
-                  console.log(`  + ${groupId}: ${referencedQty} * ${groupFactor} = ${referencedQty * groupFactor}`);
+                  console.log(`  + ${groupId}: ${referencedQty} * ${groupFactor} = ${contribution}`);
                 }
               }
             }
@@ -860,7 +874,13 @@ export function ElektrosanierungConfigurator() {
                   const groupId = factor.group_id;
                   const groupFactor = factor.factor || 1;
                   const referencedQty = resolvedQuantities.get(groupId) || 0;
-                  calculatedQuantity += referencedQty * groupFactor;
+                  const contribution = referencedQty * groupFactor;
+                  
+                  if (hasProductSelector) {
+                    selectionQuantity += contribution;
+                  } else {
+                    calculatedQuantity += contribution;
+                  }
                   continue;
                 }
                 
@@ -868,7 +888,12 @@ export function ElektrosanierungConfigurator() {
                 if (paramValue !== undefined && paramValue !== null) {
                   const additiveValue = factor[String(paramValue)];
                   if (additiveValue !== undefined) {
-                    calculatedQuantity += Number(additiveValue);
+                    const contribution = Number(additiveValue);
+                    if (hasProductSelector) {
+                      selectionQuantity += contribution;
+                    } else {
+                      calculatedQuantity += contribution;
+                    }
                   }
                 }
               } else if (typeof factor === 'number') {
@@ -890,11 +915,21 @@ export function ElektrosanierungConfigurator() {
                 }
                 
                 if (allParamsFound || termValue !== 0) {
-                  calculatedQuantity += termValue * factor;
+                  const contribution = termValue * factor;
+                  if (hasProductSelector) {
+                    selectionQuantity += contribution;
+                  } else {
+                    calculatedQuantity += contribution;
+                  }
                 }
               }
             }
           }
+        }
+        
+        // For items with product_selector, keep calculatedQuantity at base
+        if (hasProductSelector) {
+          calculatedQuantity = item.quantity_base || 1;
         }
         
         // Debug logging for UV cabinet
@@ -902,14 +937,19 @@ export function ElektrosanierungConfigurator() {
           console.log('🔍 UV Cabinet Debug:', {
             item_id: item.id,
             quantity_base: item.quantity_base,
+            selectionQuantity,
             calculatedQuantity,
             product_selector: item.product_selector,
             resolvedQuantities: Object.fromEntries(resolvedQuantities)
           });
         }
 
-        // Evaluate product_selector with the calculated quantity
-        const selectedProductId = evaluateProductSelector(item, calculatedQuantity, allParams);
+        // Evaluate product_selector with the selection quantity
+        const selectedProductId = evaluateProductSelector(
+          item, 
+          hasProductSelector ? selectionQuantity : calculatedQuantity, 
+          allParams
+        );
         
         if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
           console.log('🎯 UV Cabinet Selected Product:', selectedProductId);
