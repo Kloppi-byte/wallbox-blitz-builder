@@ -2822,10 +2822,11 @@ export function ElektrosanierungConfigurator() {
                 <p className="text-muted-foreground">Keine Pakete ausgewählt</p>
               ) : rates && (
                 <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                  {/* Package-level sections */}
-                  {[...new Set(offerLineItems.map(item => item.package_id))].map(packageId => {
+                  {/* Package-level sections - Show all selected packages */}
+                  {selectedPackages.map(selectedPkg => {
+                    const packageId = selectedPkg.package_id;
                     const packageItems = getLineItemsForPackage(packageId);
-                    const packageName = packageItems[0]?.package_name || '';
+                    const packageName = selectedPkg.package_name || selectedPkg.name;
                     const isPackageExpanded = expandedSummaryPackages.has(packageId);
                     
                     // Group items by category within this package
@@ -2872,7 +2873,7 @@ export function ElektrosanierungConfigurator() {
                     );
                     
                     return (
-                      <div key={packageId} className="border rounded-md bg-background">
+                      <div key={selectedPkg.instanceId} className="border rounded-md bg-background">
                         {/* Package Header */}
                         <button
                           onClick={() => {
