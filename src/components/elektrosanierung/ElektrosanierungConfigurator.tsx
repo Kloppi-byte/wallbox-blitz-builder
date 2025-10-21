@@ -738,30 +738,27 @@ export function ElektrosanierungConfigurator() {
           
           // Only add line items with positive quantity
           if (calculatedQuantity > 0) {
-            const schutzorganeGroups = ['GRP-MCB-B16','GRP-MCB-B10','GRP-MCB-B16-3P','GRP-RCD-40A','GRP-SPD-T2','GRP-SPD-T12','GRP-LTS-35A','GRP-HV-HAUPTSCHALTER-63A'];
-            if (!schutzorganeGroups.includes(product.produkt_gruppe)) {
-              newLineItems.push({
-                id: `${instanceId}-${product.product_id}`,
-                package_id: packageData.id,
-                package_name: packageData.name,
-                product_id: product.product_id,
-                name: product.name,
-                description: product.description,
-                unit: product.unit,
-                unit_price: product.unit_price,
-                category: product.category,
-                produkt_gruppe: product.produkt_gruppe,
-                qualitaetsstufe: product.qualitaetsstufe,
-                stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
-                stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
-                stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
-                stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
-                stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
-                stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-                quantity: Math.round(calculatedQuantity),
-                image: product.image
-              });
-            }
+            newLineItems.push({
+              id: `${instanceId}-${product.product_id}`,
+              package_id: packageData.id,
+              package_name: packageData.name,
+              product_id: product.product_id,
+              name: product.name,
+              description: product.description,
+              unit: product.unit,
+              unit_price: product.unit_price,
+              category: product.category,
+              produkt_gruppe: product.produkt_gruppe,
+              qualitaetsstufe: product.qualitaetsstufe,
+              stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+              stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+              stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+              stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+              stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+              stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+              quantity: Math.round(calculatedQuantity),
+              image: product.image
+            });
           }
         }
       });
@@ -1040,30 +1037,27 @@ export function ElektrosanierungConfigurator() {
         
         // Only add line items with positive quantity
         if (calculatedQuantity > 0) {
-          const schutzorganeGroups = ['GRP-MCB-B16','GRP-MCB-B10','GRP-MCB-B16-3P','GRP-RCD-40A','GRP-SPD-T2','GRP-SPD-T12','GRP-LTS-35A','GRP-HV-HAUPTSCHALTER-63A'];
-          if (!schutzorganeGroups.includes(product.produkt_gruppe)) {
-            newLineItems.push({
-              id: `${instanceId}-${product.product_id}`,
-              package_id: packageData.id,
-              package_name: packageData.name,
-              product_id: product.product_id,
-              name: product.name,
-              description: product.description,
-              unit: product.unit,
-              unit_price: product.unit_price,
-              category: product.category,
-              produkt_gruppe: product.produkt_gruppe,
-              qualitaetsstufe: product.qualitaetsstufe,
-              stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
-              stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
-              stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
-              stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
-              stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
-              stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
-              quantity: Math.round(calculatedQuantity),
-              image: product.image
-            });
-          }
+          newLineItems.push({
+            id: `${instanceId}-${product.product_id}`,
+            package_id: packageData.id,
+            package_name: packageData.name,
+            product_id: product.product_id,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            unit_price: product.unit_price,
+            category: product.category,
+            produkt_gruppe: product.produkt_gruppe,
+            qualitaetsstufe: product.qualitaetsstufe,
+            stunden_meister: product.stunden_meister * hoursMultiplier * calculatedQuantity,
+            stunden_geselle: product.stunden_geselle * hoursMultiplier * calculatedQuantity,
+            stunden_monteur: product.stunden_monteur * hoursMultiplier * calculatedQuantity,
+            stunden_meister_per_unit: product.stunden_meister * hoursMultiplier,
+            stunden_geselle_per_unit: product.stunden_geselle * hoursMultiplier,
+            stunden_monteur_per_unit: product.stunden_monteur * hoursMultiplier,
+            quantity: Math.round(calculatedQuantity),
+            image: product.image
+          });
         }
       }
     });
