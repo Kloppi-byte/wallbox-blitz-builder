@@ -239,6 +239,9 @@ serve(async (req) => {
     // Global resolved quantities (across all packages)
     const resolvedQuantities = new Map<string, number>();
     
+    // Keep track of all sorted items for later reference
+    const sortedItems: any[] = [];
+    
     // Process each package independently for package-scoped references
     for (const [packageId, items] of itemsByPackage) {
       // Package-scoped quantities (reset for each package)
@@ -246,6 +249,9 @@ serve(async (req) => {
       
       // Sort items within this package topologically
       const sortedPackageItems = topologicalSort(items);
+      
+      // Add to global sorted items list
+      sortedItems.push(...sortedPackageItems);
       
       for (const item of sortedPackageItems) {
         const quantity = evaluateMultipliers(
