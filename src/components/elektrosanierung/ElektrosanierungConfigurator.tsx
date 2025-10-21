@@ -1098,10 +1098,9 @@ export function ElektrosanierungConfigurator() {
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       
       packageItemsForPackage.forEach(item => {
-        // Skip product_selector-controlled items here; they are handled via Edge Function to avoid duplicates
-        if ((item as any).product_selector) {
-          return;
-        }
+        // Previously skipped product_selector-controlled items here, but this caused items to disappear on recalculation.
+        // We now include them and select products via the same fallback hierarchy to ensure reliability.
+
         // Find product with fallback hierarchy
         // Also filter by location tags
         let product = products.find(prod => prod.produkt_gruppe === item.produkt_gruppe_id && prod.qualitaetsstufe === globalParams.qualitaetsstufe && isProductAvailableForLocation(prod));
