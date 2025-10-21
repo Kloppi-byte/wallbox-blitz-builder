@@ -22,6 +22,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // Import lucide icons
 import { Building, Package, CheckCircle, Minus, Plus, Search, ChevronDown, ChevronUp, X, RotateCcw } from 'lucide-react';
 
+// --- CONSTANTS ---
+const SCHUTZORGANE_GROUPS = [
+  'GRP-MCB-B16',
+  'GRP-MCB-B10',
+  'GRP-MCB-B16-3P',
+  'GRP-RCD-40A',
+  'GRP-SPD-T2',
+  'GRP-SPD-T12',
+  'GRP-LTS-35A',
+  'GRP-HV-HAUPTSCHALTER-63A',
+  'GRP-UV-KVT'
+];
+
 // --- TYPE DEFINITIONS ---
 // Database table types
 type OfferPackage = {
@@ -1159,7 +1172,8 @@ export function ElektrosanierungConfigurator() {
   useEffect(() => {
     if (selectedPackages.length === 0 || products.length === 0 || packageItems.length === 0) return;
     
-    const recalculatedLineItems: OfferLineItem[] = [];
+    // Use a Map to deduplicate items per instance and product_id
+    const itemsMap = new Map<string, OfferLineItem>();
     
     selectedPackages.forEach(selectedPackage => {
       const packageData = availablePackages.find(pkg => pkg.id === selectedPackage.package_id);
@@ -1189,6 +1203,11 @@ export function ElektrosanierungConfigurator() {
         }
         
         if (product) {
+          // Skip Schutzorgane groups - they are handled separately
+          if (SCHUTZORGANE_GROUPS.includes(product.produkt_gruppe || '')) {
+            return;
+          }
+          
           // Calculate quantity with merged parameters
           let calculatedQuantity = item.quantity_base || 0;
           const allParams = { ...globalParams, ...selectedPackage.parameters };
@@ -1281,10 +1300,21 @@ export function ElektrosanierungConfigurator() {
             }
           }
           
-          // Only add line items with positive quantity (no filtering by schutzorgane groups)
+          // Only add line items with positive quantity
           if (Math.round(calculatedQuantity) > 0) {
-            recalculatedLineItems.push({
-                id: `${selectedPackage.instanceId}-${product.product_id}`,
+            const mapKey = `${selectedPackage.instanceId}-${product.product_id}`;
+            const existingItem = itemsMap.get(mapKey);
+            
+            if (existingItem) {
+              // Merge: sum quantities and hours
+              existingItem.quantity += Math.round(calculatedQuantity);
+              existingItem.stunden_meister += product.stunden_meister * hoursMultiplier * calculatedQuantity;
+              existingItem.stunden_geselle += product.stunden_geselle * hoursMultiplier * calculatedQuantity;
+              existingItem.stunden_monteur += product.stunden_monteur * hoursMultiplier * calculatedQuantity;
+            } else {
+              // Create new item
+              itemsMap.set(mapKey, {
+                id: mapKey,
                 package_id: packageData.id,
                 package_name: packageData.name,
                 product_id: product.product_id,
@@ -1304,11 +1334,14 @@ export function ElektrosanierungConfigurator() {
                 quantity: Math.round(calculatedQuantity),
                 image: product.image
               });
+            }
           }
         }
       });
     });
     
+    // Convert Map to array
+    const recalculatedLineItems = Array.from(itemsMap.values());
     setOfferLineItems(recalculatedLineItems);
   }, [selectedPackages, globalParams, products, packageItems, availablePackages]);
   
