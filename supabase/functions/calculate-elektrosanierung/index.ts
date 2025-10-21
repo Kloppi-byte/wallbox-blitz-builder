@@ -80,6 +80,7 @@ serve(async (req) => {
 
     // Helper to normalize multipliers into a consistent array of rules
     // Supports: null, object (e.g., { raumgroesse: 1, qualitaetsfaktor: { Standard: 1, Premium: 2 }}),
+    // compound expressions (e.g., { "baujahr * anzahl_nutzungseinheiten": 1 }),
     // and array of either typed rules or param objects
     function normalizeMultipliers(raw: any, params: Record<string, any>): Array<any> {
       const out: Array<any> = [];
@@ -95,7 +96,11 @@ serve(async (req) => {
         // Treat as param-object: { key: number | mapping }
         for (const key of Object.keys(entry)) {
           const val = (entry as any)[key];
-          if (typeof val === 'number') {
+          
+          // Check if this is a compound expression (e.g., "baujahr * anzahl_nutzungseinheiten")
+          if (key.includes(' * ')) {
+            out.push({ type: 'compound_expr', expression: key, factor: typeof val === 'number' ? val : 1 });
+          } else if (typeof val === 'number') {
             out.push({ type: 'param_ref', param_key: key, factor: val });
           } else if (val && typeof val === 'object') {
             // Mapping like { Standard: 1, Premium: 2 }
@@ -180,6 +185,24 @@ serve(async (req) => {
             : mult.op === 'floor'
             ? Math.floor(refQty * mult.factor)
             : refQty * mult.factor;
+          quantity += value;
+        } else if (mult.type === 'compound_expr') {
+          // Handle compound expressions like "baujahr * anzahl_nutzungseinheiten"
+          const paramKeys = mult.expression.split(' * ').map((k: string) => k.trim());
+          let compoundValue = 1;
+          for (const paramKey of paramKeys) {
+            const raw = params[paramKey];
+            let paramValue = 0;
+            if (typeof raw === 'boolean') paramValue = raw ? 1 : 0;
+            else if (typeof raw === 'number') paramValue = raw;
+            else if (typeof raw === 'string') paramValue = parseFloat(raw) || 0;
+            compoundValue *= paramValue;
+          }
+          const value = mult.op === 'ceil'
+            ? Math.ceil(compoundValue * mult.factor)
+            : mult.op === 'floor'
+            ? Math.floor(compoundValue * mult.factor)
+            : compoundValue * mult.factor;
           quantity += value;
         } else if (mult.type === 'param_ref') {
           const raw = params[mult.param_key];
