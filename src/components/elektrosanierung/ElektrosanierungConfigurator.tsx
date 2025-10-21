@@ -757,6 +757,7 @@ export function ElektrosanierungConfigurator() {
       // Remove selected package and all line items for this package
       setSelectedPackages(prev => prev.filter(p => p.package_id !== packageData.id));
       setOfferLineItems(prev => prev.filter(item => item.package_id !== packageData.id));
+      setSchutzorganeItems(prev => prev.filter(item => item.package_id !== packageData.id));
     }
   };
 
@@ -797,6 +798,60 @@ export function ElektrosanierungConfigurator() {
     // Call Edge Function to get calculated products with product_selector logic
     const allParams = { ...globalParams, ...initialInstanceParams };
     const edgeResult = await calculateWithEdgeFunction([packageData.id], allParams);
+
+    // Process schutzorgane from edge function
+    if (edgeResult?.schutzorgane && Array.isArray(edgeResult.schutzorgane)) {
+      const newSchutzorganeItems: OfferLineItem[] = [];
+      
+      for (const schutzItem of edgeResult.schutzorgane) {
+        let product = products.find(prod => 
+          prod.produkt_gruppe === schutzItem.produkt_gruppe_id && 
+          prod.qualitaetsstufe === globalParams.qualitaetsstufe &&
+          isProductAvailableForLocation(prod)
+        );
+        
+        if (!product) {
+          product = products.find(prod => 
+            prod.produkt_gruppe === schutzItem.produkt_gruppe_id && 
+            prod.qualitaetsstufe === 'Standard' &&
+            isProductAvailableForLocation(prod)
+          );
+        }
+        
+        if (!product) {
+          product = products.find(prod => 
+            prod.produkt_gruppe === schutzItem.produkt_gruppe_id && 
+            isProductAvailableForLocation(prod)
+          );
+        }
+        
+        if (product && schutzItem.quantity > 0) {
+          newSchutzorganeItems.push({
+            id: `schutz-${instanceId}-${product.product_id}-${Math.random()}`,
+            package_id: packageData.id,
+            package_name: packageData.name,
+            product_id: product.product_id,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            unit_price: product.unit_price,
+            category: product.category,
+            produkt_gruppe: product.produkt_gruppe,
+            qualitaetsstufe: product.qualitaetsstufe,
+            stunden_meister: product.stunden_meister * schutzItem.quantity,
+            stunden_geselle: product.stunden_geselle * schutzItem.quantity,
+            stunden_monteur: product.stunden_monteur * schutzItem.quantity,
+            stunden_meister_per_unit: product.stunden_meister,
+            stunden_geselle_per_unit: product.stunden_geselle,
+            stunden_monteur_per_unit: product.stunden_monteur,
+            quantity: schutzItem.quantity,
+            image: product.image
+          });
+        }
+      }
+      
+      setSchutzorganeItems(prev => [...prev, ...newSchutzorganeItems]);
+    }
 
     // Resolve all products for this package and add to offer line items
     const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
@@ -1226,11 +1281,9 @@ export function ElektrosanierungConfigurator() {
             }
           }
           
-          // Only add line items with positive quantity
+          // Only add line items with positive quantity (no filtering by schutzorgane groups)
           if (Math.round(calculatedQuantity) > 0) {
-            const schutzorganeGroups = ['GRP-MCB-B16','GRP-MCB-B10','GRP-MCB-B16-3P','GRP-RCD-40A','GRP-SPD-T2','GRP-SPD-T12','GRP-LTS-35A','GRP-HV-HAUPTSCHALTER-63A'];
-            if (!schutzorganeGroups.includes(product.produkt_gruppe)) {
-              recalculatedLineItems.push({
+            recalculatedLineItems.push({
                 id: `${selectedPackage.instanceId}-${product.product_id}`,
                 package_id: packageData.id,
                 package_name: packageData.name,
@@ -1251,16 +1304,12 @@ export function ElektrosanierungConfigurator() {
                 quantity: Math.round(calculatedQuantity),
                 image: product.image
               });
-            }
           }
         }
       });
     });
     
     setOfferLineItems(recalculatedLineItems);
-    
-    // Calculate Schutzorgane based on current line items
-    calculateSchutzorgane(recalculatedLineItems);
   }, [selectedPackages, globalParams, products, packageItems, availablePackages]);
   
   // Function to calculate and update Schutzorgane (protection devices)
@@ -2901,11 +2950,115 @@ export function ElektrosanierungConfigurator() {
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                  
-                  {/* Global totals section at bottom */}
-                  <div className="pt-4 border-t-2 border-border space-y-4">
+                      );
+                    })}
+                    
+                    {/* Schutzorgane Section */}
+                    {schutzorganeItems.length > 0 && (
+                      <div className="border rounded-md bg-background">
+                        <button
+                          onClick={() => {
+                            setExpandedSummaryPackages(prev => {
+                              const newSet = new Set(prev);
+                              const schutzKey = -1; // Use -1 as a special key for Schutzorgane
+                              if (newSet.has(schutzKey)) {
+                                newSet.delete(schutzKey);
+                              } else {
+                                newSet.add(schutzKey);
+                              }
+                              return newSet;
+                            });
+                          }}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="font-medium">Schutzorgane (automatisch berechnet)</span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedSummaryPackages.has(-1) ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {expandedSummaryPackages.has(-1) && (
+                          <div className="px-4 pb-4 space-y-3">
+                            <div className="space-y-1 text-sm pl-2">
+                              {schutzorganeItems.map(item => {
+                                const itemTotal = calculateTotalSalesPrice(item);
+                                return (
+                                  <div key={item.id} className="flex justify-between text-muted-foreground py-1">
+                                    <span>{item.name} ({item.quantity} {item.unit})</span>
+                                    <span className="font-medium">{formatEuro(itemTotal)}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            
+                            <div className="pt-2 border-t text-sm space-y-1">
+                              <div className="font-medium mb-1">Arbeitsstunden (Schutzorgane):</div>
+                              <div className="text-muted-foreground pl-2 space-y-0.5">
+                                {(() => {
+                                  const schutzMeisterHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                                  const schutzGeselleHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                                  const schutzMonteurHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                                  
+                                  return (
+                                    <>
+                                      {schutzMeisterHours > 0 && <div>Meister: {schutzMeisterHours.toFixed(2)} h</div>}
+                                      {schutzGeselleHours > 0 && <div>Geselle: {schutzGeselleHours.toFixed(2)} h</div>}
+                                      {schutzMonteurHours > 0 && <div>Monteur: {schutzMonteurHours.toFixed(2)} h</div>}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2 border-t text-sm space-y-1">
+                              {(() => {
+                                const schutzMaterialTotal = schutzorganeItems.reduce((sum, item) => {
+                                  const effectivePurchasePrice = getEffectivePurchasePrice(item);
+                                  const effectiveMarkup = getEffectiveMarkup(item);
+                                  const markupMultiplier = 1 + (effectiveMarkup / 100);
+                                  const finalUnitPrice = effectivePurchasePrice * markupMultiplier;
+                                  return sum + (finalUnitPrice * item.quantity);
+                                }, 0);
+                                
+                                const schutzMeisterHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_meister, 0);
+                                const schutzGeselleHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_geselle, 0);
+                                const schutzMonteurHours = schutzorganeItems.reduce((sum, item) => sum + item.stunden_monteur, 0);
+                                
+                                const effectiveMeisterWage = (wagesOverride.meister !== undefined && isFinite(wagesOverride.meister)) 
+                                  ? wagesOverride.meister 
+                                  : rates.stundensatz_meister;
+                                const effectiveGeselleWage = (wagesOverride.geselle !== undefined && isFinite(wagesOverride.geselle)) 
+                                  ? wagesOverride.geselle 
+                                  : rates.stundensatz_geselle;
+                                const effectiveMonteurWage = (wagesOverride.monteur !== undefined && isFinite(wagesOverride.monteur)) 
+                                  ? wagesOverride.monteur 
+                                  : rates.stundensatz_monteur;
+                                
+                                const schutzLaborTotal = (
+                                  schutzMeisterHours * effectiveMeisterWage +
+                                  schutzGeselleHours * effectiveGeselleWage +
+                                  schutzMonteurHours * effectiveMonteurWage
+                                );
+                                
+                                return (
+                                  <>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Materialkosten gesamt:</span>
+                                      <span className="font-medium">{schutzMaterialTotal.toFixed(2)} €</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Arbeitskosten gesamt:</span>
+                                      <span className="font-medium">{schutzLaborTotal.toFixed(2)} €</span>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Global totals section at bottom */}
+                    <div className="pt-4 border-t-2 border-border space-y-4">
                     {/* Editable hourly rates */}
                     <div>
                       <div className="font-medium mb-3">Stundensätze (€/h):</div>
