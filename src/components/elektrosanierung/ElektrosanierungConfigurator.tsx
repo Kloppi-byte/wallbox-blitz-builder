@@ -2966,11 +2966,11 @@ export function ElektrosanierungConfigurator() {
                             {/* Package subtotals */}
                             <div className="pt-2 border-t text-sm space-y-1">
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Materialkosten gesamt:</span>
+                                <span className="text-muted-foreground">Materialkosten (Paket):</span>
                                 <span className="font-medium">{packageMaterialTotal.toFixed(2)} €</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-muted-foreground">Arbeitskosten gesamt:</span>
+                                <span className="text-muted-foreground">Arbeitskosten (Paket):</span>
                                 <span className="font-medium">{packageLaborTotal.toFixed(2)} €</span>
                               </div>
                             </div>
@@ -3068,11 +3068,11 @@ export function ElektrosanierungConfigurator() {
                                 return (
                                   <>
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Materialkosten gesamt:</span>
+                                      <span className="text-muted-foreground">Materialkosten (Schutzorgane):</span>
                                       <span className="font-medium">{schutzMaterialTotal.toFixed(2)} €</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Arbeitskosten gesamt:</span>
+                                      <span className="text-muted-foreground">Arbeitskosten (Schutzorgane):</span>
                                       <span className="font-medium">{schutzLaborTotal.toFixed(2)} €</span>
                                     </div>
                                   </>
