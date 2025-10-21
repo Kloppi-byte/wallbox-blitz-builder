@@ -709,6 +709,46 @@ export function ElektrosanierungConfigurator() {
     } : pkg));
   };
 
+  // Helper to normalize multiplier entries (handles both array and object shapes)
+  const normalizeMultiplierEntries = (raw: any): [string, any][] => {
+    if (Array.isArray(raw)) {
+      return raw.flatMap(obj => Object.entries(obj));
+    } else if (raw && typeof raw === 'object') {
+      return Object.entries(raw);
+    }
+    return [];
+  };
+
+  // Helper to evaluate product_selector rules based on calculated_quantity
+  const evaluateProductSelector = (
+    item: any,
+    calculatedQuantity: number,
+    allParams: Record<string, any>
+  ): string | null => {
+    const selector = item.product_selector;
+    if (!Array.isArray(selector) || selector.length === 0) return null;
+
+    const selectorConfig = selector.find((s: any) => s?.type === 'product_selector');
+    if (!selectorConfig) return null;
+
+    const basedOn = selectorConfig.based_on;
+    const rules = selectorConfig.rules;
+
+    if (basedOn === 'calculated_quantity' && Array.isArray(rules)) {
+      // Find the first rule where calculatedQuantity <= max (or last rule if no max)
+      for (const rule of rules) {
+        if (rule.max === undefined || calculatedQuantity <= rule.max) {
+          return rule.product_id || null;
+        }
+      }
+      // If no rule matched, return the last rule's product_id
+      const lastRule = rules[rules.length - 1];
+      return lastRule?.product_id || null;
+    }
+
+    return null;
+  };
+
   // Recalculate line items whenever parameters change
   useEffect(() => {
     if (selectedPackages.length === 0 || products.length === 0 || packageItems.length === 0) return;
@@ -716,6 +756,68 @@ export function ElektrosanierungConfigurator() {
     // Use a Map to deduplicate items per instance and product_id
     const itemsMap = new Map<string, OfferLineItem>();
     
+    // Build a map of resolved quantities for group_ref multipliers
+    const resolvedQuantities = new Map<string, number>();
+    
+    selectedPackages.forEach(selectedPackage => {
+      const packageData = availablePackages.find(pkg => pkg.id === selectedPackage.package_id);
+      if (!packageData) return;
+      
+      const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
+      const allParams = { ...globalParams, ...selectedPackage.parameters };
+      
+      // First pass: calculate quantities for all items to build resolvedQuantities map
+      packageItemsForPackage.forEach(item => {
+        let calculatedQuantity = item.quantity_base || 0;
+        
+        // Apply material multipliers (basic calculation without group_ref for now)
+        if (item.multipliers_material) {
+          for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
+            if (typeof factor === 'object' && factor !== null) {
+              // Skip group_ref entries in first pass
+              if (factor.type === 'group_ref') continue;
+              
+              const paramValue = allParams[formulaKey];
+              if (paramValue !== undefined && paramValue !== null) {
+                const additiveValue = factor[String(paramValue)];
+                if (additiveValue !== undefined) {
+                  calculatedQuantity += Number(additiveValue);
+                }
+              }
+            } else if (typeof factor === 'number') {
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                  const paramValue = typeof allParams[paramName] === 'boolean'
+                    ? (allParams[paramName] ? 1 : 0)
+                    : allParams[paramName];
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
+              }
+              
+              if (allParamsFound || termValue !== 0) {
+                calculatedQuantity += termValue * factor;
+              }
+            }
+          }
+        }
+        
+        // Store in resolvedQuantities map by group_id
+        if (item.produkt_gruppe_id) {
+          const existingQty = resolvedQuantities.get(item.produkt_gruppe_id) || 0;
+          resolvedQuantities.set(item.produkt_gruppe_id, existingQty + Math.max(0, calculatedQuantity));
+        }
+      });
+    });
+    
+    // Second pass: process items with full logic including group_ref
     selectedPackages.forEach(selectedPackage => {
       const packageData = availablePackages.find(pkg => pkg.id === selectedPackage.package_id);
       if (!packageData) return;
@@ -723,19 +825,99 @@ export function ElektrosanierungConfigurator() {
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
       
       packageItemsForPackage.forEach(item => {
-        // Previously skipped product_selector-controlled items here, but this caused items to disappear on recalculation.
-        // We now include them and select products via the same fallback hierarchy to ensure reliability.
+        const allParams = { ...globalParams, ...selectedPackage.parameters };
+        
+        // Calculate quantity with merged parameters
+        let calculatedQuantity = item.quantity_base || 0;
+        
+        // Apply material multipliers (including group_ref)
+        if (item.multipliers_material) {
+          for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
+            
+            if (typeof factor === 'object' && factor !== null) {
+              // Handle group_ref multipliers
+              if (factor.type === 'group_ref') {
+                const groupId = factor.group_id;
+                const groupFactor = factor.factor || 1;
+                const referencedQty = resolvedQuantities.get(groupId) || 0;
+                calculatedQuantity += referencedQty * groupFactor;
+                continue;
+              }
+              
+              const paramValue = allParams[formulaKey];
+              if (paramValue !== undefined && paramValue !== null) {
+                const additiveValue = factor[String(paramValue)];
+                if (additiveValue !== undefined) {
+                  calculatedQuantity += Number(additiveValue);
+                }
+              }
+            } else if (typeof factor === 'number') {
+              const paramNames = formulaKey.split('*').map(name => name.trim());
+              let termValue = 1.0;
+              let allParamsFound = true;
+              
+              for (const paramName of paramNames) {
+                if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
+                  const paramValue = typeof allParams[paramName] === 'boolean'
+                    ? (allParams[paramName] ? 1 : 0)
+                    : allParams[paramName];
+                  termValue *= paramValue;
+                } else {
+                  allParamsFound = false;
+                  termValue = 0;
+                  break;
+                }
+              }
+              
+              if (allParamsFound || termValue !== 0) {
+                calculatedQuantity += termValue * factor;
+              }
+            }
+          }
+        }
+        
+        // Debug logging for UV cabinet
+        if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
+          console.log('🔍 UV Cabinet Debug:', {
+            item_id: item.id,
+            quantity_base: item.quantity_base,
+            calculatedQuantity,
+            product_selector: item.product_selector,
+            resolvedQuantities: Object.fromEntries(resolvedQuantities)
+          });
+        }
 
-        // Resolve product: prefer explicit selector if provided, then fallback hierarchy
+        // Evaluate product_selector with the calculated quantity
+        const selectedProductId = evaluateProductSelector(item, calculatedQuantity, allParams);
+        
+        if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
+          console.log('🎯 UV Cabinet Selected Product:', selectedProductId);
+        }
+
+        // Resolve product: try selector result first, then fallback hierarchy
         let product: OfferProduct | undefined;
-        const selector = (item as any).product_selector;
-        const preferredId = Array.isArray(selector)
-          ? (selector.find((e: any) => e && typeof e.selected_product_id === 'string')?.selected_product_id as string | undefined)
-          : undefined;
-        if (preferredId) {
+        
+        if (selectedProductId) {
           product = products.find(
-            (prod) => prod.product_id === preferredId && isProductAvailableForLocation(prod)
+            (prod) => prod.product_id === selectedProductId && isProductAvailableForLocation(prod)
           );
+          
+          if (item.produkt_gruppe_id === 'GRP-UV-KVT') {
+            console.log('🔍 UV Product found by selector?', !!product, product?.name);
+          }
+        }
+        
+        // Fallback to static selected_product_id if dynamic selector didn't work
+        if (!product) {
+          const selector = (item as any).product_selector;
+          const preferredId = Array.isArray(selector)
+            ? (selector.find((e: any) => e && typeof e.selected_product_id === 'string')?.selected_product_id as string | undefined)
+            : undefined;
+          if (preferredId) {
+            product = products.find(
+              (prod) => prod.product_id === preferredId && isProductAvailableForLocation(prod)
+            );
+          }
         }
         
         if (!product) {
@@ -778,57 +960,6 @@ export function ElektrosanierungConfigurator() {
           // Skip Schutzorgane groups - they are handled separately
           if (SCHUTZORGANE_GROUPS.includes(product.produkt_gruppe || '')) {
             return;
-          }
-          
-          // Calculate quantity with merged parameters
-          let calculatedQuantity = item.quantity_base || 0;
-          const allParams = { ...globalParams, ...selectedPackage.parameters };
-          
-          // Helper to normalize multiplier entries (handles both array and object shapes)
-          const normalizeMultiplierEntries = (raw: any): [string, any][] => {
-            if (Array.isArray(raw)) {
-              return raw.flatMap(obj => Object.entries(obj));
-            } else if (raw && typeof raw === 'object') {
-              return Object.entries(raw);
-            }
-            return [];
-          };
-          
-          // Apply material multipliers
-          if (item.multipliers_material) {
-            for (const [formulaKey, factor] of normalizeMultiplierEntries(item.multipliers_material)) {
-              
-              if (typeof factor === 'object' && factor !== null) {
-                const paramValue = allParams[formulaKey];
-                if (paramValue !== undefined && paramValue !== null) {
-                  const additiveValue = factor[String(paramValue)];
-                  if (additiveValue !== undefined) {
-                    calculatedQuantity += Number(additiveValue);
-                  }
-                }
-              } else if (typeof factor === 'number') {
-                const paramNames = formulaKey.split('*').map(name => name.trim());
-                let termValue = 1.0;
-                let allParamsFound = true;
-                
-                for (const paramName of paramNames) {
-                  if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                    const paramValue = typeof allParams[paramName] === 'boolean'
-                      ? (allParams[paramName] ? 1 : 0)
-                      : allParams[paramName];
-                    termValue *= paramValue;
-                  } else {
-                    allParamsFound = false;
-                    termValue = 0;
-                    break;
-                  }
-                }
-                
-                if (allParamsFound || termValue !== 0) {
-                  calculatedQuantity += termValue * factor;
-                }
-              }
-            }
           }
 
           // Calculate hours multiplier
