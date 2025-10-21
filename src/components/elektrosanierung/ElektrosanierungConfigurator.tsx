@@ -562,7 +562,9 @@ export function ElektrosanierungConfigurator() {
 
       // Call Edge Function to get calculated products with product_selector logic
       const allParams = { ...globalParams, ...initialInstanceParams };
-      const edgeResult = await calculateWithEdgeFunction([packageData.id], allParams);
+      // Include ALL selected package IDs (existing ones + the new one)
+      const allPackageIds = [...selectedPackages.map(p => p.package_id), packageData.id];
+      const edgeResult = await calculateWithEdgeFunction(allPackageIds, allParams);
 
       // Resolve all products for this package and add to offer line items
       const packageItemsForPackage = packageItems.filter(item => item.package_id === packageData.id);
