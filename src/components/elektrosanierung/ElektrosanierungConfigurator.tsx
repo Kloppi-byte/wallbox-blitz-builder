@@ -741,7 +741,7 @@ export function ElektrosanierungConfigurator() {
             const schutzorganeGroups = ['GRP-MCB-B16','GRP-MCB-B10','GRP-MCB-B16-3P','GRP-RCD-40A','GRP-SPD-T2','GRP-SPD-T12','GRP-LTS-35A','GRP-HV-HAUPTSCHALTER-63A'];
             if (!schutzorganeGroups.includes(product.produkt_gruppe)) {
               newLineItems.push({
-                id: `${instanceId}-${product.product_id}-${Math.random()}`,
+                id: `${instanceId}-${product.product_id}`,
                 package_id: packageData.id,
                 package_name: packageData.name,
                 product_id: product.product_id,
@@ -1043,7 +1043,7 @@ export function ElektrosanierungConfigurator() {
           const schutzorganeGroups = ['GRP-MCB-B16','GRP-MCB-B10','GRP-MCB-B16-3P','GRP-RCD-40A','GRP-SPD-T2','GRP-SPD-T12','GRP-LTS-35A','GRP-HV-HAUPTSCHALTER-63A'];
           if (!schutzorganeGroups.includes(product.produkt_gruppe)) {
             newLineItems.push({
-              id: `${instanceId}-${product.product_id}-${Math.random()}`,
+              id: `${instanceId}-${product.product_id}`,
               package_id: packageData.id,
               package_name: packageData.name,
               product_id: product.product_id,
