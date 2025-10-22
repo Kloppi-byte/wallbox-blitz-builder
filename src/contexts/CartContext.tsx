@@ -419,12 +419,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               products: schutzorganeWithMetadata,
             },
             pricing: item.pricing,
-            // Keep original flat structure for backward compatibility
-            originalConfiguration: {
-              offerLineItems,
-              schutzorgane,
-              selectedPackages,
-            },
           };
         }),
       );
