@@ -2033,9 +2033,37 @@ export function ElektrosanierungConfigurator() {
                                 {requiredParams.length > 0 && (
                                   <div className="pl-8 mt-2 space-y-3 p-4 bg-muted/50 rounded-lg border">
                                     <h5 className="text-sm font-semibold text-foreground">Parameter für dieses Paket:</h5>
-                                    {requiredParams.map(link => {
+                                {requiredParams.map(link => {
                                       const def = localParamDefs.find(d => d.param_key === link.param_key);
                                       if (!def) return null;
+                                      
+                                      // Handle boolean parameters with Switch
+                                      if (def.param_type === 'boolean' && def['true/false']) {
+                                        const [trueText, falseText] = def['true/false'].split('/').map(t => t.trim());
+                                        const rawValue = instance.parameters[def.param_key];
+                                        const defaultValue = def.default_value;
+                                        let boolValue = false;
+                                        if (rawValue !== undefined) {
+                                          boolValue = rawValue === true || String(rawValue) === 'true';
+                                        } else if (defaultValue !== undefined && defaultValue !== null) {
+                                          boolValue = String(defaultValue) === 'true' || (typeof defaultValue === 'boolean' && defaultValue === true);
+                                        }
+                                        
+                                        return (
+                                          <div key={def.param_key} className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`param-${instance.instanceId}-${def.param_key}`}
+                                              checked={boolValue}
+                                              onCheckedChange={(checked) => handleParameterChange(instance.instanceId, def.param_key, checked)}
+                                            />
+                                            <Label htmlFor={`param-${instance.instanceId}-${def.param_key}`} className="cursor-pointer text-sm font-medium">
+                                              {boolValue ? trueText : falseText}
+                                            </Label>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // Handle other parameter types
                                       const currentValue = instance.parameters[def.param_key] || def.default_value || '';
                                       return <div key={def.param_key} className="space-y-1">
                                           <Label htmlFor={`param-${instance.instanceId}-${def.param_key}`} className="text-sm font-medium">
