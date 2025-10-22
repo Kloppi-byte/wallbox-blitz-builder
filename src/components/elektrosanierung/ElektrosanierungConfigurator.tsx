@@ -749,6 +749,14 @@ export function ElektrosanierungConfigurator() {
     return null;
   };
 
+  // Helper to robustly coerce raw parameter values to numeric
+  const getNumericParam = (raw: any): number => {
+    if (raw === true || String(raw).toLowerCase() === 'true' || String(raw).toLowerCase() === 'ja') return 1;
+    if (raw === false || String(raw).toLowerCase() === 'false' || String(raw).toLowerCase() === 'nein') return 0;
+    const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // Recalculate line items whenever parameters change
   useEffect(() => {
     if (selectedPackages.length === 0 || products.length === 0 || packageItems.length === 0) return;
@@ -791,9 +799,7 @@ export function ElektrosanierungConfigurator() {
               
               for (const paramName of paramNames) {
                 if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                  const paramValue = typeof allParams[paramName] === 'boolean'
-                    ? (allParams[paramName] ? 1 : 0)
-                    : allParams[paramName];
+                  const paramValue = getNumericParam(allParams[paramName]);
                   termValue *= paramValue;
                 } else {
                   allParamsFound = false;
@@ -903,9 +909,7 @@ export function ElektrosanierungConfigurator() {
                 
                 for (const paramName of paramNames) {
                   if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                    const paramValue = typeof allParams[paramName] === 'boolean'
-                      ? (allParams[paramName] ? 1 : 0)
-                      : allParams[paramName];
+                    const paramValue = getNumericParam(allParams[paramName]);
                     termValue *= paramValue;
                   } else {
                     allParamsFound = false;
@@ -916,6 +920,19 @@ export function ElektrosanierungConfigurator() {
                 
                 if (allParamsFound || termValue !== 0) {
                   const contribution = termValue * factor;
+                  
+                  // Debug logging for Zählerschrank and KOMPL selectors
+                  if (item.produkt_gruppe_id === 'GRV-HV-ZSCHA' || item.produkt_gruppe_id === 'GRV-HV-KOMPL') {
+                    console.log(`[${item.produkt_gruppe_id}] Multiplier "${formulaKey}":`, {
+                      paramNames,
+                      rawParams: paramNames.map(p => ({ [p]: allParams[p] })),
+                      numericValues: paramNames.map(p => getNumericParam(allParams[p])),
+                      termValue,
+                      factor,
+                      contribution
+                    });
+                  }
+                  
                   if (hasProductSelector) {
                     selectionQuantity += contribution;
                   } else {
@@ -944,10 +961,20 @@ export function ElektrosanierungConfigurator() {
           });
         }
 
+        // Debug logging for Zählerschrank and KOMPL final quantities
+        if (item.produkt_gruppe_id === 'GRV-HV-ZSCHA' || item.produkt_gruppe_id === 'GRV-HV-KOMPL') {
+          console.log(`[${item.produkt_gruppe_id}] Final selection quantity:`, {
+            base: item.quantity_base,
+            selectionQuantity,
+            calculatedQuantity,
+            hasProductSelector
+          });
+        }
+
         // Evaluate product_selector with the selection quantity
         const selectedProductId = evaluateProductSelector(
           item, 
-          hasProductSelector ? selectionQuantity : calculatedQuantity, 
+          hasProductSelector ? selectionQuantity : calculatedQuantity,
           allParams
         );
         

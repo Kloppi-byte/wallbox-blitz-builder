@@ -114,6 +114,14 @@ serve(async (req) => {
       return out;
     }
 
+    // Helper to robustly coerce raw parameter values to numeric
+    function getNumericParam(raw: any): number {
+      if (raw === true || String(raw).toLowerCase() === 'true' || String(raw).toLowerCase() === 'ja') return 1;
+      if (raw === false || String(raw).toLowerCase() === 'false' || String(raw).toLowerCase() === 'nein') return 0;
+      const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
     // Topological sort to handle dependencies between items
     function topologicalSort(items: Array<any>): Array<any> {
       const graph = new Map<string, Set<string>>();
@@ -200,10 +208,7 @@ serve(async (req) => {
           let compoundValue = 1;
           for (const paramKey of paramKeys) {
             const raw = params[paramKey];
-            let paramValue = 0;
-            if (typeof raw === 'boolean') paramValue = raw ? 1 : 0;
-            else if (typeof raw === 'number') paramValue = raw;
-            else if (typeof raw === 'string') paramValue = parseFloat(raw) || 0;
+            const paramValue = getNumericParam(raw);
             compoundValue *= paramValue;
           }
           const value = mult.op === 'ceil'
@@ -214,10 +219,7 @@ serve(async (req) => {
           quantity += value;
         } else if (mult.type === 'param_ref') {
           const raw = params[mult.param_key];
-          let paramValue = 0;
-          if (typeof raw === 'boolean') paramValue = raw ? 1 : 0;
-          else if (typeof raw === 'number') paramValue = raw;
-          else if (typeof raw === 'string') paramValue = parseFloat(raw) || 0;
+          const paramValue = getNumericParam(raw);
           const value = mult.op === 'ceil'
             ? Math.ceil(paramValue * mult.factor)
             : mult.op === 'floor'
@@ -326,10 +328,23 @@ serve(async (req) => {
         const psel = Array.isArray(item?.product_selector) ? item!.product_selector[0] : item?.product_selector;
         if (psel?.type === 'product_selector') {
           const rules = psel.rules || [];
+          
+          // Debug logging for Zählerschrank and KOMPL selectors
+          if (produkt_gruppe_id === 'GRV-HV-ZSCHA' || produkt_gruppe_id === 'GRV-HV-KOMPL') {
+            console.log(`[${produkt_gruppe_id}] Product selector evaluation:`, {
+              quantity,
+              rules: rules.map(r => ({ max: r.max, product_id: r.product_id }))
+            });
+          }
+          
           // Find the first rule where quantity is within the max threshold
           for (const rule of rules) {
             if (!rule.max || quantity <= rule.max) {
               selected_product_id = rule.product_id;
+              
+              if (produkt_gruppe_id === 'GRV-HV-ZSCHA' || produkt_gruppe_id === 'GRV-HV-KOMPL') {
+                console.log(`[${produkt_gruppe_id}] Matched rule:`, { max: rule.max, product_id: rule.product_id });
+              }
               break;
             }
           }
