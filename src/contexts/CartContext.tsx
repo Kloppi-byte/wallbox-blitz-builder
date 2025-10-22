@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Cart, CartItem, CartContextType } from '@/types/cart';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -237,9 +238,189 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Build enriched configurations with 5-layer hierarchy
+      const enrichedConfigurations = await Promise.all(
+        cart.items.map(async (item) => {
+          // Skip if not elektrosanierung or no configuration
+          if (item.productType !== 'elektrosanierung' || !item.configuration) {
+            return {
+              configurationId: item.id,
+              productType: item.productType,
+              name: item.name,
+              pricing: item.pricing,
+              configuration: item.configuration,
+              packageCategories: [],
+            };
+          }
+
+          const config = item.configuration;
+          const offerLineItems = config.offerLineItems || [];
+          const schutzorgane = config.schutzorgane || [];
+          const selectedPackages = config.selectedPackages || [];
+
+          // Fetch metadata from Supabase for complete payload
+          const packageIds = [...new Set(offerLineItems.map((li: any) => li.package_id).filter(Boolean))];
+          const productIds = [...new Set([
+            ...offerLineItems.map((li: any) => li.product_id),
+            ...schutzorgane.map((s: any) => s.product_id)
+          ].filter(Boolean))];
+
+          const [packagesData, productsData] = await Promise.all([
+            packageIds.length > 0 
+              ? supabase.from('offers_packages').select('*').in('id', packageIds as number[])
+              : { data: [], error: null },
+            productIds.length > 0
+              ? supabase.from('offers_products').select('*').in('product_id', productIds as string[])
+              : { data: [], error: null },
+          ]);
+
+          if (packagesData.error) console.error('Error fetching packages:', packagesData.error);
+          if (productsData.error) console.error('Error fetching products:', productsData.error);
+
+          // Create lookup maps
+          const packagesMap = new Map((packagesData.data || []).map(p => [p.id, p]));
+          const productsMap = new Map((productsData.data || []).map(p => [p.product_id, p]));
+
+          // Build 5-layer hierarchy
+          // Group line items by package category first
+          const packageCategoryMap = new Map<string, any>();
+
+          offerLineItems.forEach((lineItem: any) => {
+            const packageData = packagesMap.get(lineItem.package_id);
+            const productData = productsMap.get(lineItem.product_id);
+            
+            if (!packageData || !productData) return;
+
+            const packageCategory = packageData.category || 'Uncategorized';
+            const productCategory = productData.category || 'Uncategorized';
+
+            // Get or create package category
+            if (!packageCategoryMap.has(packageCategory)) {
+              packageCategoryMap.set(packageCategory, {
+                category: packageCategory,
+                packages: new Map(),
+              });
+            }
+
+            const pkgCat = packageCategoryMap.get(packageCategory);
+
+            // Get or create package within category
+            const packageKey = lineItem.instance_id || `${lineItem.package_id}`;
+            if (!pkgCat.packages.has(packageKey)) {
+              // Find package parameters from selectedPackages
+              const selectedPkg = selectedPackages.find((sp: any) => 
+                sp.instanceId === lineItem.instance_id || sp.packageId === lineItem.package_id
+              );
+
+              pkgCat.packages.set(packageKey, {
+                packageId: lineItem.package_id,
+                packageName: packageData.name,
+                packageDescription: packageData.description,
+                instanceId: lineItem.instance_id,
+                qualityLevel: packageData.quality_level,
+                isOptional: packageData.is_optional,
+                parameters: selectedPkg?.parameters || {},
+                productCategories: new Map(),
+              });
+            }
+
+            const pkg = pkgCat.packages.get(packageKey);
+
+            // Get or create product category within package
+            if (!pkg.productCategories.has(productCategory)) {
+              pkg.productCategories.set(productCategory, {
+                category: productCategory,
+                products: [],
+              });
+            }
+
+            const prodCat = pkg.productCategories.get(productCategory);
+
+            // Add product with full metadata
+            prodCat.products.push({
+              product_id: lineItem.product_id,
+              name: productData.name,
+              description: productData.description,
+              unit: productData.unit,
+              unit_price: lineItem.unit_price,
+              quantity: lineItem.quantity,
+              total_price: lineItem.total_price,
+              category: productData.category,
+              produkt_gruppe: productData.produkt_gruppe,
+              qualitaetsstufe: productData.qualitaetsstufe,
+              stunden_meister: lineItem.stunden_meister || productData.stunden_meister,
+              stunden_geselle: lineItem.stunden_geselle || productData.stunden_geselle,
+              stunden_monteur: lineItem.stunden_monteur || productData.stunden_monteur,
+              image: productData.image,
+              tags: productData.tags,
+              labor_hours: lineItem.labor_hours,
+              material_cost: lineItem.material_cost,
+            });
+          });
+
+          // Convert Maps to arrays for JSON serialization
+          const packageCategories = Array.from(packageCategoryMap.values()).map(pkgCat => ({
+            category: pkgCat.category,
+            packages: Array.from(pkgCat.packages.values()).map((pkg: any) => ({
+              packageId: pkg.packageId,
+              packageName: pkg.packageName,
+              packageDescription: pkg.packageDescription,
+              instanceId: pkg.instanceId,
+              qualityLevel: pkg.qualityLevel,
+              isOptional: pkg.isOptional,
+              parameters: pkg.parameters,
+              productCategories: Array.from(pkg.productCategories.values()),
+            })),
+          }));
+
+          // Process Schutzorgane (protection devices) with metadata
+          const schutzorganeWithMetadata = schutzorgane.map((s: any) => {
+            const productData = productsMap.get(s.product_id);
+            return {
+              product_id: s.product_id,
+              name: productData?.name || s.name,
+              description: productData?.description || '',
+              unit: productData?.unit || s.unit,
+              unit_price: s.unit_price,
+              quantity: s.quantity,
+              total_price: s.total_price,
+              category: productData?.category || 'Schutzorgane',
+              produkt_gruppe: productData?.produkt_gruppe || s.produkt_gruppe,
+              qualitaetsstufe: productData?.qualitaetsstufe,
+              stunden_meister: productData?.stunden_meister,
+              stunden_geselle: productData?.stunden_geselle,
+              stunden_monteur: productData?.stunden_monteur,
+              image: productData?.image,
+              tags: productData?.tags,
+            };
+          });
+
+          return {
+            configurationId: item.id,
+            productType: item.productType,
+            name: item.name,
+            loc_id: config.loc_id,
+            locationName: config.locationName,
+            globalParams: config.globalParams || {},
+            packageCategories,
+            schutzorgane: {
+              category: 'Schutzorgane (auto)',
+              products: schutzorganeWithMetadata,
+            },
+            pricing: item.pricing,
+            // Keep original flat structure for backward compatibility
+            originalConfiguration: {
+              offerLineItems,
+              schutzorgane,
+              selectedPackages,
+            },
+          };
+        })
+      );
+
       const webhookData = {
         customerData: cart.customerData,
-        items: cart.items,
+        configurations: enrichedConfigurations,
         totalPrice: cart.totalPrice,
         subtotalPrice: cart.subtotalPrice,
         discountPercent: cart.discountPercent,
@@ -247,6 +428,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         totalItems: cart.totalItems,
         generatedAt: new Date().toISOString(),
       };
+
+      console.log('📦 Webhook Payload (5-layer hierarchy):', JSON.stringify(webhookData, null, 2));
 
       const webhookUrl = "https://hwg-samuel.app.n8n.cloud/webhook-test/aa9cf5bf-f3ed-4d4b-a03d-254628aeca06";
       
