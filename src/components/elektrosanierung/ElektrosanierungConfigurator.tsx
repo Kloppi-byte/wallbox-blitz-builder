@@ -753,8 +753,57 @@ export function ElektrosanierungConfigurator() {
   const getNumericParam = (raw: any): number => {
     if (raw === true || String(raw).toLowerCase() === 'true' || String(raw).toLowerCase() === 'ja') return 1;
     if (raw === false || String(raw).toLowerCase() === 'false' || String(raw).toLowerCase() === 'nein') return 0;
-    const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+    const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
     return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Helper to resolve object-shaped multiplier mappings robustly (booleans, quality, numeric strings)
+  const resolveMappingAdditive = (
+    factorMap: Record<string, any>,
+    formulaKey: string,
+    allParams: Record<string, any>
+  ): number | undefined => {
+    const raw = allParams[formulaKey];
+    if (raw === undefined || raw === null) return undefined;
+
+    const candidates: string[] = [];
+
+    const rawStr = String(raw);
+    const rawLower = rawStr.toLowerCase();
+
+    // Quality-specific mappings
+    if (formulaKey === 'qualitaetsfaktor' || formulaKey === 'qualitaetsstufe') {
+      const selectedQuality = (allParams.qualitaetsfaktor ?? allParams.qualitaetsstufe ?? 'Standard') as string;
+      candidates.push(selectedQuality, 'Standard');
+    }
+
+    // Exact and case-insensitive
+    candidates.push(rawStr, rawLower);
+
+    // Boolean synonyms
+    const truthy = ['true', 'ja', 'yes', '1', 'wahr'];
+    const falsy = ['false', 'nein', 'no', '0', 'falsch'];
+
+    if (raw === true || truthy.includes(rawLower)) {
+      candidates.push('true', 'ja', '1');
+    }
+    if (raw === false || falsy.includes(rawLower)) {
+      candidates.push('false', 'nein', '0');
+    }
+
+    // Numeric normalized
+    const num = getNumericParam(raw);
+    candidates.push(String(num));
+
+    for (const key of candidates) {
+      if (Object.prototype.hasOwnProperty.call(factorMap, key)) {
+        const v = factorMap[key];
+        if (typeof v === 'number') return v;
+        const parsed = parseFloat(String(v).replace(',', '.'));
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return undefined;
   };
 
   // Recalculate line items whenever parameters change
@@ -785,11 +834,9 @@ export function ElektrosanierungConfigurator() {
               // Skip group_ref entries in first pass
               if (factor.type === 'group_ref') continue;
               
-              const paramValue = allParams[formulaKey];
-              if (paramValue !== undefined && paramValue !== null) {
-                const additiveValue = factor[String(paramValue)];
-                if (additiveValue !== undefined) {
-                  calculatedQuantity += Number(additiveValue);
+              const additiveValue = resolveMappingAdditive(factor as Record<string, any>, formulaKey, allParams);
+              if (additiveValue !== undefined) {
+                calculatedQuantity += Number(additiveValue);
                 }
               }
             } else if (typeof factor === 'number') {
@@ -890,17 +937,15 @@ export function ElektrosanierungConfigurator() {
                   continue;
                 }
                 
-                const paramValue = allParams[formulaKey];
-                if (paramValue !== undefined && paramValue !== null) {
-                  const additiveValue = factor[String(paramValue)];
-                  if (additiveValue !== undefined) {
-                    const contribution = Number(additiveValue);
-                    if (hasProductSelector) {
-                      selectionQuantity += contribution;
-                    } else {
-                      calculatedQuantity += contribution;
-                    }
+                const additiveValue = resolveMappingAdditive(factor as Record<string, any>, formulaKey, allParams);
+                if (additiveValue !== undefined) {
+                  const contribution = Number(additiveValue);
+                  if (hasProductSelector) {
+                    selectionQuantity += contribution;
+                  } else {
+                    calculatedQuantity += contribution;
                   }
+                }
                 }
               } else if (typeof factor === 'number') {
                 const paramNames = formulaKey.split('*').map(name => name.trim());
@@ -1061,13 +1106,9 @@ export function ElektrosanierungConfigurator() {
                 continue;
               }
               
-              if (typeof factor === 'object' && factor !== null) {
-                const paramValue = allParams[formulaKey];
-                if (paramValue !== undefined && paramValue !== null) {
-                  const additiveValue = factor[String(paramValue)];
-                  if (additiveValue !== undefined) {
-                    hoursMultiplier += Number(additiveValue);
-                  }
+                const additiveValue = resolveMappingAdditive(factor as Record<string, any>, formulaKey, allParams);
+                if (additiveValue !== undefined) {
+                  hoursMultiplier += Number(additiveValue);
                 }
               } else if (typeof factor === 'number') {
                 const paramNames = formulaKey.split('*').map(name => name.trim());
@@ -1076,9 +1117,7 @@ export function ElektrosanierungConfigurator() {
                 
                 for (const paramName of paramNames) {
                   if (allParams[paramName] !== undefined && allParams[paramName] !== null) {
-                    const paramValue = typeof allParams[paramName] === 'boolean'
-                      ? (allParams[paramName] ? 1 : 0)
-                      : allParams[paramName];
+                    const paramValue = getNumericParam(allParams[paramName]);
                     termValue *= paramValue;
                   } else {
                     allParamsFound = false;

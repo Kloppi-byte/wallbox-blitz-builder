@@ -118,7 +118,7 @@ serve(async (req) => {
     function getNumericParam(raw: any): number {
       if (raw === true || String(raw).toLowerCase() === 'true' || String(raw).toLowerCase() === 'ja') return 1;
       if (raw === false || String(raw).toLowerCase() === 'false' || String(raw).toLowerCase() === 'nein') return 0;
-      const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw));
+      const parsed = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
       return isNaN(parsed) ? 0 : parsed;
     }
 
