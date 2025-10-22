@@ -837,7 +837,6 @@ export function ElektrosanierungConfigurator() {
               const additiveValue = resolveMappingAdditive(factor as Record<string, any>, formulaKey, allParams);
               if (additiveValue !== undefined) {
                 calculatedQuantity += Number(additiveValue);
-                }
               }
             } else if (typeof factor === 'number') {
               const paramNames = formulaKey.split('*').map(name => name.trim());
@@ -946,7 +945,7 @@ export function ElektrosanierungConfigurator() {
                     calculatedQuantity += contribution;
                   }
                 }
-                }
+                continue;
               } else if (typeof factor === 'number') {
                 const paramNames = formulaKey.split('*').map(name => name.trim());
                 let termValue = 1.0;
@@ -1106,6 +1105,7 @@ export function ElektrosanierungConfigurator() {
                 continue;
               }
               
+              if (typeof factor === 'object' && factor !== null) {
                 const additiveValue = resolveMappingAdditive(factor as Record<string, any>, formulaKey, allParams);
                 if (additiveValue !== undefined) {
                   hoursMultiplier += Number(additiveValue);
