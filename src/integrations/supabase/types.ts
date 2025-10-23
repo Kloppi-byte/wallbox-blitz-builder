@@ -205,69 +205,6 @@ export type Database = {
         }
         Relationships: []
       }
-      Geräteübersicht_IT_Geräte: {
-        Row: {
-          "Benötigt ab...": string | null
-          Besteller: string | null
-          Eingangsdatum: string | null
-          ID: string
-          "IT Gerätetyp": string | null
-          "IT-Lieferant": string | null
-          "IT-Nutzer": string | null
-          Lieferadresse: string | null
-          "Mail Besteller": string | null
-          "Mail HWG Besteller": string | null
-          "Mail IT-Lieferant": string | null
-          monatliche_Kosten: string | null
-          partner_id: string | null
-          "Phone Besteller": string | null
-          Seriennummer: string | null
-          Status: string | null
-          Typ: string | null
-          "Verantwortlicher HWG": string | null
-        }
-        Insert: {
-          "Benötigt ab..."?: string | null
-          Besteller?: string | null
-          Eingangsdatum?: string | null
-          ID: string
-          "IT Gerätetyp"?: string | null
-          "IT-Lieferant"?: string | null
-          "IT-Nutzer"?: string | null
-          Lieferadresse?: string | null
-          "Mail Besteller"?: string | null
-          "Mail HWG Besteller"?: string | null
-          "Mail IT-Lieferant"?: string | null
-          monatliche_Kosten?: string | null
-          partner_id?: string | null
-          "Phone Besteller"?: string | null
-          Seriennummer?: string | null
-          Status?: string | null
-          Typ?: string | null
-          "Verantwortlicher HWG"?: string | null
-        }
-        Update: {
-          "Benötigt ab..."?: string | null
-          Besteller?: string | null
-          Eingangsdatum?: string | null
-          ID?: string
-          "IT Gerätetyp"?: string | null
-          "IT-Lieferant"?: string | null
-          "IT-Nutzer"?: string | null
-          Lieferadresse?: string | null
-          "Mail Besteller"?: string | null
-          "Mail HWG Besteller"?: string | null
-          "Mail IT-Lieferant"?: string | null
-          monatliche_Kosten?: string | null
-          partner_id?: string | null
-          "Phone Besteller"?: string | null
-          Seriennummer?: string | null
-          Status?: string | null
-          Typ?: string | null
-          "Verantwortlicher HWG"?: string | null
-        }
-        Relationships: []
-      }
       hero_nutzer: {
         Row: {
           created_at: string
@@ -546,6 +483,63 @@ export type Database = {
         }
         Relationships: []
       }
+      IT_Geräteliste_HWG: {
+        Row: {
+          Besteller: string | null
+          Eingangsdatum: string | null
+          IT_Gerätetyp: string | null
+          IT_Lieferant: string | null
+          IT_Nutzer: string | null
+          Kosten_in_EUR: string | null
+          Laufzeit_in_Monaten: string | null
+          Lieferadresse: string | null
+          Mail_Besteller: string | null
+          Mail_IT_Lieferant: string | null
+          Partner_ID: string | null
+          Phone_Besteller: number | null
+          "Seriennummer/ Rechnungsnummer": string | null
+          Status: string | null
+          Typ: string | null
+          Zahlungsart: string | null
+        }
+        Insert: {
+          Besteller?: string | null
+          Eingangsdatum?: string | null
+          IT_Gerätetyp?: string | null
+          IT_Lieferant?: string | null
+          IT_Nutzer?: string | null
+          Kosten_in_EUR?: string | null
+          Laufzeit_in_Monaten?: string | null
+          Lieferadresse?: string | null
+          Mail_Besteller?: string | null
+          Mail_IT_Lieferant?: string | null
+          Partner_ID?: string | null
+          Phone_Besteller?: number | null
+          "Seriennummer/ Rechnungsnummer"?: string | null
+          Status?: string | null
+          Typ?: string | null
+          Zahlungsart?: string | null
+        }
+        Update: {
+          Besteller?: string | null
+          Eingangsdatum?: string | null
+          IT_Gerätetyp?: string | null
+          IT_Lieferant?: string | null
+          IT_Nutzer?: string | null
+          Kosten_in_EUR?: string | null
+          Laufzeit_in_Monaten?: string | null
+          Lieferadresse?: string | null
+          Mail_Besteller?: string | null
+          Mail_IT_Lieferant?: string | null
+          Partner_ID?: string | null
+          Phone_Besteller?: number | null
+          "Seriennummer/ Rechnungsnummer"?: string | null
+          Status?: string | null
+          Typ?: string | null
+          Zahlungsart?: string | null
+        }
+        Relationships: []
+      }
       locs: {
         Row: {
           address: string | null
@@ -756,6 +750,7 @@ export type Database = {
           is_optional: boolean | null
           name: string
           quality_level: string | null
+          quote_description: string | null
         }
         Insert: {
           category?: string | null
@@ -765,6 +760,7 @@ export type Database = {
           is_optional?: boolean | null
           name: string
           quality_level?: string | null
+          quote_description?: string | null
         }
         Update: {
           category?: string | null
@@ -774,6 +770,7 @@ export type Database = {
           is_optional?: boolean | null
           name?: string
           quality_level?: string | null
+          quote_description?: string | null
         }
         Relationships: []
       }
@@ -805,10 +802,11 @@ export type Database = {
           product_id: string
           produkt_gruppe: string | null
           qualitaetsstufe: string | null
+          quote_description: string | null
           stunden_geselle: number | null
           stunden_meister: number | null
           stunden_monteur: number | null
-          tags: Json
+          tags: Json | null
           unit: string
           unit_price: number
         }
@@ -821,10 +819,11 @@ export type Database = {
           product_id: string
           produkt_gruppe?: string | null
           qualitaetsstufe?: string | null
+          quote_description?: string | null
           stunden_geselle?: number | null
           stunden_meister?: number | null
           stunden_monteur?: number | null
-          tags?: Json
+          tags?: Json | null
           unit: string
           unit_price?: number
         }
@@ -837,10 +836,11 @@ export type Database = {
           product_id?: string
           produkt_gruppe?: string | null
           qualitaetsstufe?: string | null
+          quote_description?: string | null
           stunden_geselle?: number | null
           stunden_meister?: number | null
           stunden_monteur?: number | null
-          tags?: Json
+          tags?: Json | null
           unit?: string
           unit_price?: number
         }
@@ -849,21 +849,21 @@ export type Database = {
       offers_products_prices: {
         Row: {
           "Eco-Heat factor": number | null
-          "Kliebisch Elektro factor": number | null
+          "Elektro Kliebisch factor": number | null
           product_id: string
           "Römhild Elektro factor": number | null
           unit_price: number
         }
         Insert: {
           "Eco-Heat factor"?: number | null
-          "Kliebisch Elektro factor"?: number | null
+          "Elektro Kliebisch factor"?: number | null
           product_id: string
           "Römhild Elektro factor"?: number | null
           unit_price: number
         }
         Update: {
           "Eco-Heat factor"?: number | null
-          "Kliebisch Elektro factor"?: number | null
+          "Elektro Kliebisch factor"?: number | null
           product_id?: string
           "Römhild Elektro factor"?: number | null
           unit_price?: number
@@ -985,9 +985,11 @@ export type Database = {
       partnerbetriebe: {
         Row: {
           adresse: string | null
+          "Aircall Zentrale": string | null
           "Anfragen@ Account": string | null
           "API Key Hero Account": string | null
           api_keys_getmika: string | null
+          Bank: string | null
           betriebsnummer: string | null
           BIC: string | null
           contact_person: string | null
@@ -1021,9 +1023,11 @@ export type Database = {
         }
         Insert: {
           adresse?: string | null
+          "Aircall Zentrale"?: string | null
           "Anfragen@ Account"?: string | null
           "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
+          Bank?: string | null
           betriebsnummer?: string | null
           BIC?: string | null
           contact_person?: string | null
@@ -1057,9 +1061,11 @@ export type Database = {
         }
         Update: {
           adresse?: string | null
+          "Aircall Zentrale"?: string | null
           "Anfragen@ Account"?: string | null
           "API Key Hero Account"?: string | null
           api_keys_getmika?: string | null
+          Bank?: string | null
           betriebsnummer?: string | null
           BIC?: string | null
           contact_person?: string | null
@@ -1662,18 +1668,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      ensure_user_profile: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_role_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      ensure_user_profile: { Args: never; Returns: undefined }
+      get_current_user_role: { Args: never; Returns: string }
+      get_current_user_role_secure: { Args: never; Returns: string }
       get_hero_onboarding_status: {
         Args: { p_partner_id: string }
         Returns: string
@@ -1700,10 +1697,7 @@ export type Database = {
           updated_on: string
         }[]
       }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin_user: { Args: never; Returns: boolean }
       match_documents: {
         Args: { filter: Json; match_count: number; query_embedding: string }
         Returns: {
@@ -1717,14 +1711,8 @@ export type Database = {
         Args: { p_email: string; p_role: string }
         Returns: undefined
       }
-      verify_admin_access_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      verify_financial_data_integrity: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      verify_admin_access_secure: { Args: never; Returns: boolean }
+      verify_financial_data_integrity: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
