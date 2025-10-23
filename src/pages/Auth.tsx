@@ -15,7 +15,6 @@ const authSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,45 +41,23 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Validate input
       authSchema.parse({ email, password });
 
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast.error("Ungültige Anmeldedaten");
-          } else {
-            toast.error(error.message);
-          }
-          return;
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("Ungültige Anmeldedaten");
+        } else {
+          toast.error(error.message);
         }
-
-        toast.success("Erfolgreich angemeldet!");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-          },
-        });
-
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast.error("Diese E-Mail ist bereits registriert");
-          } else {
-            toast.error(error.message);
-          }
-          return;
-        }
-
-        toast.success("Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mail.");
+        return;
       }
+
+      toast.success("Erfolgreich angemeldet!");
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -94,11 +71,9 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{isLogin ? "Anmelden" : "Registrieren"}</CardTitle>
+          <CardTitle>Anmelden</CardTitle>
           <CardDescription>
-            {isLogin
-              ? "Melden Sie sich bei Ihrem Konto an"
-              : "Erstellen Sie ein neues Konto"}
+            Melden Sie sich bei Ihrem Konto an
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -126,20 +101,9 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Lädt..." : isLogin ? "Anmelden" : "Registrieren"}
+              {loading ? "Lädt..." : "Anmelden"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
-            >
-              {isLogin
-                ? "Noch kein Konto? Registrieren"
-                : "Bereits registriert? Anmelden"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
