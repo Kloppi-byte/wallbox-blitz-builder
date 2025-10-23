@@ -9,6 +9,8 @@ import Elektrosanierung from "./pages/Elektrosanierung";
 import Zaehler from "./pages/Zaehler";
 import Checkout from "./pages/Checkout";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { CartProvider } from "./contexts/CartContext";
 
 const queryClient = new QueryClient();
@@ -22,10 +24,11 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/wallbox" element={<Index />} />
-            <Route path="/elektrosanierung" element={<Elektrosanierung />} />
-            <Route path="/zaehler" element={<Zaehler />} />
-            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/wallbox" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/elektrosanierung" element={<ProtectedRoute><Elektrosanierung /></ProtectedRoute>} />
+            <Route path="/zaehler" element={<ProtectedRoute><Zaehler /></ProtectedRoute>} />
+            <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
