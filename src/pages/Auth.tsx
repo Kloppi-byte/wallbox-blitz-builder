@@ -18,6 +18,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -39,6 +40,7 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null);
 
     try {
       authSchema.parse({ email, password });
@@ -49,6 +51,9 @@ const Auth = () => {
       });
 
       if (error) {
+        const detailedError = `${error.message} (Code: ${error.status || 'N/A'})`;
+        setErrorMessage(detailedError);
+        
         if (error.message.includes("Invalid login credentials")) {
           toast.error("Ungültige Anmeldedaten");
         } else {
@@ -60,7 +65,9 @@ const Auth = () => {
       toast.success("Erfolgreich angemeldet!");
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
+        const validationError = error.errors[0].message;
+        setErrorMessage(validationError);
+        toast.error(validationError);
       }
     } finally {
       setLoading(false);
@@ -103,6 +110,11 @@ const Auth = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Lädt..." : "Anmelden"}
             </Button>
+            {errorMessage && (
+              <div className="mt-3 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                {errorMessage}
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

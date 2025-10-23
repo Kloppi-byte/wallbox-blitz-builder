@@ -282,7 +282,7 @@ export function ElektrosanierungConfigurator() {
         setLoading(true);
         setError(null);
 
-        // Fetch data from all seven tables concurrently using Promise.all
+        // Fetch data from all seven tables concurrently - handle errors independently
         const [packagesResult, packageItemsResult, productGroupsResult, productsResult, paramLinksResult, paramDefsResult, productsPricesResult] = await Promise.all([
           supabase.from('offers_packages').select('*').order('category', { ascending: true }).order('name', { ascending: true }),
           supabase.from('offers_package_items').select('*'),
@@ -297,14 +297,30 @@ export function ElektrosanierungConfigurator() {
         const ratesResult = await (supabase as any).from('offers_rates').select('*');
         const locsResult = await supabase.from('locs').select('id, name');
 
-        // Check for errors in any of the requests
-        if (packagesResult.error) throw packagesResult.error;
-        if (packageItemsResult.error) throw packageItemsResult.error;
-        if (productGroupsResult.error) throw productGroupsResult.error;
-        if (productsResult.error) throw productsResult.error;
-        if (paramLinksResult.error) throw paramLinksResult.error;
-        if (paramDefsResult.error) throw paramDefsResult.error;
-        if (productsPricesResult.error) throw productsPricesResult.error;
+        // Collect all errors instead of throwing on first one
+        const errors: string[] = [];
+        
+        if (packagesResult.error) errors.push(`offers_packages: ${packagesResult.error.message} (${packagesResult.error.code})`);
+        if (packageItemsResult.error) errors.push(`offers_package_items: ${packageItemsResult.error.message} (${packageItemsResult.error.code})`);
+        if (productGroupsResult.error) errors.push(`offers_product_groups: ${productGroupsResult.error.message} (${productGroupsResult.error.code})`);
+        if (productsResult.error) errors.push(`offers_products: ${productsResult.error.message} (${productsResult.error.code})`);
+        if (paramLinksResult.error) errors.push(`offers_package_parameter_links: ${paramLinksResult.error.message} (${paramLinksResult.error.code})`);
+        if (paramDefsResult.error) errors.push(`offers_package_parameter_definitions: ${paramDefsResult.error.message} (${paramDefsResult.error.code})`);
+        if (productsPricesResult.error) errors.push(`offers_products_prices: ${productsPricesResult.error.message} (${productsPricesResult.error.code})`);
+        if (ratesResult.error) errors.push(`offers_rates: ${ratesResult.error.message} (${ratesResult.error.code})`);
+        if (locsResult.error) errors.push(`locs: ${locsResult.error.message} (${locsResult.error.code})`);
+
+        if (errors.length > 0) {
+          const errorMsg = `Table access errors:\n${errors.join('\n')}`;
+          setError(errorMsg);
+          console.error('Table access errors:', errors);
+          toast({
+            title: "Datenzugriff fehlgeschlagen",
+            description: `${errors.length} Tabelle(n) konnten nicht geladen werden. Siehe Konsole für Details.`,
+            variant: "destructive",
+          });
+          return;
+        }
 
         // Update state with fetched data
         if (packagesResult.data) setAvailablePackages(packagesResult.data);

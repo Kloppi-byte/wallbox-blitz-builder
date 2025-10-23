@@ -10,6 +10,7 @@ import Zaehler from "./pages/Zaehler";
 import Checkout from "./pages/Checkout";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import DebugRLS from "./pages/DebugRLS";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { CartProvider } from "./contexts/CartContext";
 
@@ -25,6 +26,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/debug/rls" element={<DebugRLS />} />
             <Route path="/wallbox" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/elektrosanierung" element={<ProtectedRoute><Elektrosanierung /></ProtectedRoute>} />
             <Route path="/zaehler" element={<ProtectedRoute><Zaehler /></ProtectedRoute>} />
